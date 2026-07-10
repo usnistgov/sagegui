@@ -113,8 +113,23 @@ This is why the GUI is stuck on an old Sage version.
 | File | When to consult |
 |------|-----------------|
 | `C:\Users\ban\Documents\GitHub\sagePreview\reference\sage\` | Official Sage source code |
-| `C:\Users\ban\Documents\GitHub\sagePreview\reference-notes\sage-online-docs.md` | Sage documentation |
 | `jspaezp/sage` fork | Sebastian's modified Sage with lib exports |
+
+### Sage Reference Notes (from sagePreview)
+
+Located at `C:\Users\ban\Documents\GitHub\sagePreview\reference-notes\`:
+
+| File | Content |
+|------|---------|
+| `sage-online-docs.md` | Full Sage documentation (scraped) |
+| `sage-config-and-gotchas.md` | Decoy handling, tolerance syntax, chimeric search |
+| `unimod-decomposition.md` | Unimod matching strategy, ambiguity handling |
+| `oxonium-ions.md` | Glycan diagnostic ions |
+| `polymer-contaminant-ions.md` | Polymer series for contamination detection |
+| `ptm-shepherd-methodology.md` | PTM-Shepherd approach reference |
+| `mgf-mzml-intensity-differences.md` | Intensity handling notes |
+| `MS1-intensity.md` | MS1 signal fate approaches |
+| `digestion-efficiency-metrics.md` | Missed cleavages, semi-tryptic metrics |
 
 ---
 
