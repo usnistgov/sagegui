@@ -172,9 +172,9 @@ See `NOTES.md` for current phase status and recent decisions.
 
 **Sage version:** v0.15.0-beta.2 (commit d74024df)
 
-**Completed phases:** 0 (Bug fixes), 1 (Fork Sage & Update API to v0.15.0-beta.2)  
-**Current phase:** 2 (Test & Validate)  
-**Next phase:** 3 (CI/CD & Release)
+**Completed phases:** 0 (Bug fixes), 1 (Fork Sage & Update API), 2 (Test & Validate)  
+**Current phase:** 3 (CI/CD & Release)  
+**Next phase:** 4 (Documentation & Handoff)
 
 ---
 

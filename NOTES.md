@@ -7,9 +7,9 @@ Read this alongside `PLAN.md` to understand current project state.
 
 ## Current Status
 
-**Active Phase:** Phase 2 — Test & Validate  
+**Active Phase:** Phase 3 — CI/CD & Release  
 **Last Updated:** 2026-07-10  
-**Next Action:** Test GUI with real data, then proceed to CI/CD
+**Next Action:** Verify CI builds, create release v0.6.0
 
 ---
 
@@ -137,21 +137,44 @@ The jump from v0.14.7 to v0.15.0-beta.2 required these fixes:
 
 ## Phase 2 — Test & Validate
 
-**Status:** In Progress  
-**Started:** 2026-07-10
+**Status:** ✅ Complete  
+**Started:** 2026-07-10  
+**Completed:** 2026-07-10
 
 ### Test Cases
-1. [ ] Load mzML files
-2. [ ] Load FASTA database
-3. [ ] Configure search parameters
-4. [ ] Run search
-5. [ ] View results summary
-6. [ ] TMT quantification (all plex sizes)
-7. [ ] LFQ quantification
+1. [x] Load mzML files
+2. [x] Load FASTA database
+3. [x] Configure search parameters
+4. [x] Run search
+5. [x] View results summary
+6. [ ] TMT quantification (all plex sizes) — not tested yet
+7. [x] LFQ quantification
+
+### Test Results
+
+**Test Data:**
+- mzML: `B.naive_01steady-state.mzML.gz` (from sagePreview testing)
+- FASTA: `UniProt-Human-UP000005640_canonical-2023_05.fasta`
+
+**Search Parameters:**
+- Precursor tolerance: ±10 ppm
+- Fragment tolerance: ±10 ppm
+- Enzyme: Trypsin (KR, not P), 2 missed cleavages
+- Static mods: C+57.021 (carbamidomethyl)
+- Variable mods: M+15.995 (oxidation)
+- LFQ enabled
+
+**Results:**
+- **60,672 PSMs** identified
+- **LFQ quantification** working (lfq.tsv generated)
+- Output files: `test/results.sage.tsv`, `test/lfq.tsv`, `test/results.json`
 
 ### Notes
-- GUI launches successfully (confirmed)
-- No runtime testing done yet
+- GUI launches successfully ✅
+- File selection works ✅
+- Search execution works ✅
+- LFQ quantification works ✅
+- TMT not tested (would need TMT-labeled data)
 
 ---
 
