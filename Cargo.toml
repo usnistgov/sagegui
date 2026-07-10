@@ -10,9 +10,10 @@ egui = "0.29.0"
 rfd = "0.15.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sage-core = { git = "https://github.com/jspaezp/sage.git", rev = "d62801967046b28b14490baf7f9a1842c8264be6" }
-sage-cli = { git = "https://github.com/jspaezp/sage.git", rev = "d62801967046b28b14490baf7f9a1842c8264be6" }
-sage-cloudpath = { git = "https://github.com/jspaezp/sage.git", rev = "d62801967046b28b14490baf7f9a1842c8264be6" }
+# Pinned to v0.15.0-beta.2 (commit d74024df)
+sage-core = { git = "https://github.com/neely/sage.git", rev = "d74024df774054fa411a9d5cca6013ce91d26208" }
+sage-cli = { git = "https://github.com/neely/sage.git", rev = "d74024df774054fa411a9d5cca6013ce91d26208" }
+sage-cloudpath = { git = "https://github.com/neely/sage.git", rev = "d74024df774054fa411a9d5cca6013ce91d26208" }
 timsrust = "0.4.1"
 num_cpus = "1.13"
 egui_extras = { version = "0.29.1", features = ["all_loaders"] }

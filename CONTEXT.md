@@ -170,9 +170,11 @@ See `NOTES.md` for current phase status and recent decisions.
 
 **Last updated:** 2026-07-10
 
-**Completed phases:** 0 (Bug fixes pushed)  
-**Current phase:** 1 (Get organized)  
-**Next phase:** 2 (Fork Sage, add lib exports)
+**Sage version:** v0.15.0-beta.2 (commit d74024df)
+
+**Completed phases:** 0 (Bug fixes), 1 (Fork Sage & Update API to v0.15.0-beta.2)  
+**Current phase:** 2 (Test & Validate)  
+**Next phase:** 3 (CI/CD & Release)
 
 ---
 

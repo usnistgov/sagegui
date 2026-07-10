@@ -7,9 +7,9 @@ Read this alongside `PLAN.md` to understand current project state.
 
 ## Current Status
 
-**Active Phase:** Phase 0 — Bug Fixes & Organization  
+**Active Phase:** Phase 2 — Test & Validate  
 **Last Updated:** 2026-07-10  
-**Next Action:** Complete documentation, then start Phase 1 (Fork Sage)
+**Next Action:** Test GUI with real data, then proceed to CI/CD
 
 ---
 
@@ -83,101 +83,99 @@ if ui.selectable_label(self.fragment_tol_unit == "ppm", "ppm").clicked() {
 
 3. **Keep Sebastian's structure** — Single `main.rs` file, egui/eframe framework.
 
-### API Analysis (for Phase 1-2)
+---
 
-Analyzed differences between Sebastian's Sage fork and official Sage v0.14.7:
+## Phase 1 — Fork Sage & Update to v0.15.0-beta.2
 
-| Component | Sebastian's Fork | Official v0.14.7 | Impact |
-|-----------|-----------------|------------------|--------|
-| `sage-cli` | Has `lib.rs` with exports | No lib target | Must add lib.rs |
-| `Kind` enum | Implements `Hash`/`Eq` | Does not | Must add derives or change data structure |
-| `BrukerSpectrumProcessor` | Old name | Now `BrukerProcessingConfig` | Simple rename |
-| `Builder` struct | Old fields | New fields (`fragment_min_mz`, etc.) | Add new fields |
-| `variable_mods` | `Vec<(String, f32)>` | `HashMap<String, Vec<f32>>` | Type change |
-| `timsrust` | Old API | New API | May need updates |
+**Status:** ✅ Complete  
+**Started:** 2026-07-10  
+**Completed:** 2026-07-10
+
+### Goals
+- Fork `lazear/sage` to `neely/sage`
+- Update sagegui to use our fork with latest Sage version
+- Fix all API compatibility issues
+
+### Key Discovery
+
+**Good news:** The official Sage v0.15.0-beta.2 already has `lib.rs` in `sage-cli`! We don't need to add it ourselves. The original plan assumed we'd need to create this file, but it already exports:
+- `input`
+- `output`
+- `runner`
+- `telemetry`
+
+### API Changes Fixed
+
+The jump from v0.14.7 to v0.15.0-beta.2 required these fixes:
+
+| Issue | Location | Fix Applied |
+|-------|----------|-------------|
+| `restrict` type | `EnzymeBuilder` | Changed from `Option<char>` to `Option<String>` via `.map(\|c\| c.to_string())` |
+| `Builder` missing fields | `DatabaseConfig → Builder` | Added `prefilter: None`, `prefilter_chunk_size: None`, `prefilter_low_memory: None` |
+| `LfqOptions` missing fields | `QuantType → QuantOptions` | Added `mobility_pct_tolerance: None`, `peptide_q_value: None` |
+| `Input` field renamed | `Config → Input` | Changed `bruker_spectrum_processor` → `bruker_config: None` |
+| `Input` new fields | `Config → Input` | Added `protein_grouping: None`, `protein_grouping_peptide_fdr: None`, `write_report: None` |
+| `Runner::new` signature | `run_sage()` | Changed from `input.build().and_then(Runner::new)` to `let search = input.build()?; Runner::new(search, parallel.into())` |
+
+### Improvements Made
+
+1. **Pinned to specific commit** — Changed from `branch = "master"` to `rev = "d74024df..."` for reproducibility
+2. **Added version display** — GUI now shows "Sage Engine Version: v0.15.0-beta.2" in Info/Help
+3. **Updated repository links** — Changed from jspaezp to neely
+4. **Created CHANGELOG.md** — Tracks all changes for release notes
 
 ### Checkpoint Status
-- [x] TMT bug fixed
-- [x] Fragment tolerance bug fixed
-- [x] Pushed to neely/sagegui
-- [x] CONTEXT.md created
-- [x] PLAN.md created
-- [x] NOTES.md created
-- [x] GLOSSARY.md created
-- [ ] README.md updated (deferred to Phase 5)
-
-### Open Questions
-- None for Phase 0
+- [x] Fork lazear/sage to neely/sage
+- [x] Clone fork locally
+- [x] Discovered lib.rs already exists (no modifications needed!)
+- [x] Update sagegui Cargo.toml to use our fork
+- [x] Fix API compatibility issues
+- [x] `cargo check` passes
+- [x] GUI launches successfully
 
 ---
 
-## Phase 1 — Fork Sage & Add Lib Exports
+## Phase 2 — Test & Validate
 
-**Status:** Not Started  
-**Planned Start:** After Phase 0 complete
+**Status:** In Progress  
+**Started:** 2026-07-10
 
-### Pre-Work Completed
-- Analyzed official Sage v0.14.7 source code
-- Identified required lib exports
-- Documented API differences
+### Test Cases
+1. [ ] Load mzML files
+2. [ ] Load FASTA database
+3. [ ] Configure search parameters
+4. [ ] Run search
+5. [ ] View results summary
+6. [ ] TMT quantification (all plex sizes)
+7. [ ] LFQ quantification
 
-### Tasks
-1. [ ] Fork `lazear/sage` to `neely/sage`
-2. [ ] Create branch `gui-lib-exports`
-3. [ ] Add `crates/sage-cli/src/lib.rs`
-4. [ ] Modify `crates/sage-cli/Cargo.toml`
-5. [ ] Test `cargo check`
-6. [ ] Tag release `v0.14.7-gui`
-7. [ ] Update sagegui Cargo.toml
-
----
-
-## Phase 2 — Fix API Compatibility Issues
-
-**Status:** Not Started
-
-### Known Issues (from Phase 0 analysis)
-
-1. **`Kind` not hashable**
-   - Location: `main.rs:110`
-   - Current: `HashMap<Kind, bool>`
-   - Fix options:
-     - A) Add `#[derive(Hash, Eq)]` to `Kind` in our Sage fork
-     - B) Change to `Vec<(Kind, bool)>` in GUI
-
-2. **`BrukerSpectrumProcessor` renamed**
-   - Location: `main.rs:27`
-   - Fix: Update import to `BrukerProcessingConfig`
-
-3. **`Builder` missing fields**
-   - Location: `main.rs:171`
-   - Fix: Add `fragment_min_mz`, `fragment_max_mz` fields
-
-4. **`variable_mods` type change**
-   - Location: `main.rs:183`
-   - Fix: Update to `HashMap<String, Vec<f32>>`
-
-5. **`ScoreType` location**
-   - Location: `main.rs:19`
-   - Fix: Find new import path or remove
+### Notes
+- GUI launches successfully (confirmed)
+- No runtime testing done yet
 
 ---
 
 ## Reference Information
 
-### Sebastian's Sage Fork
-- Repo: `github.com/jspaezp/sage`
-- Key modification: Added `lib.rs` to `sage-cli`
-- Last updated: ~2 years ago (stuck on old Sage version)
+### Sage Versions
 
-### Official Sage
-- Repo: `github.com/lazear/sage`
-- Current version: v0.14.7
-- Key crates: `sage-core`, `sage-cli`, `sage-cloudpath`
+| Version | Status | Notes |
+|---------|--------|-------|
+| v0.14.7 | Old (Sebastian's) | What the original GUI used |
+| v0.15.0-beta.2 | Current | What we're using now (commit d74024df) |
 
 ### Our Forks
 - sagegui: `github.com/neely/sagegui`
-- sage (to be created): `github.com/neely/sage`
+- sage: `github.com/neely/sage` (forked from lazear/sage)
+
+### Key Files in Sage
+
+| File | Purpose |
+|------|---------|
+| `crates/sage-cli/src/lib.rs` | Exports input, output, runner, telemetry |
+| `crates/sage-cli/src/input.rs` | `Input`, `LfqOptions`, `QuantOptions`, etc. |
+| `crates/sage-cli/src/runner.rs` | `Runner::new()`, `Runner::run()` |
+| `crates/sage/src/database.rs` | `Builder`, `EnzymeBuilder` |
 
 ---
 
@@ -198,8 +196,26 @@ Analyzed differences between Sebastian's Sage fork and official Sage v0.14.7:
 - Will fork official Sage and add lib exports
 - Accept maintenance burden of keeping fork in sync
 
+### 2026-07-10 Session 2
+
+**Accomplished:**
+1. Forked lazear/sage to neely/sage
+2. Discovered lib.rs already exists in v0.15.0-beta.2 (pleasant surprise!)
+3. Updated sagegui Cargo.toml to use neely/sage
+4. Fixed 6 API compatibility issues
+5. Pinned dependency to specific commit hash
+6. Added Sage version display in GUI
+7. Created CHANGELOG.md
+8. Updated PLAN.md and NOTES.md with accurate information
+9. Confirmed GUI launches successfully
+
+**Key Learnings:**
+- The plan predicted we'd need to add lib.rs, but it already existed
+- The plan mentioned v0.14.7, but we used v0.15.0-beta.2 (current master)
+- API changes were different from what was predicted in the plan
+- Pinning to commit hash is better than branch for reproducibility
+
 **Next Steps:**
-1. Fork lazear/sage to neely/sage
-2. Add lib exports
-3. Update sagegui to use our fork
-4. Fix compilation errors
+1. Commit and push all changes
+2. Test with real data (Phase 2)
+3. Set up CI/CD (Phase 3)

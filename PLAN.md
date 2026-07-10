@@ -48,7 +48,7 @@ Provide a user-friendly graphical interface for Sage that:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key dependency:** Our fork of Sage at `github.com/neely/sage` with lib exports.
+**Key dependency:** Our fork of Sage at `github.com/neely/sage` (v0.15.0-beta.2, commit d74024df).
 
 ---
 
@@ -69,54 +69,38 @@ Provide a user-friendly graphical interface for Sage that:
 
 ---
 
-### Phase 1 — Fork Sage & Add Lib Exports
+### Phase 1 — Fork Sage & Update to v0.15.0-beta.2 ✅ Complete
 
 **Goals:**
 - Fork `lazear/sage` to `neely/sage`
-- Add `lib.rs` to `sage-cli` crate to expose internals
-- Tag a release (e.g., `v0.14.7-gui`)
-- Update sagegui to use our fork
+- Update sagegui to use our fork with latest Sage version
+- Fix all API compatibility issues
 
-**Tasks:**
-1. Fork `lazear/sage` on GitHub
-2. Create branch `gui-lib-exports`
-3. Add `crates/sage-cli/src/lib.rs`:
-   ```rust
-   pub mod input;
-   pub mod output;
-   pub mod runner;
-   pub mod telemetry;
-   ```
-4. Modify `crates/sage-cli/Cargo.toml` to include lib target
-5. Test that `cargo check` passes
-6. Tag release `v0.14.7-gui`
-7. Update `sagegui/Cargo.toml` to point to our fork
+**Completed:**
+- [x] Forked `lazear/sage` to `neely/sage`
+- [x] Discovered `lib.rs` already exists in v0.15.0-beta.2 (no modifications needed!)
+- [x] Updated `sagegui/Cargo.toml` to use our fork
+- [x] Fixed API compatibility issues (see below)
+- [x] Pinned to specific commit hash for reproducibility
+- [x] Added Sage version display in GUI
+- [x] Created CHANGELOG.md
 
-**Checkpoint:** `cargo check` passes on sagegui with our Sage fork.
+**API Changes Fixed:**
 
----
+| Issue | Fix Applied |
+|-------|-------------|
+| `restrict` type changed | `Option<char>` → `Option<String>` via `.map(\|c\| c.to_string())` |
+| `Builder` missing fields | Added `prefilter: None`, `prefilter_chunk_size: None`, `prefilter_low_memory: None` |
+| `LfqOptions` missing fields | Added `mobility_pct_tolerance: None`, `peptide_q_value: None` |
+| `Input` field renamed | Changed `bruker_spectrum_processor` → `bruker_config: None` |
+| `Input` new fields | Added `protein_grouping: None`, `protein_grouping_peptide_fdr: None`, `write_report: None` |
+| `Runner::new` signature | Changed from `Runner::new(search)` to `Runner::new(search, parallel)` |
 
-### Phase 2 — Fix API Compatibility Issues
-
-**Goals:**
-- Resolve all compilation errors from API changes
-- Update GUI code to work with official Sage v0.14.7 types
-
-**Known Issues to Fix:**
-
-| Issue | Location | Fix |
-|-------|----------|-----|
-| `Kind` not hashable | `main.rs:110` | Replace `HashMap<Kind, bool>` with `Vec<(Kind, bool)>` or add derives to our fork |
-| `BrukerSpectrumProcessor` renamed | `main.rs:27` | Update to `BrukerProcessingConfig` |
-| `Builder` missing fields | `main.rs:171` | Add `fragment_min_mz`, `fragment_max_mz` |
-| `variable_mods` type change | `main.rs:183` | Update to `HashMap<String, Vec<f32>>` |
-| `ScoreType` moved | `main.rs:19` | Find new location or remove |
-
-**Checkpoint:** `cargo build --release` succeeds.
+**Checkpoint:** ✅ `cargo check` passes, GUI launches successfully.
 
 ---
 
-### Phase 3 — Test & Validate
+### Phase 2 — Test & Validate (Current)
 
 **Goals:**
 - Run the GUI and verify all features work
@@ -124,19 +108,19 @@ Provide a user-friendly graphical interface for Sage that:
 - Fix any runtime issues
 
 **Test Cases:**
-1. Load mzML files
-2. Load FASTA database
-3. Configure search parameters
-4. Run search
-5. View results summary
-6. TMT quantification (all plex sizes)
-7. LFQ quantification
+1. [ ] Load mzML files
+2. [ ] Load FASTA database
+3. [ ] Configure search parameters
+4. [ ] Run search
+5. [ ] View results summary
+6. [ ] TMT quantification (all plex sizes)
+7. [ ] LFQ quantification
 
 **Checkpoint:** All test cases pass.
 
 ---
 
-### Phase 4 — CI/CD & Release
+### Phase 3 — CI/CD & Release
 
 **Goals:**
 - Verify GitHub Actions builds work
@@ -144,17 +128,17 @@ Provide a user-friendly graphical interface for Sage that:
 - Document release process
 
 **Tasks:**
-1. Push all changes
-2. Verify CI builds pass on all platforms
-3. Create tag `v0.5.1`
-4. Verify release artifacts are created
-5. Document how to update Sage version in future
+1. [ ] Push all changes
+2. [ ] Verify CI builds pass on all platforms
+3. [ ] Create tag `v0.6.0`
+4. [ ] Verify release artifacts are created
+5. [ ] Document how to update Sage version in future
 
-**Checkpoint:** Release `v0.5.1` available with binaries for Windows, macOS, Linux.
+**Checkpoint:** Release `v0.6.0` available with binaries for Windows, macOS, Linux.
 
 ---
 
-### Phase 5 — Documentation & Handoff
+### Phase 4 — Documentation & Handoff
 
 **Goals:**
 - Update README with installation instructions
@@ -170,8 +154,9 @@ Provide a user-friendly graphical interface for Sage that:
 
 ## Future Phases (Not Planned Yet)
 
-- **Phase 6:** UI improvements (better layout, themes)
-- **Phase 7:** Additional features (batch processing, presets)
+- **Phase 5:** UI improvements (better layout, themes)
+- **Phase 6:** Additional features (batch processing, presets)
+- **Phase 7:** Expose new Sage v0.15 features (prefilter, protein grouping, write_report)
 - **Phase 8:** Consider Option C (wrapper) if maintenance burden too high
 
 ---
@@ -186,9 +171,9 @@ When Sage releases a new version:
    git merge upstream/main
    ```
 
-2. **Re-apply lib exports** if needed (usually just resolving conflicts in `lib.rs`)
+2. **Update sagegui Cargo.toml** to new commit hash
 
-3. **Update sagegui** to use new tag
+3. **Fix any API changes** (check for new/changed fields in Input, Builder, etc.)
 
 4. **Test and release** new sagegui version
 
@@ -203,3 +188,5 @@ When Sage releases a new version:
 | 2026-07-10 | Option A (fork Sage) over Option C (wrapper) | User preference for embedded approach despite maintenance burden |
 | 2026-07-10 | Keep egui/eframe | Already working, good Rust GUI choice |
 | 2026-07-10 | Single main.rs file | Keep Sebastian's structure for now |
+| 2026-07-10 | Target v0.15.0-beta.2 instead of v0.14.7 | Latest version already has lib.rs, fewer modifications needed |
+| 2026-07-10 | Pin to commit hash | Prevents unexpected breakage from upstream changes |

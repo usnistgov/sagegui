@@ -24,7 +24,7 @@ use std::str::FromStr;
 use std::sync::mpsc::{self, Receiver};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
-use timsrust::readers::SpectrumReaderConfig as BrukerSpectrumProcessor;
+// BrukerSpectrumProcessor removed - no longer needed, using bruker_config: None
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct EnzymeConfig {
@@ -98,7 +98,7 @@ impl From<EnzymeConfig> for EnzymeBuilder {
             min_len: Some(val.min_len),
             max_len: Some(val.max_len),
             cleave_at: Some(val.cleave_at),
-            restrict,
+            restrict: restrict.map(|c| c.to_string()),
             c_terminal: Some(val.c_terminal),
             semi_enzymatic: Some(val.semi_enzymatic),
         }
@@ -181,6 +181,9 @@ impl From<DatabaseConfig> for Builder {
             fasta: Some(val.fasta),
             static_mods: Some(val.static_mods.as_hashmap()),
             variable_mods: Some(val.variable_mods.as_hashmap()),
+            prefilter: None,
+            prefilter_chunk_size: None,
+            prefilter_low_memory: None,
         }
     }
 }
@@ -487,7 +490,9 @@ impl From<QuantType> for QuantOptions {
                     integration: Some(IntegrationStrategy::Sum),
                     spectral_angle: Some(lfq.spectral_angle),
                     ppm_tolerance: Some(lfq.ppm_tolerance),
+                    mobility_pct_tolerance: None,
                     combine_charge_states: Some(lfq.combine_charge_states),
+                    peptide_q_value: None,
                 };
                 QuantOptions {
                     tmt: None,
@@ -543,7 +548,7 @@ struct Config {
     quant_enabled: bool,
     quant_class: SupportedQuantTypes,
 
-    bruker_spectrum_processor: Option<BrukerSpectrumProcessor>,
+    // bruker_spectrum_processor removed - using bruker_config: None in Input
     annotate_matches: bool,
     write_pin: bool,
     score_type: ScoreType,
@@ -590,10 +595,12 @@ impl From<Config> for Input {
             predict_rt: Some(val.predict_rt),
             output_directory: Some(val.output_directory),
             mzml_paths: Some(mzml_path_strings),
-            bruker_spectrum_processor: val.bruker_spectrum_processor,
-
+            bruker_config: None,
+            protein_grouping: None,
+            protein_grouping_peptide_fdr: None,
             annotate_matches: Some(val.annotate_matches),
             write_pin: Some(val.write_pin),
+            write_report: None,
             score_type: Some(val.score_type),
         }
     }
@@ -623,7 +630,6 @@ impl Default for Config {
             dotd_paths: Vec::new(),
             quant_enabled: true,
             quant: QuantType::default(),
-            bruker_spectrum_processor: None,
             quant_class: SupportedQuantTypes::Lfq,
             annotate_matches: false,
             write_pin: false,
@@ -920,8 +926,11 @@ impl eframe::App for SageLauncher {
                 ui.collapsing("Info/Help", |ui| {
                     ui.label("Sage GUI Version:");
                     ui.label(env!("CARGO_PKG_VERSION"));
-                    ui.label("Author: J.Sebastian Paez");
-                    ui.label("Repository (where you can report errors at): https://github.com/jspaezp/sagegui");
+                    ui.label("Sage Engine Version: v0.15.0-beta.2");
+                    ui.add_space(10.0);
+                    ui.label("Original Author: J.Sebastian Paez");
+                    ui.label("Current Maintainer: neely");
+                    ui.label("Repository: https://github.com/neely/sagegui");
                     ui.label("License: Apache-2.0");
                     ui.add_space(20.0);
                     ui.label("Search engine repository: https://github.com/lazear/sage");
@@ -1019,7 +1028,8 @@ impl SageLauncher {
 
 fn run_sage(input: Input, parallel: u16, parquet: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("Running analysis... Building");
-    let runner = input.build().and_then(Runner::new)?;
+    let search = input.build()?;
+    let runner = Runner::new(search, parallel.into())?;
     println!("Running analysis... Executing");
     let _tel = runner.run(parallel.into(), parquet)?;
     Ok(())
