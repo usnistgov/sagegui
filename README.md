@@ -12,26 +12,29 @@ Sebastian's approach embedded Sage as a Rust library dependency, which gave tigh
 
 ## Goals
 
-1. **Stay current with Sage** — Update to work with official Sage releases (currently targeting v0.14.7, with v0.15.0-beta.2 on the horizon)
+1. **Stay current with Sage** — Works with Sage v0.15.0-beta.2 (latest)
 2. **Cross-platform** — Build for Windows, macOS, and Linux via GitHub Actions
 3. **User-friendly** — Make Sage accessible to users who prefer GUIs over command lines
 4. **Maintainable** — Document the update process so future Sage versions can be supported with minimal effort
 
 ## Status
 
-🚧 **Work in Progress**
+✅ **Working** — GUI compiles and runs searches successfully!
 
 **Completed:**
 - [x] Forked Sebastian's GUI
 - [x] Fixed TMT 16/18-plex selection bug
 - [x] Fixed fragment tolerance type switching bug
 - [x] Set up project documentation
+- [x] Forked Sage to neely/sage
+- [x] Updated to Sage v0.15.0-beta.2
+- [x] Fixed all API compatibility issues
+- [x] Tested with real data (60,672 PSMs from single mzML)
+- [x] LFQ quantification working
 
 **In Progress:**
-- [ ] Fork official Sage and add library exports
-- [ ] Update GUI to work with Sage v0.14.7+
-- [ ] Test and validate all features
-- [ ] Create first release
+- [ ] Verify CI/CD builds on all platforms
+- [ ] Create first release (v0.6.0)
 
 ## Features
 

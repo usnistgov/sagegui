@@ -157,11 +157,53 @@ Provide a user-friendly graphical interface for Sage that:
 
 ---
 
+---
+
+### Phase 5 — GUI Improvements & Feature Discussion (Planned)
+
+**Goals:**
+- Discuss and prioritize GUI improvements
+- Plan integration of post-analysis features from sagePreview
+- Improve user experience
+
+**Potential Improvements:**
+
+#### UI/UX Improvements
+- [ ] Better progress display (elapsed time, estimated remaining, current step)
+- [ ] Results summary panel after search completes (PSM count, FDR stats)
+- [ ] Parameter presets (default, open search, semi-enzymatic)
+- [ ] Save/load configuration files
+- [ ] Dark mode / theme support
+- [ ] Better error messages and validation
+
+#### Post-Analysis Features (from sagePreview)
+- [ ] **Digestion Efficiency Report** — Analyze missed cleavages, semi-tryptic peptides, N/C ragged ratio
+- [ ] **Delta Mass Explorer** — Visualize modification distribution from open search
+- [ ] **Results Summary** — Quick stats panel (PSMs, peptides, proteins at various FDR)
+- [ ] **Export to sagePreview** — Generate config for deeper analysis
+
+#### New Sage v0.15 Features to Expose
+- [ ] Prefilter options (for large databases)
+- [ ] Protein grouping settings
+- [ ] Write report option
+- [ ] Bruker configuration (for timsTOF data)
+
+#### Integration Ideas
+- [ ] Link to sagePreview for advanced analysis
+- [ ] One-click "analyze results" button
+- [ ] Built-in quality metrics dashboard
+
+**Discussion Points:**
+1. Which features are highest priority?
+2. Should post-analysis be built into GUI or remain separate tools?
+3. How to handle the sagePreview relationship (link vs embed)?
+
+---
+
 ## Future Phases (Not Planned Yet)
 
-- **Phase 5:** UI improvements (better layout, themes)
-- **Phase 6:** Additional features (batch processing, presets)
-- **Phase 7:** Expose new Sage v0.15 features (prefilter, protein grouping, write_report)
+- **Phase 6:** Batch processing (multiple files, queue system)
+- **Phase 7:** Advanced visualization (spectra viewer, modification heatmaps)
 - **Phase 8:** Consider Option C (wrapper) if maintenance burden too high
 
 ---
