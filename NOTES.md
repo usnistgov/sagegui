@@ -242,3 +242,42 @@ The jump from v0.14.7 to v0.15.0-beta.2 required these fixes:
 1. Commit and push all changes
 2. Test with real data (Phase 2)
 3. Set up CI/CD (Phase 3)
+
+### 2026-07-12 Session 3 — Phase 2 Debrief
+
+**Accomplished:**
+1. Ran full search with real data (60,672 PSMs)
+2. Verified LFQ quantification works
+3. Updated PLAN.md with Phase 5 GUI improvements
+4. Added version badge to README
+
+**Phase 2 Debrief Discussion:**
+
+**Things Clarified:**
+- Test output directory (`test/`) was manually set by user in GUI
+- sagePreview scripts (LFQ, rollups) are separate tools to discuss later
+- TMT testing deferred (LFQ sufficient for now)
+
+**Improvements Identified:**
+1. **Automated testing** — Add `cargo check` and `cargo build --release` to CI
+2. **Version sync** — Need to auto-detect Sage version (currently hardcoded)
+3. **Version badge** — Added to README for visibility
+
+**Suggestions Folded into Phases:**
+
+*Phase 3 (CI/CD):*
+- Add automated testing to CI
+- Add version badge to README ✅
+- Implement version sync (auto-detect from Cargo.toml)
+
+*Phase 5 (GUI Improvements):*
+- Better progress display (current step, elapsed time, estimated remaining)
+- Results summary panel (PSM/peptide/protein counts at 1% FDR)
+- Configuration persistence (save last-used settings)
+- Smarter output directory (timestamped subfolder near mzML files)
+- Link to sagePreview ("Analyze with sagePreview" button)
+
+**Next Steps:**
+1. Proceed with Phase 3 (CI/CD & Release)
+2. Verify CI builds pass
+3. Create v0.6.0 release

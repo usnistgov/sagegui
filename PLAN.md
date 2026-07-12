@@ -131,15 +131,20 @@ Provide a user-friendly graphical interface for Sage that:
 - Verify GitHub Actions builds work
 - Create first release from our fork
 - Document release process
+- Add version tracking and badges
 
 **Tasks:**
 1. [ ] Push all changes
-2. [ ] Verify CI builds pass on all platforms
-3. [ ] Create tag `v0.6.0`
-4. [ ] Verify release artifacts are created
-5. [ ] Document how to update Sage version in future
+2. [ ] Add automated testing to CI (`cargo check`, `cargo build --release`)
+3. [ ] Verify CI builds pass on all platforms
+4. [ ] Create tag `v0.6.0`
+5. [ ] Verify release artifacts are created
+6. [ ] Add version badge to README (Sage version, build status)
+7. [ ] Add links to release binaries in README
+8. [ ] Document how to update Sage version in future
+9. [ ] Implement version sync (auto-detect Sage version from Cargo.toml or constant)
 
-**Checkpoint:** Release `v0.6.0` available with binaries for Windows, macOS, Linux.
+**Checkpoint:** Release `v0.6.0` available with binaries for Windows, macOS, Linux. README shows current Sage version badge.
 
 ---
 
@@ -168,11 +173,13 @@ Provide a user-friendly graphical interface for Sage that:
 
 **Potential Improvements:**
 
-#### UI/UX Improvements
-- [ ] Better progress display (elapsed time, estimated remaining, current step)
-- [ ] Results summary panel after search completes (PSM count, FDR stats)
+#### UI/UX Improvements (Priority)
+- [ ] **Better progress display** — Show current step (building database, searching, scoring), elapsed time, estimated remaining
+- [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at 1% FDR directly in GUI
+- [ ] **Configuration persistence** — Save last-used settings so users don't re-enter everything each time
+- [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory
 - [ ] Parameter presets (default, open search, semi-enzymatic)
-- [ ] Save/load configuration files
+- [ ] Save/load configuration files (JSON export/import)
 - [ ] Dark mode / theme support
 - [ ] Better error messages and validation
 
@@ -180,6 +187,7 @@ Provide a user-friendly graphical interface for Sage that:
 - [ ] **Digestion Efficiency Report** — Analyze missed cleavages, semi-tryptic peptides, N/C ragged ratio
 - [ ] **Delta Mass Explorer** — Visualize modification distribution from open search
 - [ ] **Results Summary** — Quick stats panel (PSMs, peptides, proteins at various FDR)
+- [ ] **LFQ/Rollup scripts** — Integration with sagePreview LFQ analysis tools (to be discussed)
 - [ ] **Export to sagePreview** — Generate config for deeper analysis
 
 #### New Sage v0.15 Features to Expose
@@ -189,7 +197,7 @@ Provide a user-friendly graphical interface for Sage that:
 - [ ] Bruker configuration (for timsTOF data)
 
 #### Integration Ideas
-- [ ] Link to sagePreview for advanced analysis
+- [ ] **Link to sagePreview** — "Analyze with sagePreview" button that opens results in sagePreview
 - [ ] One-click "analyze results" button
 - [ ] Built-in quality metrics dashboard
 
@@ -197,6 +205,7 @@ Provide a user-friendly graphical interface for Sage that:
 1. Which features are highest priority?
 2. Should post-analysis be built into GUI or remain separate tools?
 3. How to handle the sagePreview relationship (link vs embed)?
+4. LFQ/rollup scripts from sagePreview — what should be integrated?
 
 ---
 

@@ -1,5 +1,8 @@
 # SageGUI
 
+[![Sage Version](https://img.shields.io/badge/Sage-v0.15.0--beta.2-blue)](https://github.com/lazear/sage)
+[![Build Status](https://github.com/neely/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/neely/sagegui/actions)
+
 A graphical user interface for [Sage](https://github.com/lazear/sage), the blazingly fast proteomics search engine.
 
 ![SageGUI Screenshot](assets/logo.png)
