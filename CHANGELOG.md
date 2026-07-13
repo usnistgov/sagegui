@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fork:** [neely/sage](https://github.com/neely/sage) (synced with upstream lazear/sage)
 
 ### Added
-- **Automatic version sync** — Sage version is now extracted from Cargo.toml at build time via `build.rs`
+- **Version constants** — Sage version info stored in `src/version.rs` for easy updates
 - **CI/CD pipeline** — GitHub Actions workflow for building on Windows, Linux, macOS (x64 and ARM64)
 - **Release automation** — Automatic binary releases when tags are pushed
 - **Version badges** in README showing Sage version and build status

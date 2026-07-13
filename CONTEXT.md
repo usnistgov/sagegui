@@ -168,13 +168,13 @@ sagegui/
 
 See `NOTES.md` for current phase status and recent decisions.
 
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-13
 
 **Sage version:** v0.15.0-beta.2 (commit d74024df)
 
-**Completed phases:** 0 (Bug fixes), 1 (Fork Sage & Update API), 2 (Test & Validate)  
-**Current phase:** 3 (CI/CD & Release)  
-**Next phase:** 4 (Documentation & Handoff)
+**Completed phases:** 0-4 (Bug fixes, Fork Sage, Test, CI/CD, Documentation)  
+**Current phase:** None (ready for Phase 5 when needed)  
+**Next phase:** 5 (GUI Improvements — planned)
 
 ---
 
