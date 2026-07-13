@@ -79,9 +79,25 @@ cargo build --release
 
 The binary will be at `target/release/sagegui` (or `sagegui.exe` on Windows).
 
+## Quick Start
+
+1. **Download** the binary for your platform from the [Releases page](https://github.com/neely/sagegui/releases/latest)
+2. **Extract** the archive (unzip on Windows, `tar -xzf` on macOS/Linux)
+3. **Run** the executable (`sagegui.exe` on Windows, `sagegui` on macOS/Linux)
+4. **Select files:**
+   - Click "Browse" to select your FASTA database
+   - Click "Pick mzmls" to select your mzML files
+5. **Configure** search parameters (or use defaults)
+6. **Click "Launch"** to start the search
+
+Results will be saved to the output directory (defaults to current working directory).
+
+> **macOS users:** If you see "unidentified developer" warning, right-click the app and select "Open", or run: `xattr -d com.apple.quarantine sagegui`
+
 ## Documentation
 
 - [CHANGELOG.md](CHANGELOG.md) — Release history and changes
+- [MAINTENANCE.md](MAINTENANCE.md) — How to update Sage version (for maintainers)
 - [CONTEXT.md](CONTEXT.md) — Background knowledge for developers
 - [PLAN.md](PLAN.md) — Development roadmap and architecture
 - [NOTES.md](NOTES.md) — Progress log and decisions
