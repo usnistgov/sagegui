@@ -4,8 +4,8 @@
 mod version;
 
 use eframe::egui;
-use log::info;
 use egui::include_image;
+use log::info;
 use rfd::FileDialog;
 use sage_cli::{
     input::{Input, LfqOptions, QuantOptions, TmtOptions, TmtSettings},
