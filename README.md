@@ -1,7 +1,8 @@
 # SageGUI
 
-[![Sage Version](https://img.shields.io/badge/Sage-v0.15.0--beta.2-blue)](https://github.com/lazear/sage)
+[![Sage Version](https://img.shields.io/badge/Sage-v0.15.0--beta.2-blue)](https://github.com/lazear/sage/releases/tag/v0.15.0-beta.2)
 [![Build Status](https://github.com/neely/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/neely/sagegui/actions)
+[![Release](https://img.shields.io/github/v/release/neely/sagegui)](https://github.com/neely/sagegui/releases/latest)
 
 A graphical user interface for [Sage](https://github.com/lazear/sage), the blazingly fast proteomics search engine.
 
@@ -34,26 +35,32 @@ Sebastian's approach embedded Sage as a Rust library dependency, which gave tigh
 - [x] Fixed all API compatibility issues
 - [x] Tested with real data (60,672 PSMs from single mzML)
 - [x] LFQ quantification working
-
-**In Progress:**
-- [ ] Verify CI/CD builds on all platforms
-- [ ] Create first release (v0.6.0)
+- [x] CI/CD pipeline with automated releases
 
 ## Features
 
-When complete, SageGUI will support:
+SageGUI supports:
 
 - **File Selection** — Browse for mzML files and FASTA databases
 - **Search Parameters** — Configure tolerances, enzyme rules, modifications
-- **Quantification** — TMT (6/10/11/16/18-plex), iTRAQ (4/8-plex), LFQ
+- **Quantification** — TMT (6/10/11/16/18-plex), LFQ
 - **Search Execution** — Run Sage with progress display
 - **Results Summary** — View identification statistics
 
 ## Installation
 
-*Coming soon — releases will be available on the [Releases page](https://github.com/neely/sagegui/releases).*
+### Download Pre-built Binaries
 
-## Building from Source
+Download the latest release for your platform from the [Releases page](https://github.com/neely/sagegui/releases/latest):
+
+| Platform | Download |
+|----------|----------|
+| **Windows (x64)** | [sage-launcher-windows-x64.exe.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-windows-x64.exe.zip) |
+| **Linux (x64)** | [sage-launcher-linux-x64.tar.gz](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-linux-x64.tar.gz) |
+| **macOS (Intel)** | [sage-launcher-macos-x64.tar.gz](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-x64.tar.gz) |
+| **macOS (Apple Silicon)** | [sage-launcher-macos-arm64.tar.gz](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-arm64.tar.gz) |
+
+### Building from Source
 
 Requires Rust toolchain (1.70+):
 
@@ -67,6 +74,7 @@ The binary will be at `target/release/sagegui` (or `sagegui.exe` on Windows).
 
 ## Documentation
 
+- [CHANGELOG.md](CHANGELOG.md) — Release history and changes
 - [CONTEXT.md](CONTEXT.md) — Background knowledge for developers
 - [PLAN.md](PLAN.md) — Development roadmap and architecture
 - [NOTES.md](NOTES.md) — Progress log and decisions
@@ -85,4 +93,4 @@ The binary will be at `target/release/sagegui` (or `sagegui.exe` on Windows).
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+Apache-2.0 License — see [LICENSE](LICENSE) for details.

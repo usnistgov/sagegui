@@ -125,7 +125,7 @@ Provide a user-friendly graphical interface for Sage that:
 
 ---
 
-### Phase 3 — CI/CD & Release
+### Phase 3 — CI/CD & Release ✅ Complete
 
 **Goals:**
 - Verify GitHub Actions builds work
@@ -133,18 +133,24 @@ Provide a user-friendly graphical interface for Sage that:
 - Document release process
 - Add version tracking and badges
 
-**Tasks:**
-1. [ ] Push all changes
-2. [ ] Add automated testing to CI (`cargo check`, `cargo build --release`)
-3. [ ] Verify CI builds pass on all platforms
-4. [ ] Create tag `v0.6.0`
-5. [ ] Verify release artifacts are created
-6. [ ] Add version badge to README (Sage version, build status)
-7. [ ] Add links to release binaries in README
-8. [ ] Document how to update Sage version in future
-9. [ ] Implement version sync (auto-detect Sage version from Cargo.toml or constant)
+**Completed:**
+- [x] Push all changes
+- [x] Add automated testing to CI (`cargo fmt`, `cargo clippy`, `cargo build --release`)
+- [x] Verify CI builds pass on all platforms (Windows, Linux, macOS x64/ARM64)
+- [x] Create tag `v0.6.0`
+- [x] Verify release artifacts are created
+- [x] Add version badge to README (Sage version, build status, release)
+- [x] Add links to release binaries in README (download table)
+- [x] Document how to update Sage version in future (CHANGELOG.md)
+- [x] Implement version sync (`build.rs` extracts Sage version from Cargo.toml at compile time)
 
-**Checkpoint:** Release `v0.6.0` available with binaries for Windows, macOS, Linux. README shows current Sage version badge.
+**Implementation Details:**
+- Created `build.rs` that extracts Sage version from Cargo.toml comment and sets `SAGE_VERSION` env var
+- Updated `main.rs` to use `env!("SAGE_VERSION")` instead of hardcoded string
+- Added release badge and download table to README
+- Added "How to Update Sage Version" section to CHANGELOG.md
+
+**Checkpoint:** ✅ Release `v0.6.0` available with binaries for Windows, macOS, Linux. README shows current Sage version badge.
 
 ---
 

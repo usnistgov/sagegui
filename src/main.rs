@@ -926,7 +926,7 @@ impl eframe::App for SageLauncher {
                 ui.collapsing("Info/Help", |ui| {
                     ui.label("Sage GUI Version:");
                     ui.label(env!("CARGO_PKG_VERSION"));
-                    ui.label("Sage Engine Version: v0.15.0-beta.2");
+                    ui.label(format!("Sage Engine Version: {}", env!("SAGE_VERSION")));
                     ui.add_space(10.0);
                     ui.label("Original Author: J.Sebastian Paez");
                     ui.label("Current Maintainer: neely");
