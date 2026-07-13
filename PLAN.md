@@ -148,7 +148,7 @@ Provide a user-friendly graphical interface for Sage that:
 - [x] Add version badge automation workflow
 - [x] Add structured logging (`log` crate)
 
-**Implementation Details (v0.6.1):**
+**Implementation Details (v0.6.0):**
 - Simplified version sync: `src/version.rs` contains all Sage version constants (removed `build.rs`)
 - Dependabot configured to auto-update dependencies (except pinned Sage)
 - GitHub Actions `generate_release_notes: true` for automatic release notes
