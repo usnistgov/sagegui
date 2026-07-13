@@ -135,20 +135,25 @@ Provide a user-friendly graphical interface for Sage that:
 
 **Completed:**
 - [x] Push all changes
-- [x] Add automated testing to CI (`cargo fmt`, `cargo clippy`, `cargo build --release`)
+- [x] Add automated testing to CI (`cargo fmt`, `cargo clippy`, `cargo test`, `cargo build --release`)
 - [x] Verify CI builds pass on all platforms (Windows, Linux, macOS x64/ARM64)
 - [x] Create tag `v0.6.0`
 - [x] Verify release artifacts are created
 - [x] Add version badge to README (Sage version, build status, release)
 - [x] Add links to release binaries in README (download table)
 - [x] Document how to update Sage version in future (CHANGELOG.md)
-- [x] Implement version sync (`build.rs` extracts Sage version from Cargo.toml at compile time)
+- [x] Implement version sync (simplified to `src/version.rs` constants)
+- [x] Configure Dependabot for Cargo and GitHub Actions
+- [x] Add automatic release notes generation
+- [x] Add version badge automation workflow
+- [x] Add structured logging (`log` crate)
 
-**Implementation Details:**
-- Created `build.rs` that extracts Sage version from Cargo.toml comment and sets `SAGE_VERSION` env var
-- Updated `main.rs` to use `env!("SAGE_VERSION")` instead of hardcoded string
-- Added release badge and download table to README
-- Added "How to Update Sage Version" section to CHANGELOG.md
+**Implementation Details (v0.6.1):**
+- Simplified version sync: `src/version.rs` contains all Sage version constants (removed `build.rs`)
+- Dependabot configured to auto-update dependencies (except pinned Sage)
+- GitHub Actions `generate_release_notes: true` for automatic release notes
+- New workflow `update-badges.yml` auto-updates README badge when `version.rs` changes
+- Added `log` crate for structured logging (replacing `println!`)
 
 **Checkpoint:** ✅ Release `v0.6.0` available with binaries for Windows, macOS, Linux. README shows current Sage version badge.
 
@@ -216,6 +221,36 @@ Provide a user-friendly graphical interface for Sage that:
 ---
 
 ## Future Phases (Not Planned Yet)
+
+### Distribution Improvements (Future)
+
+#### macOS Code Signing
+- **Problem:** Unsigned apps trigger Gatekeeper warnings ("unidentified developer")
+- **Solution:** Apple Developer Program ($99/year) + code signing in CI
+- **Implementation:**
+  ```yaml
+  # Future workflow addition
+  - name: Sign macOS Binary
+    if: matrix.os == 'macos-latest'
+    run: codesign --sign "${{ secrets.APPLE_DEVELOPER_ID }}" target/release/sagegui
+  ```
+- **Alternative:** Document how users can bypass Gatekeeper (`xattr -d com.apple.quarantine`)
+
+#### Windows MSI Installer
+- **Problem:** Raw .exe requires manual extraction, no Start Menu integration
+- **Solution:** Add WiX-based MSI installer alongside .exe
+- **Implementation:** Use `cargo-wix` crate
+  ```yaml
+  # Future workflow addition
+  - name: Build MSI Installer
+    if: matrix.os == 'windows-latest'
+    run: |
+      cargo install cargo-wix
+      cargo wix --nocapture
+  ```
+- **Note:** Keep .exe.zip for users who prefer portable apps
+
+---
 
 - **Phase 6:** Batch processing (multiple files, queue system)
 - **Phase 7:** Advanced visualization (spectra viewer, modification heatmaps)

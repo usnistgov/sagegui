@@ -67,8 +67,8 @@ jobs:
       - name: Clippy
         run: cargo clippy -- -D warnings
 
-      # - name: Run Tests
-      #   run: cargo test --verbose
+      - name: Run Tests
+        run: cargo test --verbose
 
       - name: Build Release
         run: cargo build --verbose --release
@@ -96,5 +96,6 @@ jobs:
         with:
           files: |
             ${{ matrix.asset_name }}.*
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

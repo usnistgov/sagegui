@@ -1,7 +1,10 @@
 /// Is this pretty? No ... but is it well tested.... also no ... was an I on a deadline
 /// well ... not really. BUT I learned a lot about Rust and sage and I'm glad I did.
 /// I am more than happy to take PRs and suggestions for improvements!
+mod version;
+
 use eframe::egui;
+use log::info;
 use egui::include_image;
 use rfd::FileDialog;
 use sage_cli::{
@@ -926,7 +929,7 @@ impl eframe::App for SageLauncher {
                 ui.collapsing("Info/Help", |ui| {
                     ui.label("Sage GUI Version:");
                     ui.label(env!("CARGO_PKG_VERSION"));
-                    ui.label(format!("Sage Engine Version: {}", env!("SAGE_VERSION")));
+                    ui.label(format!("Sage Engine Version: {}", version::SAGE_VERSION));
                     ui.add_space(10.0);
                     ui.label("Original Author: J.Sebastian Paez");
                     ui.label("Current Maintainer: neely");
@@ -993,7 +996,7 @@ impl SageLauncher {
         }
 
         let parallel = num_cpus::get() as u16 / 2;
-        println!("Parallel: {}", parallel);
+        info!("Starting search with {} parallel threads", parallel);
         let parquet = false;
         let sage_input: Input = self.config.clone().into();
 

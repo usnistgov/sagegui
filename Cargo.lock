@@ -4978,6 +4978,7 @@ dependencies = [
  "egui_extras",
  "env_logger 0.11.11",
  "image 0.24.9",
+ "log",
  "num_cpus",
  "rfd",
  "sage-cli",

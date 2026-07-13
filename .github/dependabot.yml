@@ -1,6 +1,22 @@
 version: 2
 updates:
+  # GitHub Actions
   - package-ecosystem: "github-actions"
-    directory: "/" # Location of package manifests
+    directory: "/"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "ci"
+
+  # Cargo (Rust dependencies)
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    # Don't auto-update sage dependencies (we pin to specific commits)
+    ignore:
+      - dependency-name: "sage-core"
+      - dependency-name: "sage-cli"
+      - dependency-name: "sage-cloudpath"
