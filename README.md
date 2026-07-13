@@ -11,7 +11,9 @@ Based on the original [sagegui](https://github.com/jspaezp/sagegui) by [Sebastia
 [![Build Status](https://github.com/neely/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/neely/sagegui/actions)
 [![Release](https://img.shields.io/github/v/release/neely/sagegui)](https://github.com/neely/sagegui/releases/latest)
 
-![SageGUI Logo](assets/sagegui_logo.jpg)
+<p align="center">
+  <img src="assets/sagegui_logo-removebg.png" alt="SageGUI Logo" width="400">
+</p>
 
 ## Origin Story
 
