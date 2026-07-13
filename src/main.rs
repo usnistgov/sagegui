@@ -809,7 +809,7 @@ impl eframe::App for SageLauncher {
                     ui.add_space(10.0);
                 }
 
-                ui.add(egui::Image::new(include_image!("../assets/logo.png")).max_width(400.0));
+                ui.add(egui::Image::new(include_image!("../assets/sagegui_logo.jpg")).max_width(400.0));
                 ui.add_space(20.0);
 
                 // File Selection Section

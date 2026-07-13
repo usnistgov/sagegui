@@ -1,18 +1,23 @@
 # SageGUI
 
+> A community-maintained graphical interface for [**Sage**](https://github.com/lazear/sage), 
+> the proteomics search engine created by [Michael Lazear](https://github.com/lazear).
+> 
+> *This is an unofficial GUI — not affiliated with or endorsed by the Sage project.*
+
+Based on the original [sagegui](https://github.com/jspaezp/sagegui) by [Sebastian Paez](https://github.com/jspaezp).
+
 [![Sage Version](https://img.shields.io/badge/Sage-v0.15.0--beta.2-blue)](https://github.com/lazear/sage/releases/tag/v0.15.0-beta.2)
 [![Build Status](https://github.com/neely/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/neely/sagegui/actions)
 [![Release](https://img.shields.io/github/v/release/neely/sagegui)](https://github.com/neely/sagegui/releases/latest)
 
-A graphical user interface for [Sage](https://github.com/lazear/sage), the blazingly fast proteomics search engine.
-
-![SageGUI Screenshot](assets/logo.png)
+![SageGUI Logo](assets/sagegui_logo.jpg)
 
 ## Origin Story
 
-This project is a fork of [jspaezp/sagegui](https://github.com/jspaezp/sagegui), a GUI created by Sebastian Paez approximately 2 years ago. We loved the concept — a simple, cross-platform way to run Sage without touching the command line — but found it was stuck on an old Sage version due to tight coupling with Sage's internal API.
+Sebastian's original sagegui embedded Sage as a Rust library dependency, which gave tight integration but meant the GUI broke whenever Sage's internal types changed. His GUI was pinned to a custom fork of Sage that hadn't been updated.
 
-Sebastian's approach embedded Sage as a Rust library dependency, which gave tight integration but meant the GUI broke whenever Sage's internal types changed. His GUI was pinned to a custom fork of Sage that hasn't been updated.
+We loved the concept — a simple, cross-platform way to run Sage without touching the command line — so we forked it and updated it to work with the latest Sage version.
 
 ## Goals
 
