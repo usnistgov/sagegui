@@ -9,6 +9,22 @@ not current state. One entry per session: the shutdown debrief.
 
 ---
 
+## 2026-07-24 — Session shutdown: template migration + Phase 5/6 planning
+
+**Did:** Full session covering two things: (1) migrated project docs to the agent-context template (AGENTS.md, JOURNAL.md, NOTES.md topical reformat, PLAN.md status + handoff, CONTEXT.md folded/deleted); (2) scoped Phase 5 and Phase 6 from user feedback — async execution prioritized as #1, added multi-FASTA + cRAP input, ThermoRawFileParser .raw conversion with license-check gate, FDR-filtered rollup export, and format spoofing for MSstats / LFQ-analyst / Scaffold. Renumbered old "Phase 6–8" stubs to 7–9 to make room. Phases 5 & 6 are fully written in PLAN; nothing is implemented yet.
+
+**Least confident about (Q1):** ThermoRawFileParser cross-platform bundling — it's Apache-2.0 (license clear) but it's a .NET binary; on Linux/macOS users may not have the .NET runtime. Proven right/wrong by a 30-min spike: grab the self-contained release build, call it from `std::process::Command`, run on all three CI platforms.
+
+**Unstated assumptions (Q2):** Assumed the rollup scripts are Python. If they're R, the "call as subprocess" strategy is the same but the dependency story for end users is different. Verify when locating the scripts.
+
+**Biggest thing being missed (Q3):** No priority ordering on the Phase 6 export formats (MSstats vs. LFQ-analyst vs. Scaffold). They vary enormously in difficulty — Scaffold requires pepXML spoofing; MSstats may just need column renames. Knowing which one the user actually needs first would sharpen the phase.
+
+**Could have gone better (Q4):** Two separate JOURNAL entries for the same sitting (template migration and feature planning). Should have been one. Minor, but violates the "one entry per session" protocol.
+
+**Suggested improvement (Q5):** Before any Phase 6 implementation, do a 30-min format survey: find a sample input file for each target tool, identify which columns Sage already produces vs. what would need to be synthesized, and record the gap analysis in NOTES under a new "Output format reference" subsection. That shapes the entire phase's scope and will surface Scaffold's pepXML complexity early.
+
+---
+
 ## 2026-07-24 — Incorporate user feedback; restructure phases 5 & 6
 
 **Did:** Refined Phase 5 and added new Phase 6 based on user feedback from GUI testing. Phase 5 now has priority ordering (async execution first) and two new input sections: multi-FASTA concatenation with built-in cRAP toggle, and ThermoRawFileParser integration for `.raw` conversion. Phase 6 is new — FDR-filtered peptide/protein rollup export plus format spoofing for MSstats, FragPipe Analyst/LFQ-analyst, and Scaffold. Resolved the old Phase 5 discussion points (rollup scripts exist in a separate project — action item to locate/read them; format export is "spoof where we have the data"). Also fixed markdown lint warnings (blank lines around headings/lists).

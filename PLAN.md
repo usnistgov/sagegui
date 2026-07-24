@@ -285,9 +285,9 @@ Each of these requires understanding the target format and confirming Sage's out
 
 ---
 
-- **Phase 6:** Batch processing (multiple files, queue system)
-- **Phase 7:** Advanced visualization (spectra viewer, modification heatmaps)
-- **Phase 8:** Consider Option C (wrapper) if maintenance burden too high
+- **Phase 7:** Batch processing (multiple files, queue system)
+- **Phase 8:** Advanced visualization (spectra viewer, modification heatmaps)
+- **Phase 9:** Consider Option C (wrapper) if maintenance burden too high
 
 ---
 
@@ -309,12 +309,18 @@ Locked decisions and their rationale have moved to **NOTES.md → Design decisio
 
 **Start here:** read AGENTS.md, then this status block, then NOTES.md (locked decisions + dead-ends), then the top of JOURNAL.md.
 
-**State:** Project is at a clean stopping point — Phases 0–4 done, `v0.6.0` released and building on all platforms. Nothing is in flight.
+**State:** Phases 0–4 done, `v0.6.0` released. Phases 5 & 6 are fully planned — nothing is implemented yet.
 
-**If picking up Phase 5:** it hasn't been scoped with the user yet. Resolve the four "Discussion Points" under Phase 5 *before* coding — especially the sagePreview relationship (link vs. embed) and which improvements are highest priority.
+**Immediate next actions (in order):**
+
+1. **Async execution** (Phase 5, #1 priority) — move the search onto a background thread; this unblocks all other UX work.
+2. **Locate rollup scripts** — they exist in a separate project (not sagePreview). Find them, read them, record language + structure in NOTES before Phase 6 can be scoped accurately.
+3. **Phase 6 format survey** — 30-min spike: find a sample input file for MSstats, LFQ-analyst, and Scaffold; identify which columns Sage already produces vs. what needs synthesizing; record gap analysis in NOTES under "Output format reference."
 
 **Watch out for:**
 - Don't re-add `build.rs` version detection, don't add `lib.rs` to sage-cli, don't switch the Sage dep back to a branch — all dead-ends (NOTES.md).
+- ThermoRawFileParser: license is clear (Apache-2.0), but the .NET runtime dependency on Linux/macOS is an open question. Do the cross-platform spike before committing to that design.
+- Rollup scripts may be R, not Python — changes the end-user dependency story even if the call strategy is the same.
 - TMT quant is still untested (no TMT data). LFQ is the only validated path.
 - Any behavior change must sync README / CHANGELOG / MAINTENANCE in the same session.
 
