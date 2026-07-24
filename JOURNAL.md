@@ -9,6 +9,16 @@ not current state. One entry per session: the shutdown debrief.
 
 ---
 
+## 2026-07-24 — Incorporate user feedback; restructure phases 5 & 6
+
+**Did:** Refined Phase 5 and added new Phase 6 based on user feedback from GUI testing. Phase 5 now has priority ordering (async execution first) and two new input sections: multi-FASTA concatenation with built-in cRAP toggle, and ThermoRawFileParser integration for `.raw` conversion. Phase 6 is new — FDR-filtered peptide/protein rollup export plus format spoofing for MSstats, FragPipe Analyst/LFQ-analyst, and Scaffold. Resolved the old Phase 5 discussion points (rollup scripts exist in a separate project — action item to locate/read them; format export is "spoof where we have the data"). Also fixed markdown lint warnings (blank lines around headings/lists).
+
+**Least confident about (Q1):** Whether ThermoRawFileParser can actually be bundled cleanly cross-platform (it's .NET — requires runtime on Linux/macOS). Would be proven right/wrong by a quick spike: download the binary, call it from a Rust `std::process::Command`, test on each CI platform.
+
+**Suggested improvement (Q5):** Before Phase 6 gets implemented, do a 30-min spike to confirm MSstats input format requirements — it has had breaking column-name changes across versions, and discovering that mid-implementation would be expensive.
+
+---
+
 ## 2026-07-24 — Migrate to agent-context project template
 
 **Did:** Adopted the [agent-context-project-template](https://github.com/neely/agent-context-project-template). Added AGENTS.md (agent protocol) and JOURNAL.md (this file). Reformatted NOTES.md from a chronological progress log into a topical knowledge base (locked decisions, intentional non-bugs, dead-ends, reference). Added a status block and handoff section to PLAN.md. Folded CONTEXT.md's durable content (domain primer, gotchas, reference index) into NOTES.md and deleted CONTEXT.md; updated README links.

@@ -8,9 +8,9 @@
 
 ## Status
 
-- **Current phase:** None — Phases 0–4 complete. Phase 5 (GUI Improvements) is planned, not started.
+- **Current phase:** None — Phases 0–4 complete. Phases 5 & 6 are planned, not started.
 - **Last updated:** 2026-07-24
-- **Next action:** Prioritize Phase 5 improvements with the user (see "Discussion Points" under Phase 5) before writing any code.
+- **Next action:** Start Phase 5 — async execution is the highest-priority item (blocks everything else UX-wise). Also locate the rollup scripts before Phase 6 can be scoped.
 - **Released:** `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`), binaries for Windows / macOS (x64+ARM64) / Linux.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -190,48 +190,66 @@ Provide a user-friendly graphical interface for Sage that:
 
 ---
 
-### Phase 5 — GUI Improvements & Feature Discussion (Planned)
+### Phase 5 — Core UX & Input Improvements (Planned)
 
-**Goals:**
-- Discuss and prioritize GUI improvements
-- Plan integration of post-analysis features from sagePreview
-- Improve user experience
+**Goals:** Address the blocking usability pain points before adding features. Async execution is highest priority — long searches currently freeze the GUI.
 
-**Potential Improvements:**
+#### UI/UX (priority order)
 
-#### UI/UX Improvements (Priority)
-- [ ] **Better progress display** — Show current step (building database, searching, scoring), elapsed time, estimated remaining
-- [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at 1% FDR directly in GUI
-- [ ] **Configuration persistence** — Save last-used settings so users don't re-enter everything each time
-- [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory
+- [ ] **Async execution + progress display** — Run search on a background thread so the GUI stays responsive; show current step (building DB, searching, scoring), elapsed time, estimated remaining. Prevents "not responding" on 1hr+ jobs.
+- [ ] **Session resilience / auto-recovery** — If the GUI is closed or crashes during a run, persist enough state to resume or at least report results.
+- [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI.
+- [ ] **Configuration persistence** — Save last-used settings; don't make users re-enter everything each session.
+- [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory.
+- [ ] **Expanded modifications preset library** — Dropdown of common variable and static mods so users aren't typing them manually.
 - [ ] Parameter presets (default, open search, semi-enzymatic)
 - [ ] Save/load configuration files (JSON export/import)
-- [ ] Dark mode / theme support
 - [ ] Better error messages and validation
 
-#### Post-Analysis Features (from sagePreview)
-- [ ] **Digestion Efficiency Report** — Analyze missed cleavages, semi-tryptic peptides, N/C ragged ratio
-- [ ] **Delta Mass Explorer** — Visualize modification distribution from open search
-- [ ] **Results Summary** — Quick stats panel (PSMs, peptides, proteins at various FDR)
-- [ ] **LFQ/Rollup scripts** — Integration with sagePreview LFQ analysis tools (to be discussed)
-- [ ] **Export to sagePreview** — Generate config for deeper analysis
+#### Input: multi-FASTA & contaminants
 
-#### New Sage v0.15 Features to Expose
+- [ ] **Multi-FASTA selection** — Allow selecting multiple `.fasta` files; concatenate on-the-fly before passing to Sage (e.g., target organism + contaminants + spike-ins).
+- [ ] **Built-in cRAP toggle** — Bundle the cRAP contaminants database; one checkbox appends it to the search without users managing the file.
+
+#### Input: Thermo .raw conversion
+
+- [ ] **ThermoRawFileParser integration** — Bundle or detect [ThermoRawFileParser](https://github.com/compomics/ThermoRawFileParser) and invoke it automatically when `.raw` files are selected, converting to mzML before the search. Saves users up to 1hr of manual conversion per batch.
+- **Before implementing:** verify ThermoRawFileParser license compatibility with our Apache-2.0 (it's Apache-2.0 itself — confirm no distribution constraints for bundling a .NET binary).
+
+#### New Sage v0.15 features to expose
+
 - [ ] Prefilter options (for large databases)
 - [ ] Protein grouping settings
 - [ ] Write report option
 - [ ] Bruker configuration (for timsTOF data)
 
-#### Integration Ideas
-- [ ] **Link to sagePreview** — "Analyze with sagePreview" button that opens results in sagePreview
-- [ ] One-click "analyze results" button
-- [ ] Built-in quality metrics dashboard
+#### sagePreview integration
 
-**Discussion Points:**
-1. Which features are highest priority?
-2. Should post-analysis be built into GUI or remain separate tools?
-3. How to handle the sagePreview relationship (link vs embed)?
-4. LFQ/rollup scripts from sagePreview — what should be integrated?
+- [ ] **Port rollup scripts** — The peptide→protein rollup and LFQ aggregation scripts currently live in a separate project (not sagePreview). Action item: locate, read, and refactor them into a form SageGUI can call. (See Phase 6 for the GUI surface.)
+- [ ] **Digestion Efficiency Report** — Port from sagePreview: missed cleavages, semi-tryptic peptides, N/C ragged ratio.
+- [ ] **Delta Mass Explorer** — Port from sagePreview: modification distribution from open search.
+- [ ] **Link to sagePreview** — "Analyze with sagePreview" button for deeper analysis.
+
+---
+
+### Phase 6 — Output Formatting & Downstream Export (Planned)
+
+**Goals:** Let users get FDR-filtered protein/peptide tables and export to the formats their downstream tools expect. The rollup logic (peptide→protein at a specified FDR) comes from the scripts ported in Phase 5.
+
+#### FDR-filtered rollup export
+
+- [ ] **Peptide-level export at specified FDR** — User sets FDR threshold (default 1%); export filtered `results.sage.tsv`.
+- [ ] **Protein-level rollup export** — Apply rollup scripts to produce a protein-level intensity table at the specified FDR.
+
+#### Format spoofing for downstream tools
+
+Each of these requires understanding the target format and confirming Sage's output contains the required fields. Research is an action item per format before implementing.
+
+- [ ] **MSstats-compatible export** — Understand MSstats input format (feature-level TSV with specific column names); produce it from Sage results. Likely feasible with our existing data.
+- [ ] **FragPipe Analyst / LFQ-analyst export** — Identify required format; map Sage output columns.
+- [ ] **Scaffold-compatible export** — Scaffold ingests pepXML or mzIdentML. Investigate whether spoofing pepXML from Sage results is complete enough to be useful.
+
+**Note on scope:** Format export is "spoof where we have the data, document gaps where we don't." We won't invent data that Sage doesn't produce.
 
 ---
 
