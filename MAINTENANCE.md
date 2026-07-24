@@ -206,10 +206,12 @@ sagegui/
 │   │   └── update-badges.yml
 │   └── dependabot.yml   # Auto-update dependencies
 ├── Cargo.toml           # Dependencies (Sage commit hash here)
+├── AGENTS.md            # Agent/contributor working protocol
 ├── CHANGELOG.md         # Release history
 ├── MAINTENANCE.md       # This file
 ├── PLAN.md              # Development roadmap
-├── CONTEXT.md           # Background knowledge
+├── NOTES.md             # Locked decisions, gotchas, reference
+├── JOURNAL.md           # Append-only session history
 └── README.md            # User-facing documentation
 ```
 

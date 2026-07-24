@@ -98,9 +98,10 @@ Results will be saved to the output directory (defaults to current working direc
 
 - [CHANGELOG.md](CHANGELOG.md) — Release history and changes
 - [MAINTENANCE.md](MAINTENANCE.md) — How to update Sage version (for maintainers)
-- [CONTEXT.md](CONTEXT.md) — Background knowledge for developers
+- [AGENTS.md](AGENTS.md) — Agent/contributor working protocol
 - [PLAN.md](PLAN.md) — Development roadmap and architecture
-- [NOTES.md](NOTES.md) — Progress log and decisions
+- [NOTES.md](NOTES.md) — Locked decisions, gotchas, and reference knowledge
+- [JOURNAL.md](JOURNAL.md) — Append-only session history
 - [docs/GLOSSARY.md](docs/GLOSSARY.md) — Term definitions
 
 ## Related Projects

@@ -1,283 +1,167 @@
-# SageGUI — Development Notes
+# SageGUI — Notes & knowledge base
 
-This document tracks decisions, progress, and open questions across all phases.
-Read this alongside `PLAN.md` to understand current project state.
+Topical, not chronological. This is what you don't want to re-explain or
+re-derive. Timeless reference + the reasoning behind decisions.
 
----
-
-## Current Status
-
-**Active Phase:** None — Phases 0-4 Complete  
-**Last Updated:** 2026-07-13  
-**Next Action:** Phase 5 (GUI Improvements) when ready
+For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 
 ---
 
-## Phase 0 — Bug Fixes & Organization
+## Design decisions (locked)
 
-**Status:** ✅ Complete  
-**Started:** 2026-07-10  
-**Completed:** 2026-07-10
+### Option A — fork Sage, don't wrap it (locked)
+- **What:** SageGUI embeds Sage as a Rust library dependency (via our fork `neely/sage`), rather than shelling out to `sage.exe` as a subprocess (that rejected approach is "Option C").
+- **Why:** Tight integration — single-binary distribution and the ability to show real-time progress from inside the process. This was the user's preference.
+- **Rejected:** Option C (subprocess wrapper generating a JSON config and calling `sage.exe`). Would decouple us from Sage's internal API, but loses single-binary distribution and in-process progress. Reconsider only if the fork-sync maintenance burden becomes too high (that's flagged as a possible Phase 8 in PLAN).
+- **Consequence:** We accept the ongoing burden of keeping `neely/sage` in sync with upstream `lazear/sage`. See MAINTENANCE.md.
 
-### Goals
-- Fix known bugs in Sebastian's GUI
-- Set up project documentation structure
-- Push fixes to our fork
+### egui/eframe GUI framework (locked)
+- **What:** The GUI uses egui (immediate-mode) with eframe (native window wrapper).
+- **Why:** Already working in Sebastian's original, and a solid choice for Rust GUIs.
+- **Rejected:** Rewriting in another framework — no reason to.
 
-### Bug Fixes Applied
+### Single `main.rs` (locked, revisit-able)
+- **What:** All GUI code lives in one `src/main.rs` (~1000 lines), plus `src/version.rs` for Sage version constants.
+- **Why:** Keeps Sebastian's original structure; no need to refactor while it's working.
+- Not deeply locked — fine to split if a feature makes the single file unwieldy.
 
-#### 1. TMT Plex Selection Bug (Lines 421-423)
+### Pin Sage to a commit hash, not a branch (locked)
+- **What:** `Cargo.toml` pins `sage-core`/`sage-cli` to `rev = "d74024df..."`, not `branch = "master"`.
+- **Why:** Reproducible builds — prevents unexpected breakage when upstream changes. Update the rev deliberately per MAINTENANCE.md.
 
-**Problem:** TMT 16-plex and 18-plex were incorrectly mapped to `Tmt11`.
+### Version sync via `src/version.rs` constants (locked)
+- **What:** Sage version info lives in `src/version.rs` constants (`SAGE_VERSION`, `SAGE_COMMIT`, `SAGE_REPO`, `SAGE_UPSTREAM`), consumed at compile time.
+- **Why:** Simpler than the originally-considered `build.rs` auto-detection.
+- **Rejected:** `build.rs` that auto-detects the version from `Cargo.toml` — removed in favor of the plain constants. Do not re-add it.
 
-**Before:**
-```rust
-"TMT-16" => Isobaric::Tmt11,
-"TMT-18" => Isobaric::Tmt11,
-```
+---
 
-**After:**
-```rust
-"TMT-16" => Isobaric::Tmt16,
-"TMT-18" => Isobaric::Tmt18,
-```
+## Intentional, not bugs
+Things that look wrong but are correct. Do not "fix" these.
 
-**Commit:** a225481
+- **Default output directory is the current working directory.** Users set it explicitly in the GUI. (Smarter timestamped defaults are a *planned* Phase 5 improvement, not a bug to patch ad hoc.)
+- **TMT quantification is untested.** Only LFQ has been validated with real data — TMT code paths are believed correct but need TMT-labeled data to confirm. Not a defect; a known coverage gap (see below).
 
-#### 2. Fragment Tolerance Type Bug (Lines 720-726)
+---
 
-**Problem:** When switching fragment tolerance type (ppm ↔ Da), the code was updating `precursor_tol` instead of `fragment_tol`.
+## Known permanent / standing limitations
 
-**Before:**
-```rust
-if ui.selectable_label(self.fragment_tol_unit == "ppm", "ppm").clicked() {
-    self.fragment_tol_unit = "ppm".to_string();
-    self.precursor_tol = (-self.fragment_tol_value, self.fragment_tol_value);  // WRONG!
-}
-```
+- **Coupled to Sage's internal API.** By design (Option A), a Sage update can break compilation. This is the accepted cost of embedding; the mitigation is MAINTENANCE.md, not a code change.
+- **One search at a time.** Not a batch/queue system — that's an explicit non-goal (see PLAN). Batch processing is a possible far-future phase.
+- **Not a results viewer beyond a basic summary.** Deep analysis is left to downstream tools / sagePreview.
+- **macOS binaries are unsigned.** Triggers Gatekeeper "unidentified developer" warnings. Workaround documented in README (`xattr -d com.apple.quarantine`). Real fix (Apple Developer Program + code signing) is deferred — see PLAN "Future / Distribution".
 
-**After:**
-```rust
-if ui.selectable_label(self.fragment_tol_unit == "ppm", "ppm").clicked() {
-    self.fragment_tol_unit = "ppm".to_string();
-    self.fragment_tol = (-self.fragment_tol_value, self.fragment_tol_value);  // CORRECT
-}
-```
+---
 
-**Commit:** a225481
+## Dead-ends (do not re-explore)
 
-### Documentation Created
+- **Adding `lib.rs` to sage-cli ourselves** → unnecessary. Official Sage v0.15.0-beta.2 already ships `crates/sage-cli/src/lib.rs` exporting `input`, `output`, `runner`, `telemetry`. The original plan assumed we'd have to create it; we don't.
+- **`build.rs` auto-version-detection** → replaced by plain `src/version.rs` constants. Don't re-add.
+- **Tracking Sage by branch (`branch = "master"`)** → rolled back to a pinned `rev` for reproducibility.
+- **Assuming v0.14.7 as the target** → we're on v0.15.0-beta.2 (current master at fork time). Don't downgrade expectations to v0.14.7's API.
+
+---
+
+## Reference
+
+### Domain primer — what this project is
+
+**SageGUI** is a graphical front-end for [Sage](https://github.com/lazear/sage), a fast Rust proteomics search engine. It lets users configure and run Sage searches without the command line: file selection (mzML + FASTA), parameter configuration, search execution with progress, and a basic results summary.
+
+- **Original author:** Sebastian Paez (`jspaezp/sagegui`)
+- **Our fork:** `neely/sagegui`
+- **Sage engine fork:** `neely/sage` (from `lazear/sage`)
+
+**What Sage does:** takes MS data (mzML) + a protein database (FASTA), matches experimental spectra to theoretical peptide fragmentation, and outputs peptide-spectrum matches (PSMs) with confidence scores. Known for being 10–100× faster than comparable tools at high sensitivity.
+
+**Key search parameters exposed by the GUI:**
+
+| Parameter | Description | Typical values |
+|-----------|-------------|----------------|
+| `precursor_tol` | Precursor-ion mass tolerance | 10–20 ppm (closed), ±500 Da (open) |
+| `fragment_tol` | Fragment-ion mass tolerance | 10–20 ppm |
+| `missed_cleavages` | Allowed missed enzyme cuts | 1–2 |
+| `min_len` / `max_len` | Peptide length limits | 7–50 |
+| `static_mods` | Fixed mods (e.g. carbamidomethyl on C) | always applied |
+| `variable_mods` | Optional mods (e.g. oxidation on M) | searched combinatorially |
+
+**Quantification:** isobaric labeling — TMT (6/10/11/16/18-plex) and iTRAQ (4/8-plex) — plus label-free (LFQ) from MS1 intensities. The GUI selects the scheme and MS level.
+
+Term definitions live in `docs/GLOSSARY.md`.
+
+### API changes reference (v0.14.7 → v0.15.0-beta.2)
+
+The fixes applied when moving to v0.15.0-beta.2. Keep this as the worked example for future upgrades (MAINTENANCE.md has the full update procedure).
+
+| Component | Change | Fix applied |
+|-----------|--------|-------------|
+| `EnzymeBuilder.restrict` | `Option<char>` → `Option<String>` | `.map(\|c\| c.to_string())` |
+| `Builder` (database) | new fields | add `prefilter: None`, `prefilter_chunk_size: None`, `prefilter_low_memory: None` |
+| `LfqOptions` | new fields | add `mobility_pct_tolerance: None`, `peptide_q_value: None` |
+| `Input` | field renamed | `bruker_spectrum_processor` → `bruker_config: None` |
+| `Input` | new fields | add `protein_grouping: None`, `protein_grouping_peptide_fdr: None`, `write_report: None` |
+| `Runner::new` | signature change | `input.build().and_then(Runner::new)` → `let search = input.build()?; Runner::new(search, parallel.into())` |
+
+Also removed: the `BrukerSpectrumProcessor` import (no longer needed).
+
+### Gotchas discovered
+
+| Gotcha | Details |
+|--------|---------|
+| **TMT plex bug** (fixed) | `main.rs` ~lines 421–423: TMT 16/18-plex were mapped to `Tmt11`. Fixed to `Tmt16`/`Tmt18` in commit a225481. |
+| **Fragment tolerance bug** (fixed) | `main.rs` ~lines 720–726: switching tolerance type (ppm↔Da) wrote to `precursor_tol` instead of `fragment_tol`. Fixed in commit a225481. |
+| **sage-cli lib target** | Official Sage *now* exposes `sage-cli` as a library (v0.15.0-beta.2+). Sebastian's older fork had to add `lib.rs`; we don't. |
+| **`Kind` not hashable** | `sage_core::ion_series::Kind` doesn't implement `Hash`/`Eq` in official Sage — relevant if you touch ion-series collections. |
+| **timsrust API drift** | `timsrust::readers::SpectrumReaderConfig` doesn't exist in newer versions — watch for this when touching Bruker/timsTOF paths. |
+
+### Key files in the Sage fork
 
 | File | Purpose |
 |------|---------|
-| `CONTEXT.md` | Background knowledge for working on this project |
-| `PLAN.md` | Architecture, phases, requirements |
-| `NOTES.md` | This file — progress log, decisions |
-| `docs/GLOSSARY.md` | Term definitions |
+| `crates/sage-cli/src/lib.rs` | Exports `input`, `output`, `runner`, `telemetry` |
+| `crates/sage-cli/src/input.rs` | `Input`, `LfqOptions`, `QuantOptions`, etc. |
+| `crates/sage-cli/src/runner.rs` | `Runner::new()`, `Runner::run()` |
+| `crates/sage-core/src/database.rs` | `Builder`, `EnzymeBuilder` |
+| `crates/sage-core/src/lfq.rs` | LFQ options |
 
-### Decisions Made
-
-1. **Option A chosen** — Fork Sage and maintain lib exports, rather than wrapper approach (Option C).
-
-2. **Documentation structure** — Modeled after sagePreview project with CONTEXT.md, PLAN.md, NOTES.md, GLOSSARY.md.
-
-3. **Keep Sebastian's structure** — Single `main.rs` file, egui/eframe framework.
-
----
-
-## Phase 1 — Fork Sage & Update to v0.15.0-beta.2
-
-**Status:** ✅ Complete  
-**Started:** 2026-07-10  
-**Completed:** 2026-07-10
-
-### Goals
-- Fork `lazear/sage` to `neely/sage`
-- Update sagegui to use our fork with latest Sage version
-- Fix all API compatibility issues
-
-### Key Discovery
-
-**Good news:** The official Sage v0.15.0-beta.2 already has `lib.rs` in `sage-cli`! We don't need to add it ourselves. The original plan assumed we'd need to create this file, but it already exports:
-- `input`
-- `output`
-- `runner`
-- `telemetry`
-
-### API Changes Fixed
-
-The jump from v0.14.7 to v0.15.0-beta.2 required these fixes:
-
-| Issue | Location | Fix Applied |
-|-------|----------|-------------|
-| `restrict` type | `EnzymeBuilder` | Changed from `Option<char>` to `Option<String>` via `.map(\|c\| c.to_string())` |
-| `Builder` missing fields | `DatabaseConfig → Builder` | Added `prefilter: None`, `prefilter_chunk_size: None`, `prefilter_low_memory: None` |
-| `LfqOptions` missing fields | `QuantType → QuantOptions` | Added `mobility_pct_tolerance: None`, `peptide_q_value: None` |
-| `Input` field renamed | `Config → Input` | Changed `bruker_spectrum_processor` → `bruker_config: None` |
-| `Input` new fields | `Config → Input` | Added `protein_grouping: None`, `protein_grouping_peptide_fdr: None`, `write_report: None` |
-| `Runner::new` signature | `run_sage()` | Changed from `input.build().and_then(Runner::new)` to `let search = input.build()?; Runner::new(search, parallel.into())` |
-
-### Improvements Made
-
-1. **Pinned to specific commit** — Changed from `branch = "master"` to `rev = "d74024df..."` for reproducibility
-2. **Added version display** — GUI now shows "Sage Engine Version: v0.15.0-beta.2" in Info/Help
-3. **Updated repository links** — Changed from jspaezp to neely
-4. **Created CHANGELOG.md** — Tracks all changes for release notes
-
-### Checkpoint Status
-- [x] Fork lazear/sage to neely/sage
-- [x] Clone fork locally
-- [x] Discovered lib.rs already exists (no modifications needed!)
-- [x] Update sagegui Cargo.toml to use our fork
-- [x] Fix API compatibility issues
-- [x] `cargo check` passes
-- [x] GUI launches successfully
-
----
-
-## Phase 2 — Test & Validate
-
-**Status:** ✅ Complete  
-**Started:** 2026-07-10  
-**Completed:** 2026-07-10
-
-### Test Cases
-1. [x] Load mzML files
-2. [x] Load FASTA database
-3. [x] Configure search parameters
-4. [x] Run search
-5. [x] View results summary
-6. [ ] TMT quantification (all plex sizes) — not tested yet
-7. [x] LFQ quantification
-
-### Test Results
-
-**Test Data:**
-- mzML: `B.naive_01steady-state.mzML.gz` (from sagePreview testing)
-- FASTA: `UniProt-Human-UP000005640_canonical-2023_05.fasta`
-
-**Search Parameters:**
-- Precursor tolerance: ±10 ppm
-- Fragment tolerance: ±10 ppm
-- Enzyme: Trypsin (KR, not P), 2 missed cleavages
-- Static mods: C+57.021 (carbamidomethyl)
-- Variable mods: M+15.995 (oxidation)
-- LFQ enabled
-
-**Results:**
-- **60,672 PSMs** identified
-- **LFQ quantification** working (lfq.tsv generated)
-- Output files: `test/results.sage.tsv`, `test/lfq.tsv`, `test/results.json`
-
-### Notes
-- GUI launches successfully ✅
-- File selection works ✅
-- Search execution works ✅
-- LFQ quantification works ✅
-- TMT not tested (would need TMT-labeled data)
-
----
-
-## Reference Information
-
-### Sage Versions
+### Sage versions
 
 | Version | Status | Notes |
 |---------|--------|-------|
-| v0.14.7 | Old (Sebastian's) | What the original GUI used |
-| v0.15.0-beta.2 | Current | What we're using now (commit d74024df) |
+| v0.14.7 | old (Sebastian's) | what the original GUI used |
+| v0.15.0-beta.2 | current | our version, commit `d74024df` |
 
-### Our Forks
-- sagegui: `github.com/neely/sagegui`
-- sage: `github.com/neely/sage` (forked from lazear/sage)
+### Test baseline (Phase 2)
 
-### Key Files in Sage
+The validated reference run — use to sanity-check regressions:
+- **Data:** `B.naive_01steady-state.mzML.gz` + `UniProt-Human-UP000005640_canonical-2023_05.fasta` (from sagePreview testing).
+- **Params:** precursor ±10 ppm, fragment ±10 ppm, trypsin (KR not P) 2 missed cleavages, static C+57.021, variable M+15.995, LFQ on.
+- **Result:** 60,672 PSMs; LFQ worked; outputs `results.sage.tsv`, `lfq.tsv`, `results.json`.
 
-| File | Purpose |
+### Related projects
+
+| Project | Purpose | Location |
+|---------|---------|----------|
+| sagePreview | Reconnaissance tool using Sage (PTM discovery) | `C:\Users\ban\Documents\GitHub\sagePreview` · `github.com/neely/sagePreview` |
+| sage (official) | The search engine | `github.com/lazear/sage` |
+| sage (our fork) | Modified/pinned Sage | `github.com/neely/sage` |
+| sagegui (Sebastian's) | Original GUI | `github.com/jspaezp/sagegui` |
+| sagegui (ours) | This project | `github.com/neely/sagegui` |
+
+### External reference material (from sagePreview)
+
+Located at `C:\Users\ban\Documents\GitHub\sagePreview\reference-notes\`:
+
+| File | Content |
 |------|---------|
-| `crates/sage-cli/src/lib.rs` | Exports input, output, runner, telemetry |
-| `crates/sage-cli/src/input.rs` | `Input`, `LfqOptions`, `QuantOptions`, etc. |
-| `crates/sage-cli/src/runner.rs` | `Runner::new()`, `Runner::run()` |
-| `crates/sage/src/database.rs` | `Builder`, `EnzymeBuilder` |
+| `sage-online-docs.md` | Full Sage documentation (scraped) |
+| `sage-config-and-gotchas.md` | Decoy handling, tolerance syntax, chimeric search |
+| `unimod-decomposition.md` | Unimod matching strategy, ambiguity handling |
+| `oxonium-ions.md` | Glycan diagnostic ions |
+| `polymer-contaminant-ions.md` | Polymer series for contamination detection |
+| `ptm-shepherd-methodology.md` | PTM-Shepherd approach reference |
+| `mgf-mzml-intensity-differences.md` | Intensity handling notes |
+| `MS1-intensity.md` | MS1 signal fate approaches |
+| `digestion-efficiency-metrics.md` | Missed cleavages, semi-tryptic metrics |
 
----
-
-## Session Log
-
-### 2026-07-10 Session 1
-
-**Accomplished:**
-1. Cloned and analyzed Sebastian's sagegui
-2. Identified and fixed two bugs (TMT plex, fragment tolerance)
-3. Pushed fixes to neely/sagegui
-4. Analyzed API differences between Sebastian's Sage fork and official v0.14.7
-5. Decided on Option A (fork Sage) approach
-6. Created project documentation (CONTEXT.md, PLAN.md, NOTES.md, GLOSSARY.md)
-
-**Key Decisions:**
-- Option A over Option C (user preference)
-- Will fork official Sage and add lib exports
-- Accept maintenance burden of keeping fork in sync
-
-### 2026-07-10 Session 2
-
-**Accomplished:**
-1. Forked lazear/sage to neely/sage
-2. Discovered lib.rs already exists in v0.15.0-beta.2 (pleasant surprise!)
-3. Updated sagegui Cargo.toml to use neely/sage
-4. Fixed 6 API compatibility issues
-5. Pinned dependency to specific commit hash
-6. Added Sage version display in GUI
-7. Created CHANGELOG.md
-8. Updated PLAN.md and NOTES.md with accurate information
-9. Confirmed GUI launches successfully
-
-**Key Learnings:**
-- The plan predicted we'd need to add lib.rs, but it already existed
-- The plan mentioned v0.14.7, but we used v0.15.0-beta.2 (current master)
-- API changes were different from what was predicted in the plan
-- Pinning to commit hash is better than branch for reproducibility
-
-**Next Steps:**
-1. Commit and push all changes
-2. Test with real data (Phase 2)
-3. Set up CI/CD (Phase 3)
-
-### 2026-07-12 Session 3 — Phase 2 Debrief
-
-**Accomplished:**
-1. Ran full search with real data (60,672 PSMs)
-2. Verified LFQ quantification works
-3. Updated PLAN.md with Phase 5 GUI improvements
-4. Added version badge to README
-
-**Phase 2 Debrief Discussion:**
-
-**Things Clarified:**
-- Test output directory (`test/`) was manually set by user in GUI
-- sagePreview scripts (LFQ, rollups) are separate tools to discuss later
-- TMT testing deferred (LFQ sufficient for now)
-
-**Improvements Identified:**
-1. **Automated testing** — Add `cargo check` and `cargo build --release` to CI
-2. **Version sync** — Need to auto-detect Sage version (currently hardcoded)
-3. **Version badge** — Added to README for visibility
-
-**Suggestions Folded into Phases:**
-
-*Phase 3 (CI/CD):*
-- Add automated testing to CI
-- Add version badge to README ✅
-- Implement version sync (auto-detect from Cargo.toml)
-
-*Phase 5 (GUI Improvements):*
-- Better progress display (current step, elapsed time, estimated remaining)
-- Results summary panel (PSM/peptide/protein counts at 1% FDR)
-- Configuration persistence (save last-used settings)
-- Smarter output directory (timestamped subfolder near mzML files)
-- Link to sagePreview ("Analyze with sagePreview" button)
-
-**Next Steps:**
-1. Proceed with Phase 3 (CI/CD & Release)
-2. Verify CI builds pass
-3. Create v0.6.0 release
+Official Sage source also mirrored at `C:\Users\ban\Documents\GitHub\sagePreview\reference\sage\`.

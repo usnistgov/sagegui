@@ -2,7 +2,18 @@
 
 **Goal:** A maintainable GUI for Sage that can stay up-to-date with official Sage releases.
 
-**Approach:** Fork Sage, add library exports, maintain sync with upstream (Option A).
+**Approach:** Fork Sage, add library exports, maintain sync with upstream (Option A). *(locked — see NOTES.md.)*
+
+---
+
+## Status
+
+- **Current phase:** None — Phases 0–4 complete. Phase 5 (GUI Improvements) is planned, not started.
+- **Last updated:** 2026-07-24
+- **Next action:** Prioritize Phase 5 improvements with the user (see "Discussion Points" under Phase 5) before writing any code.
+- **Released:** `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`), binaries for Windows / macOS (x64+ARM64) / Linux.
+
+Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
 
 ---
 
@@ -264,30 +275,29 @@ Provide a user-friendly graphical interface for Sage that:
 
 ## Maintenance Commitment
 
-When Sage releases a new version:
+When Sage releases a new version, sync the fork, bump the pinned commit, fix any API changes, test, and release. Full step-by-step procedure lives in **MAINTENANCE.md**; the v0.14.7→v0.15.0-beta.2 fixes are the worked example in **NOTES.md** (API changes reference).
 
-1. **Merge upstream changes** into `neely/sage`:
-   ```bash
-   git fetch upstream
-   git merge upstream/main
-   ```
-
-2. **Update sagegui Cargo.toml** to new commit hash
-
-3. **Fix any API changes** (check for new/changed fields in Input, Builder, etc.)
-
-4. **Test and release** new sagegui version
-
-**Estimated effort:** 1-2 hours per Sage release (assuming no major API changes).
+**Estimated effort:** 1–2 hours per Sage release (assuming no major API changes).
 
 ---
 
 ## Decision Log
 
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| 2026-07-10 | Option A (fork Sage) over Option C (wrapper) | User preference for embedded approach despite maintenance burden |
-| 2026-07-10 | Keep egui/eframe | Already working, good Rust GUI choice |
-| 2026-07-10 | Single main.rs file | Keep Sebastian's structure for now |
-| 2026-07-10 | Target v0.15.0-beta.2 instead of v0.14.7 | Latest version already has lib.rs, fewer modifications needed |
-| 2026-07-10 | Pin to commit hash | Prevents unexpected breakage from upstream changes |
+Locked decisions and their rationale have moved to **NOTES.md → Design decisions (locked)**. That is now the single source of truth — don't duplicate them here. For the dated sequence of when things were decided, see **JOURNAL.md**.
+
+---
+
+## Handoff — for the next session
+
+**Start here:** read AGENTS.md, then this status block, then NOTES.md (locked decisions + dead-ends), then the top of JOURNAL.md.
+
+**State:** Project is at a clean stopping point — Phases 0–4 done, `v0.6.0` released and building on all platforms. Nothing is in flight.
+
+**If picking up Phase 5:** it hasn't been scoped with the user yet. Resolve the four "Discussion Points" under Phase 5 *before* coding — especially the sagePreview relationship (link vs. embed) and which improvements are highest priority.
+
+**Watch out for:**
+- Don't re-add `build.rs` version detection, don't add `lib.rs` to sage-cli, don't switch the Sage dep back to a branch — all dead-ends (NOTES.md).
+- TMT quant is still untested (no TMT data). LFQ is the only validated path.
+- Any behavior change must sync README / CHANGELOG / MAINTENANCE in the same session.
+
+**Key files:** `src/main.rs` (all GUI), `src/version.rs` (Sage version constants), `Cargo.toml` (pinned Sage commit), `.github/workflows/` (build + badges).
