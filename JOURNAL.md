@@ -9,6 +9,16 @@ not current state. One entry per session: the shutdown debrief.
 
 ---
 
+## 2026-07-24 — Preserve feedback + document parameters (post-shutdown addendum)
+
+**Did:** Saved the collaborator's original feature list verbatim to `docs/feedback-2026-07-24.md` (was only in chat before). Added live-use follow-up: `bucket_size` dial confused a user, and a standard-mods list. Recorded both in NOTES.md under a new "Sage parameter notes" subsection (bucket_size explanation + variable/static mod syntax table with encodings). Added a Phase 5 item for **in-GUI parameter documentation** (tooltips/doc links for every control), generalized from the bucket_size confusion.
+
+**Least confident about (Q1):** The deamidation mass I recorded (`+0.98402` for N/Q). Standard value is ~0.984016 — should double-check against Unimod before it ships in a preset. Proven right/wrong by cross-referencing Unimod accession 7 (Deamidated).
+
+**Suggested improvement (Q5):** When the mod preset library is built, source masses from Unimod directly rather than hand-transcribing — avoids exactly the doubt above.
+
+---
+
 ## 2026-07-24 — Session shutdown: template migration + Phase 5/6 planning
 
 **Did:** Full session covering two things: (1) migrated project docs to the agent-context template (AGENTS.md, JOURNAL.md, NOTES.md topical reformat, PLAN.md status + handoff, CONTEXT.md folded/deleted); (2) scoped Phase 5 and Phase 6 from user feedback — async execution prioritized as #1, added multi-FASTA + cRAP input, ThermoRawFileParser .raw conversion with license-check gate, FDR-filtered rollup export, and format spoofing for MSstats / LFQ-analyst / Scaffold. Renumbered old "Phase 6–8" stubs to 7–9 to make room. Phases 5 & 6 are fully written in PLAN; nothing is implemented yet.

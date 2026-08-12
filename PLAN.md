@@ -201,7 +201,8 @@ Provide a user-friendly graphical interface for Sage that:
 - [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI.
 - [ ] **Configuration persistence** — Save last-used settings; don't make users re-enter everything each session.
 - [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory.
-- [ ] **Expanded modifications preset library** — Dropdown of common variable and static mods so users aren't typing them manually.
+- [ ] **Expanded modifications preset library** — Dropdown of common variable and static mods so users aren't typing them manually. Standard set + Sage encoding recorded in NOTES.md ("Sage parameter notes → modification syntax").
+- [ ] **Parameter documentation in the GUI** — Every exposed control needs an inline description/tooltip or a link to Sage's docs. Prompted by a user finding `bucket_size` confusing (it's a pure speed knob — see NOTES.md). Generalizes to all parameters, not just that one.
 - [ ] Parameter presets (default, open search, semi-enzymatic)
 - [ ] Save/load configuration files (JSON export/import)
 - [ ] Better error messages and validation

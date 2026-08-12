@@ -131,6 +131,58 @@ Also removed: the `BrukerSpectrumProcessor` import (no longer needed).
 | v0.14.7 | old (Sebastian's) | what the original GUI used |
 | v0.15.0-beta.2 | current | our version, commit `d74024df` |
 
+### Sage parameter notes
+
+Explanations of Sage config knobs the GUI exposes — for building inline
+descriptions/tooltips (Phase 5 "parameter documentation" item) and for
+answering user questions. Sourced from Sage's docs.
+
+#### `bucket_size` — performance only, not accuracy
+
+A pure performance-tuning knob in Sage's database config block. **It does not change identification results, only how fast the search runs.**
+
+- **What it controls:** Sage builds a fragment-ion index by grouping theoretical fragment ions into mass-sorted "buckets." `bucket_size` = how many fragment ions per bucket. Sage rounds up to the next power of 2, so effective values are 8192, 16384, 32768, 65536, etc.
+- **The tradeoff (speed):**
+  - *Small buckets* (finer granularity) → fewer buckets scanned per high-res fragment match. Fast for Orbitrap / high-res MS2.
+  - *Large buckets* → each bucket spans a wider mass range, suiting low-res instruments with bigger fragment mass errors (with small buckets you'd waste time checking many adjacent buckets).
+- **Recommended by MS2 resolution:**
+
+  | MS2 resolution | Suggested `bucket_size` |
+  |----------------|-------------------------|
+  | High (Orbitrap) | 8192 (the minimum allowed) |
+  | Low (ion trap) | 65536 (starting point) |
+
+  Start there and tune empirically — optimal value depends on fragment tolerance and dataset. (The general config page shows 32768 as a middle-ground illustrative default, but the database-config page's table above is more authoritative.)
+- **Bottom line:** a speed dial. Pick by MS2 resolution; try a few values if you want to squeeze performance. Zero effect on PSM results.
+
+#### Variable / static modification syntax
+
+All mods live under `variable_mods` / `static_mods` in the `database` section of `config.json`. Sage uses prefix syntax for position:
+
+| Prefix | Meaning |
+|--------|---------|
+| `^X` | on residue X only at **peptide N-terminus** |
+| `$X` | on residue X only at **peptide C-terminus** |
+| `[X` (or bare `[`) | on residue X (or any) at **protein N-terminus** |
+| `]X` (or bare `]`) | on residue X (or any) at **protein C-terminus** |
+| `X` (bare residue) | anywhere on residue X |
+
+`max_variable_mods` caps how many variable mods co-occur on one peptide — **defaults to 2**, so bump it when stacking several.
+
+Standard mod set a collaborator expects as presets (feeds the Phase 5 preset library):
+
+| Mod | Encoding | Mass |
+|-----|----------|------|
+| Oxidation on M (`oxM`) | `"M": [15.9949]` | +15.9949 |
+| Oxidation on P (`oxP`, skin/collagen) | `"P": [15.9949]` | +15.9949 |
+| Pyro-Glu, peptide N-term Q | `"^Q": [-17.026549]` | −17.026549 |
+| Pyro-Glu, peptide N-term E | `"^E": [-18.010565]` | −18.010565 |
+| Deamidation N/Q | `"N": [0.98402]`, `"Q": [0.98402]` | +0.98402 |
+| Acetyl, protein N-term | `"[": [42.0106]` | +42.0106 |
+| **Fixed:** Carbamidomethyl on C | `static_mods` `"C": 57.0215` | +57.0215 |
+
+Caveat: an old Sage changelog notes a historical bug where variable protein-terminal mods (e.g. N-term acetyl) could give nondeterministic results, later fixed — use a reasonably current release (we're on v0.15.0-beta.2, safe).
+
 ### Test baseline (Phase 2)
 
 The validated reference run — use to sanity-check regressions:
