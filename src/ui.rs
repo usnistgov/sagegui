@@ -416,7 +416,15 @@ pub struct DatabaseConfig {
     pub generate_decoys: bool,
     pub static_mods: StaticModConfig,
     pub variable_mods: VariableModConfig,
+    /// List of FASTA files to search (concatenated at launch time).
+    #[serde(default)]
+    pub fasta_paths: Vec<PathBuf>,
+    /// Legacy single-FASTA field — migrated to fasta_paths on deserialise.
+    #[serde(default, skip_serializing)]
     pub fasta: String,
+    /// Resolved path of the concatenated FASTA written at launch; not persisted.
+    #[serde(skip)]
+    pub fasta_for_launch: String,
 }
 
 impl From<DatabaseConfig> for Builder {
@@ -431,7 +439,7 @@ impl From<DatabaseConfig> for Builder {
             max_variable_mods: Some(val.max_variable_mods as usize),
             decoy_tag: val.decoy_tag,
             generate_decoys: Some(val.generate_decoys),
-            fasta: Some(val.fasta),
+            fasta: Some(val.fasta_for_launch),
             static_mods: Some(val.static_mods.as_hashmap()),
             variable_mods: Some(val.variable_mods.as_hashmap()),
             prefilter: None,
@@ -453,7 +461,9 @@ impl Default for DatabaseConfig {
             max_variable_mods: 2,
             decoy_tag: Some("rev_".to_string()),
             generate_decoys: true,
+            fasta_paths: Vec::new(),
             fasta: String::new(),
+            fasta_for_launch: String::new(),
             static_mods: StaticModConfig::default(),
             variable_mods: VariableModConfig::default(),
         }
@@ -754,47 +764,7 @@ impl SageLauncher {
 
         ui.add_space(20.0);
 
-        ui.horizontal(|ui| {
-            if ui.button("Save Config…").clicked() {
-                if let Some(path) = FileDialog::new().add_filter("JSON", &["json"]).save_file() {
-                    let mut cfg = self.config.clone();
-                    // sync string maps before serialising
-                    cfg.database.static_mods.sync_to_ser();
-                    cfg.database.variable_mods.variable_mods.sync_to_ser();
-                    match serde_json::to_string_pretty(&cfg) {
-                        Ok(s) => {
-                            if let Err(e) = std::fs::write(&path, s) {
-                                self.status_message = format!("Error saving: {}", e);
-                            } else {
-                                self.status_message = "Config saved.".to_string();
-                            }
-                        }
-                        Err(e) => {
-                            self.status_message = format!("Error serialising: {}", e);
-                        }
-                    }
-                }
-            }
-
-            if ui.button("Load Config…").clicked() {
-                if let Some(path) = FileDialog::new().add_filter("JSON", &["json"]).pick_file() {
-                    if let Ok(s) = std::fs::read_to_string(&path) {
-                        match serde_json::from_str::<Config>(&s) {
-                            Ok(mut c) => {
-                                // re-hydrate live mod maps from the string maps
-                                c.database.static_mods.sync_from_ser();
-                                c.database.variable_mods.variable_mods.sync_from_ser();
-                                self.config = c;
-                                self.status_message = "Config loaded.".to_string();
-                            }
-                            Err(e) => {
-                                self.status_message = format!("Error loading: {}", e);
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        ui.label("Save / Load Config: coming in a future version.");
     }
 
     pub fn page_files_database(&mut self, ui: &mut egui::Ui) {
@@ -831,26 +801,48 @@ impl SageLauncher {
         ui.group(|ui| {
             ui.heading("Database");
 
-            // FASTA file picker
+            // Multi-FASTA list
             ui.horizontal(|ui| {
-                ui.label("FASTA File:");
-                ui.text_edit_singleline(&mut self.config.database.fasta);
-                if ui.button("Browse").clicked() {
-                    if let Some(path) = FileDialog::new()
-                        .add_filter("FASTA", &["fasta"])
-                        .pick_file()
+                if ui
+                    .button("Add FASTA…")
+                    .on_hover_text("Add one or more FASTA files (target, contaminants, spike-ins).")
+                    .clicked()
+                {
+                    if let Some(paths) = FileDialog::new()
+                        .add_filter("FASTA", &["fasta", "fa", "faa"])
+                        .pick_files()
                     {
-                        self.config.database.fasta = path.display().to_string();
+                        for p in paths {
+                            if !self.config.database.fasta_paths.contains(&p) {
+                                self.config.database.fasta_paths.push(p);
+                            }
+                        }
                     }
                 }
             });
 
-            // cRAP placeholder
-            let mut _crap = false;
-            ui.add_enabled(
-                false,
-                egui::Checkbox::new(&mut _crap, "Include cRAP contaminants (coming soon)"),
-            );
+            // FASTA list with per-row remove
+            let mut remove_idx: Option<usize> = None;
+            if self.config.database.fasta_paths.is_empty() {
+                ui.weak("(no FASTA files selected)");
+            } else {
+                for (i, path) in self.config.database.fasta_paths.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            path.file_name()
+                                .map(|n| n.to_string_lossy().to_string())
+                                .unwrap_or_else(|| path.to_string_lossy().to_string()),
+                        )
+                        .on_hover_text(path.to_string_lossy());
+                        if ui.small_button("✖").on_hover_text("Remove").clicked() {
+                            remove_idx = Some(i);
+                        }
+                    });
+                }
+            }
+            if let Some(i) = remove_idx {
+                self.config.database.fasta_paths.remove(i);
+            }
 
             egui::CollapsingHeader::new("Advanced")
                 .default_open(false)

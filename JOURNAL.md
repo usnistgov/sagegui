@@ -9,6 +9,36 @@ not current state. One entry per session: the shutdown debrief.
 
 ---
 
+## 2026-08-13 — Multi-FASTA + v0.7.0
+
+**Did:** Replaced the single-FASTA text/browse box on Files & Database with a
+multi-file add/remove list. Data model: `DatabaseConfig.fasta: String` →
+`fasta_paths: Vec<PathBuf>` with `fasta_for_launch: String` (runtime-only,
+`#[serde(skip)]`) and `fasta: String` kept as `#[serde(default,
+skip_serializing)]` for migration. At launch, one file is passed directly; two
+or more are concatenated into a temp file (`%TEMP%/sagegui_concat_<ms>.fasta`)
+which is deleted when `cleanup_thread` runs. cRAP design decision: no bundled
+file — user adds their preferred contaminant FASTA as just another list entry.
+Fixed the scroll area not filling full panel width (`auto_shrink([false; 2])`).
+Removed Save / Load Config from the Experiment tab after the Sage
+`results.json` schema mismatch (`enzyme.restrict` vs GUI's
+`enable_restrict`/`restrict_char`, `ion_kinds` array vs HashMap, etc.) made a
+safe partial bridge infeasible for v0.7.0 — stub placeholder left, design work
+noted in NOTES. Bumped version to 0.7.0. CHANGELOG and PLAN updated.
+Tested: two-FASTA run (cRAP + UniProt Human) succeeded in debug build.
+
+**Least confident about (Q1):** The temp-file concat path on macOS/Linux — the
+`std::env::temp_dir()` call should be correct cross-platform, but it wasn't
+tested on those OSes. Proven right/wrong by CI building and running the
+release binary on Linux and macOS in the v0.7.0 release workflow.
+
+**Suggested improvement (Q5):** The Save/Load Config gap is the clearest next
+design task: audit every field difference between SageGUI's `Config` serde
+output and Sage's `Input` JSON schema in one table, then decide the mapping
+strategy (dedicated importer vs aligning schemas) before writing any code.
+
+---
+
 ## 2026-08-13 — UI-review follow-up: move Output Location to Run tab; Modifications list-picker
 
 **Refinement addendum (same sitting):** After the collaborator ran the new

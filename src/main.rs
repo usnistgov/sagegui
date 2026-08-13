@@ -43,6 +43,8 @@ pub struct SageLauncher {
     pub mod_custom_key: String,
     /// Modifications tab: free-type "Custom…" mass buffer.
     pub mod_custom_mass: f32,
+    /// Path of the temp-concatenated FASTA to delete after the run.
+    temp_fasta_path: Option<std::path::PathBuf>,
 }
 
 impl Default for SageLauncher {
@@ -63,6 +65,7 @@ impl Default for SageLauncher {
             mod_selected_preset: None,
             mod_custom_key: String::new(),
             mod_custom_mass: 0.0,
+            temp_fasta_path: None,
         }
     }
 }
@@ -136,14 +139,16 @@ impl eframe::App for SageLauncher {
 
         // ── Central content area ──────────────────────────────────────────────
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| match self.active_page {
-                Page::Experiment => self.page_experiment(ui),
-                Page::FilesDatabase => self.page_files_database(ui),
-                Page::Search => self.page_search(ui),
-                Page::Modifications => self.page_modifications(ui),
-                Page::Quant => self.page_quant(ui),
-                Page::RunInfo => self.page_run_info(ui),
-            });
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| match self.active_page {
+                    Page::Experiment => self.page_experiment(ui),
+                    Page::FilesDatabase => self.page_files_database(ui),
+                    Page::Search => self.page_search(ui),
+                    Page::Modifications => self.page_modifications(ui),
+                    Page::Quant => self.page_quant(ui),
+                    Page::RunInfo => self.page_run_info(ui),
+                });
         });
 
         if self.is_running {
@@ -184,15 +189,47 @@ impl SageLauncher {
         self.message_receiver = None;
         self.start_time = None;
         self.is_running = false;
+        if let Some(p) = self.temp_fasta_path.take() {
+            let _ = std::fs::remove_file(&p);
+        }
     }
 
     fn launch_application(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if self.config.database.fasta.is_empty() {
-            return Err("FASTA file is not selected".into());
+        if self.config.database.fasta_paths.is_empty() {
+            return Err("No FASTA files selected".into());
         }
         if self.config.mzml_paths.is_empty() {
             return Err("mzML file is not selected".into());
         }
+
+        // Concatenate all selected FASTAs into a single temp file.
+        let fasta_path = if self.config.database.fasta_paths.len() == 1 {
+            // Single file — no temp copy needed.
+            self.temp_fasta_path = None;
+            self.config.database.fasta_paths[0].to_string_lossy().to_string()
+        } else {
+            let tmp = std::env::temp_dir().join(format!(
+                "sagegui_concat_{}.fasta",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0)
+            ));
+            let mut out = std::fs::File::create(&tmp)?;
+            for src in &self.config.database.fasta_paths {
+                let content = std::fs::read(src)
+                    .map_err(|e| format!("{}: {}", src.display(), e))?;
+                std::io::Write::write_all(&mut out, &content)?;
+                // Ensure each file ends with a newline before the next header.
+                if !content.ends_with(b"\n") {
+                    std::io::Write::write_all(&mut out, b"\n")?;
+                }
+            }
+            self.temp_fasta_path = Some(tmp.clone());
+            tmp.to_string_lossy().to_string()
+        };
+
+        self.config.database.fasta_for_launch = fasta_path;
 
         let parallel = num_cpus::get() as u16 / 2;
         info!("Starting search with {} parallel threads", parallel);

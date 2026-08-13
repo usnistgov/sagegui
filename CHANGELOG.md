@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Multi-FASTA selection** — Files & Database tab now shows an "Add FASTA…"
+  list (multi-file picker). Each file appears with a per-row ✖ remove button.
+  Order is preserved (target organism first, then contaminants, spike-ins, etc.).
+  Old single-FASTA configs migrate automatically on Load Config.
+- **On-the-fly FASTA concatenation** — when more than one FASTA is selected, a
+  temp file is written at launch, passed to Sage, and deleted when the run
+  completes. Single-file searches bypass the copy entirely.
+
+## [0.7.0] - 2026-08-13
+
+### Added
 - **Sidebar-navigation UI** — replaced the single scrolling page with six tabs
   (Experiment, Files & Database, Search, Modifications, Quant, Run / Info) and a
   **pinned run bar** at the bottom of every tab, so Run/status/elapsed stay
@@ -39,9 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now lives next to the run action instead of on Files & Database.
 
 ### Removed
+- **Save / Load Config** — removed from v0.7.0. The Sage `results.json` /
+  `settings.json` schema differs from SageGUI's internal config struct;
+  a partial bridge would silently drop fields. Feature deferred pending
+  schema-alignment design work. Placeholder note left on the Experiment tab.
 - **Native Bruker `.d` file picker** — SageGUI now takes `.mzML` / `.mzML.gz`
-  only. Convert other formats upstream. (Thermo `.raw` auto-conversion is also
-  dropped from the roadmap.)
+  only. Convert other formats upstream.
 
 ## [0.6.0] - 2026-07-13
 

@@ -110,10 +110,12 @@ DIA/diaPASEF).
   monoisotopic deltas — [[deamidation-mass-doubt]] resolved: 0.984016). To
   extend the list, edit that const. **Still open:** the Experiment archetypes
   (Phospho etc.) don't yet auto-populate mods; the picker is manual.
-- **Multi-FASTA UX.** Files & Database should make it easy to add and select
-  *multiple* FASTA files (target + contaminants + spike-ins), concatenated
-  before Sage. Worth real design effort — not just a repeated file picker. Pairs
-  with the built-in cRAP toggle.
+- **Multi-FASTA UX.** ✅ Shipped 2026-08-13. Files & Database tab is now an
+  add/remove list. User adds target + contaminant FASTAs in order; a single-file
+  search bypasses the temp copy. **cRAP design decision:** no bundled file —
+  user supplies whatever cRAP/contaminant FASTA they prefer, just as another
+  list entry. Dedup of identical FASTA headers: not done, just concatenate
+  (documented decision).
 
 ### Scope decision: mzML/.gz only — drop native `.d` / `.raw`
 
@@ -162,12 +164,17 @@ Collaborator ran the baseline search through the new 6-tab GUI. It worked
 (60,672 PSMs — see Test baseline). Follow-ups to address in the next UI session,
 roughly ordered:
 
-1. **Verify Load Config actually populates all tabs.** Does loading an
-   experiment JSON truly overwrite every field across all tabs (not just the
-   Experiment tab's own state)? And after loading, can you then Save the current
-   (possibly-edited) config back out? Round-trip both directions and confirm.
-   *(The save/load code replaces `self.config` wholesale, so it should — but this
-   was never observed working end-to-end; treat as unverified.)*
+1. **Save / Load Config — deferred (2026-08-13).** The Sage `results.json` /
+   `settings.json` schema differs from SageGUI's `Config` struct (e.g.
+   `enzyme.restrict` vs `enable_restrict`/`restrict_char`, `ion_kinds` as array
+   vs HashMap, extra Sage-only fields). Rather than writing a partial bridge
+   that silently drops fields, the feature was **removed from v0.7.0**. The
+   Experiment tab now shows a placeholder note. Design work needed before
+   re-implementing: audit every field difference between SageGUI's `Config` and
+   Sage's `Input`/`database` JSON shapes, then decide whether to (a) add a
+   dedicated Sage-JSON importer that maps fields explicitly, or (b) align
+   SageGUI's serde output with Sage's schema end-to-end. Pairs with the
+   "remember last-used settings" item.
 2. **Move Output Location control to the Run tab.** ✅ Done 2026-08-13 — the
    Output Location group now lives on the Run / Info tab (above Output Options);
    removed from Files & Database. *(Still relates to the open "smarter output
