@@ -1165,7 +1165,11 @@ impl SageLauncher {
                         let mass = self.mod_custom_mass;
                         match self.mod_target {
                             ModTarget::Static => {
-                                self.config.database.variable_mods.variable_mods.remove_key(&key);
+                                self.config
+                                    .database
+                                    .variable_mods
+                                    .variable_mods
+                                    .remove_key(&key);
                                 self.config.database.static_mods.insert_key(&key, mass);
                             }
                             ModTarget::Variable => {
@@ -1199,7 +1203,11 @@ impl SageLauncher {
         for (key, mass) in add_keys {
             match self.mod_target {
                 ModTarget::Static => {
-                    self.config.database.variable_mods.variable_mods.remove_key(key);
+                    self.config
+                        .database
+                        .variable_mods
+                        .variable_mods
+                        .remove_key(key);
                     self.config.database.static_mods.insert_key(key, mass);
                 }
                 ModTarget::Variable => {

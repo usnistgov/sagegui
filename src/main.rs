@@ -206,7 +206,9 @@ impl SageLauncher {
         let fasta_path = if self.config.database.fasta_paths.len() == 1 {
             // Single file — no temp copy needed.
             self.temp_fasta_path = None;
-            self.config.database.fasta_paths[0].to_string_lossy().to_string()
+            self.config.database.fasta_paths[0]
+                .to_string_lossy()
+                .to_string()
         } else {
             let tmp = std::env::temp_dir().join(format!(
                 "sagegui_concat_{}.fasta",
@@ -217,8 +219,8 @@ impl SageLauncher {
             ));
             let mut out = std::fs::File::create(&tmp)?;
             for src in &self.config.database.fasta_paths {
-                let content = std::fs::read(src)
-                    .map_err(|e| format!("{}: {}", src.display(), e))?;
+                let content =
+                    std::fs::read(src).map_err(|e| format!("{}: {}", src.display(), e))?;
                 std::io::Write::write_all(&mut out, &content)?;
                 // Ensure each file ends with a newline before the next header.
                 if !content.ends_with(b"\n") {
