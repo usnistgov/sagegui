@@ -179,8 +179,104 @@ impl IonKindSelection {
     }
 }
 
-// ─── StaticModConfig ─────────────────────────────────────────────────────────
+// ─── Modification presets (curated "Common modifications" master list) ────────
+//
+// A small set we maintain ourselves — Sage ships no mod dictionary. Each preset
+// carries one or more (Sage-key, mass) pairs; a multi-residue preset (e.g.
+// Phospho on S/T/Y) inserts several independent rows in one click. Masses are
+// Unimod monoisotopic deltas. Which box (Static/Variable) an entry lands in is
+// chosen by the user via the focus toggle, not fixed per preset — `typical`
+// only records the conventional use for the tooltip.
+pub struct ModPreset {
+    /// Display name, e.g. "Phospho (S/T/Y)".
+    pub label: &'static str,
+    /// (Sage specificity key, monoisotopic delta) pairs applied together.
+    pub keys: &'static [(&'static str, f32)],
+    /// Unimod accession, for the hover tooltip.
+    pub accession: u32,
+    /// Short note shown on hover.
+    pub note: &'static str,
+}
 
+/// Curated common-modifications list. Edit here to add/remove presets.
+pub const MOD_PRESETS: &[ModPreset] = &[
+    ModPreset {
+        label: "Carbamidomethyl (C)",
+        keys: &[("C", 57.021464)],
+        accession: 4,
+        note: "Iodoacetamide alkylation of cysteine; standard fixed mod.",
+    },
+    ModPreset {
+        label: "Oxidation (M)",
+        keys: &[("M", 15.994915)],
+        accession: 35,
+        note: "Methionine oxidation; the default variable mod.",
+    },
+    ModPreset {
+        label: "Oxidation (M/P)",
+        keys: &[("M", 15.994915), ("P", 15.994915)],
+        accession: 35,
+        note: "Add P (hydroxyproline) for collagen/ECM-heavy samples.",
+    },
+    ModPreset {
+        label: "Phospho (S/T/Y)",
+        keys: &[("S", 79.96633), ("T", 79.96633), ("Y", 79.96633)],
+        accession: 21,
+        note: "Phosphoproteomics; typically replaces oxidation, not additive.",
+    },
+    ModPreset {
+        label: "Acetyl (K, protein N-term)",
+        keys: &[("K", 42.010565), ("[", 42.010565)],
+        accession: 1,
+        note: "Lysine acetylation and/or protein N-term acetylation.",
+    },
+    ModPreset {
+        label: "Deamidated (N/Q)",
+        keys: &[("N", 0.984016), ("Q", 0.984016)],
+        accession: 7,
+        note: "Common artefact/PTM; N more common than Q.",
+    },
+    ModPreset {
+        label: "Gln->pyro-Glu (^Q)",
+        keys: &[("^Q", -17.026549)],
+        accession: 28,
+        note: "Peptide N-term Q; negative delta mass.",
+    },
+    ModPreset {
+        label: "Glu->pyro-Glu (^E)",
+        keys: &[("^E", -18.010565)],
+        accession: 27,
+        note: "Peptide N-term E; negative delta mass.",
+    },
+    ModPreset {
+        label: "Methyl (K/R)",
+        keys: &[("K", 14.01565), ("R", 14.01565)],
+        accession: 34,
+        note: "Mono-methylation.",
+    },
+    ModPreset {
+        label: "Carbamyl (K, protein N-term)",
+        keys: &[("K", 43.005814), ("[", 43.005814)],
+        accession: 5,
+        note: "Urea/cyanate artefact; common in old/frozen samples.",
+    },
+    ModPreset {
+        label: "Trimethyl (K/R)",
+        keys: &[("K", 42.04695), ("R", 42.04695)],
+        accession: 37,
+        note: "Distinct from Acetyl (42.010565) — do not conflate.",
+    },
+];
+
+/// Which modification box the master-list arrows act on.
+#[derive(PartialEq, Clone, Copy, Debug, Default)]
+pub enum ModTarget {
+    #[default]
+    Variable,
+    Static,
+}
+
+// ─── StaticModConfig ─────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticModConfig {
     // Stored as String→f32 for serde; HashMap<ModificationSpecificity,f32> is
@@ -189,10 +285,6 @@ pub struct StaticModConfig {
     pub static_mods_ser: HashMap<String, f32>,
     #[serde(skip)]
     pub static_mods: HashMap<ModificationSpecificity, f32>,
-    #[serde(default, skip)]
-    pub new_mod_buffer: String,
-    #[serde(default, skip)]
-    pub new_mass_buffer: f32,
 }
 
 impl StaticModConfig {
@@ -224,70 +316,55 @@ impl Default for StaticModConfig {
         Self {
             static_mods: m,
             static_mods_ser: ser,
-            new_mod_buffer: "W".to_string(),
-            new_mass_buffer: f32::default(),
         }
     }
 }
 
 impl StaticModConfig {
-    pub fn update_section(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Static Modifications");
-        self._update_section(ui);
-    }
-    pub fn _update_section(&mut self, ui: &mut egui::Ui) {
-        ui.label("Modifications are applied to all peptides.");
-
-        let ip = ui.horizontal(|ui| {
-            ui.label("Add Modification:");
-            ui.add(egui::DragValue::new(&mut self.new_mass_buffer).speed(0.01));
-            ui.add(egui::TextEdit::singleline(&mut self.new_mod_buffer).desired_width(10.0));
-            ModificationSpecificity::from_str(&self.new_mod_buffer)
-        });
-
-        let parsed_mod = ip.inner;
-
-        if let Ok(mod_) = parsed_mod {
-            if ui.button("Add").clicked() {
-                self.static_mods.insert(mod_, self.new_mass_buffer);
-                self.sync_to_ser();
-            }
-        } else {
-            ui.label("Invalid Modification ('C', ']', '$' and '^M' are all valid examples)");
-        }
-        ui.add_space(10.0);
-
-        let remove_queue = self.update_deletion_queue(ui);
-        for mod_ in remove_queue {
-            self.static_mods.remove(&mod_);
-            self.sync_to_ser();
-        }
-    }
-
-    fn update_deletion_queue(&self, ui: &mut egui::Ui) -> Vec<ModificationSpecificity> {
-        let mut to_remove = Vec::new();
-        ui.group(|ui| {
-            ui.spacing_mut().item_spacing = egui::Vec2::new(10.0, 10.0);
-            ui.label("Current Modifications:");
-            for (mod_, mass) in self.static_mods.iter() {
-                ui.horizontal(|ui| {
-                    ui.label(mod_.to_string());
-                    ui.label(format!("{:.4}", mass));
-                    if ui.button("Remove").clicked() {
-                        to_remove.push(*mod_);
-                    }
-                });
-            }
-        });
-        to_remove
-    }
-
     pub fn as_hashmap(&self) -> HashMap<String, f32> {
         let mut hm = HashMap::new();
         for (mod_, mass) in self.static_mods.iter() {
             hm.insert(mod_.to_string(), *mass);
         }
         hm
+    }
+
+    /// Insert a mod by its Sage key string (e.g. "M", "^Q", "["). No-op on an
+    /// unparseable key. Keeps the serde shadow map in sync.
+    pub fn insert_key(&mut self, key: &str, mass: f32) {
+        if let Ok(spec) = ModificationSpecificity::from_str(key) {
+            self.static_mods.insert(spec, mass);
+            self.sync_to_ser();
+        }
+    }
+
+    /// Remove a mod by its Sage key string. Keeps the serde shadow map in sync.
+    pub fn remove_key(&mut self, key: &str) {
+        if let Ok(spec) = ModificationSpecificity::from_str(key) {
+            self.static_mods.remove(&spec);
+            self.sync_to_ser();
+        }
+    }
+
+    /// Render this box as a read-only list with a Remove button per row.
+    /// Returns the key strings the user asked to remove this frame.
+    pub fn show_list(&self, ui: &mut egui::Ui) -> Vec<String> {
+        let mut to_remove = Vec::new();
+        ui.group(|ui| {
+            ui.set_min_width(200.0);
+            if self.static_mods.is_empty() {
+                ui.weak("(none)");
+            }
+            for (mod_, mass) in self.static_mods.iter() {
+                ui.horizontal(|ui| {
+                    ui.monospace(format!("{:<3} {:+.4}", mod_.to_string(), mass));
+                    if ui.small_button("✖").on_hover_text("Remove").clicked() {
+                        to_remove.push(mod_.to_string());
+                    }
+                });
+            }
+        });
+        to_remove
     }
 }
 
@@ -307,19 +384,12 @@ impl Default for VariableModConfig {
         let def = StaticModConfig {
             static_mods: m,
             static_mods_ser: ser,
-            new_mod_buffer: "M".to_string(),
-            new_mass_buffer: 15.994915f32,
         };
         Self { variable_mods: def }
     }
 }
 
 impl VariableModConfig {
-    pub fn update_section(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Variable Modifications");
-        self.variable_mods._update_section(ui);
-    }
-
     pub fn as_hashmap(&self) -> HashMap<String, Vec<f32>> {
         let mut hm = HashMap::new();
         for (mod_, mass) in self.variable_mods.static_mods.iter() {
@@ -951,15 +1021,186 @@ impl SageLauncher {
 
     pub fn page_modifications(&mut self, ui: &mut egui::Ui) {
         ui.heading("Modifications");
+        ui.add_space(6.0);
+        ui.label(
+            "Pick a target box, then use ◀ / ▶ to move a common modification in or out. \
+             A modification cannot be both Static and Variable at once.",
+        );
         ui.add_space(10.0);
-        self.config.database.static_mods.update_section(ui);
-        ui.add_space(10.0);
-        self.config.database.variable_mods.update_section(ui);
-        ui.add_space(10.0);
+
+        // Which box do the arrows act on?
+        ui.horizontal(|ui| {
+            ui.label("Target:");
+            ui.selectable_value(&mut self.mod_target, ModTarget::Variable, "Variable")
+                .on_hover_text("Arrows add/remove modifications in the Variable box.");
+            ui.selectable_value(&mut self.mod_target, ModTarget::Static, "Static (fixed)")
+                .on_hover_text("Arrows add/remove modifications in the Static box.");
+        });
+        ui.add_space(8.0);
+
+        // Deferred mutations: collect during the immediate-mode pass, apply after.
+        let mut add_keys: Vec<(&'static str, f32)> = Vec::new();
+        let mut remove_keys: Vec<String> = Vec::new();
+
+        ui.horizontal_top(|ui| {
+            // ── Left: the two destination boxes ──────────────────────────────
+            ui.vertical(|ui| {
+                ui.strong("Static (fixed)");
+                let stat_rm = self.config.database.static_mods.show_list(ui);
+                remove_keys.extend(stat_rm.into_iter().map(|k| format!("S\u{1}{}", k)));
+
+                ui.add_space(10.0);
+
+                ui.strong("Variable");
+                let var_rm = self
+                    .config
+                    .database
+                    .variable_mods
+                    .variable_mods
+                    .show_list(ui);
+                remove_keys.extend(var_rm.into_iter().map(|k| format!("V\u{1}{}", k)));
+            });
+
+            ui.add_space(12.0);
+
+            // ── Middle: transfer arrows ──────────────────────────────────────
+            ui.vertical(|ui| {
+                ui.add_space(24.0);
+                let has_sel = self.mod_selected_preset.is_some();
+                if ui
+                    .add_enabled(has_sel, egui::Button::new("◀ Add"))
+                    .on_hover_text("Add the selected common modification to the target box.")
+                    .clicked()
+                {
+                    if let Some(i) = self.mod_selected_preset {
+                        for (key, mass) in MOD_PRESETS[i].keys {
+                            add_keys.push((key, *mass));
+                        }
+                    }
+                }
+                if ui
+                    .add_enabled(has_sel, egui::Button::new("Remove ▶"))
+                    .on_hover_text("Remove the selected common modification from the target box.")
+                    .clicked()
+                {
+                    if let Some(i) = self.mod_selected_preset {
+                        for (key, _) in MOD_PRESETS[i].keys {
+                            remove_keys.push(match self.mod_target {
+                                ModTarget::Static => format!("S\u{1}{}", key),
+                                ModTarget::Variable => format!("V\u{1}{}", key),
+                            });
+                        }
+                    }
+                }
+            });
+
+            ui.add_space(12.0);
+
+            // ── Right: the curated master list ───────────────────────────────
+            ui.vertical(|ui| {
+                ui.strong("Common modifications");
+                ui.group(|ui| {
+                    ui.set_min_width(230.0);
+                    for (i, preset) in MOD_PRESETS.iter().enumerate() {
+                        let selected = self.mod_selected_preset == Some(i);
+                        if ui
+                            .selectable_label(selected, preset.label)
+                            .on_hover_text(format!(
+                                "{}\nUnimod accession {}",
+                                preset.note, preset.accession
+                            ))
+                            .clicked()
+                        {
+                            self.mod_selected_preset = Some(i);
+                        }
+                    }
+                });
+
+                ui.add_space(6.0);
+
+                // ── Custom escape hatch ──────────────────────────────────────
+                ui.collapsing("+ Custom…", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Key:");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.mod_custom_key)
+                                .desired_width(40.0),
+                        )
+                        .on_hover_text("Sage specificity, e.g. C, M, ^Q, $K, [, ].");
+                        ui.label("Δmass:");
+                        ui.add(egui::DragValue::new(&mut self.mod_custom_mass).speed(0.001));
+                    });
+                    let parsed =
+                        ModificationSpecificity::from_str(self.mod_custom_key.trim()).is_ok();
+                    if !self.mod_custom_key.trim().is_empty() && !parsed {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(200, 80, 80),
+                            "Invalid key (valid: C, ], $, ^M …).",
+                        );
+                    }
+                    if ui
+                        .add_enabled(parsed, egui::Button::new("Add to target box"))
+                        .clicked()
+                    {
+                        // Leak-free: custom keys go through the owned-string path.
+                        let key = self.mod_custom_key.trim().to_string();
+                        let mass = self.mod_custom_mass;
+                        match self.mod_target {
+                            ModTarget::Static => {
+                                self.config.database.variable_mods.variable_mods.remove_key(&key);
+                                self.config.database.static_mods.insert_key(&key, mass);
+                            }
+                            ModTarget::Variable => {
+                                self.config.database.static_mods.remove_key(&key);
+                                self.config
+                                    .database
+                                    .variable_mods
+                                    .variable_mods
+                                    .insert_key(&key, mass);
+                            }
+                        }
+                    }
+                });
+            });
+        });
+
+        // ── Apply deferred removals ───────────────────────────────────────────
+        for tagged in &remove_keys {
+            if let Some(key) = tagged.strip_prefix("S\u{1}") {
+                self.config.database.static_mods.remove_key(key);
+            } else if let Some(key) = tagged.strip_prefix("V\u{1}") {
+                self.config
+                    .database
+                    .variable_mods
+                    .variable_mods
+                    .remove_key(key);
+            }
+        }
+
+        // ── Apply deferred adds with mutual exclusion ─────────────────────────
+        for (key, mass) in add_keys {
+            match self.mod_target {
+                ModTarget::Static => {
+                    self.config.database.variable_mods.variable_mods.remove_key(key);
+                    self.config.database.static_mods.insert_key(key, mass);
+                }
+                ModTarget::Variable => {
+                    self.config.database.static_mods.remove_key(key);
+                    self.config
+                        .database
+                        .variable_mods
+                        .variable_mods
+                        .insert_key(key, mass);
+                }
+            }
+        }
+
+        ui.add_space(14.0);
         ui.add(
             egui::Slider::new(&mut self.config.database.max_variable_mods, 1..=10)
                 .text("Max Variable Mods"),
-        );
+        )
+        .on_hover_text("Caps how many variable mods can co-occur on one peptide (Sage default 2).");
     }
 
     pub fn page_quant(&mut self, ui: &mut egui::Ui) {

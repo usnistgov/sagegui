@@ -9,28 +9,54 @@ not current state. One entry per session: the shutdown debrief.
 
 ---
 
-## 2026-08-13 — UI-review follow-up: move Output Location to Run tab
+## 2026-08-13 — UI-review follow-up: move Output Location to Run tab; Modifications list-picker
 
-**Did:** Moved the Output Location control from Files & Database to the Run / Info
-tab, per UI-review follow-up #2. It now sits in its own group above Output Options
-on the Run tab (browse-folder + text field unchanged). Verified `cargo build`
-passes. Synced CHANGELOG ([Unreleased] → Changed), NOTES (ticked follow-up #2),
-and PLAN (status block). **License decision (follow-up #4) deferred by the
-maintainer** — wants to talk to Sebastian (original author) before choosing MIT
-vs Apache-2.0; recorded as blocked in NOTES, so no LICENSE file was added and
-Cargo.toml/README/GUI were left untouched.
+**Did (part 1 — Output Location):** Moved the Output Location control from Files &
+Database to the Run / Info tab, per UI-review follow-up #2. It now sits in its own
+group above Output Options on the Run tab (browse-folder + text field unchanged).
+Committed `84c927a`.
 
-**Least confident about (Q1):** That the Output Location group reads naturally at
-the *top* of the Run tab rather than buried below run controls — I placed it
-above Output Options but did not view the running GUI this session. Proven
-right/wrong by launching the GUI and eyeballing the Run/Info tab layout; trivial
-to reorder if it feels off.
+**Did (part 2 — Modifications list-picker):** Rebuilt the Modifications tab from the
+inherited add/list/remove form into a **Mascot-style list-picker** per the
+collaborator's spec: two destination boxes (Static / Variable) on the left, a
+curated **"Common modifications"** master list on the right (hardcoded
+`MOD_PRESETS` in `src/ui.rs`, 11 entries, Unimod monoisotopic deltas), and
+◀ Add / Remove ▶ arrows acting on whichever box a **Target** toggle selects.
+Decisions confirmed with the user first: (a) list hardcoded in Rust; (b)
+multi-residue presets insert as **separate editable rows** (Phospho → S, T, Y as
+three rows) — resolves the pinned "per-AA specificity" open problem; (c) build now
+(full redesign). Kept a "+ Custom…" collapsing free-type escape hatch. Enforced
+**Static/Variable mutual exclusion** on every add. Deleted the now-dead
+`_update_section` / `update_deletion_queue` / `new_mod_buffer` / `new_mass_buffer`
+machinery and added `insert_key`/`remove_key`/`show_list` helpers on
+`StaticModConfig`. `cargo build` + `cargo clippy` both clean. Synced CHANGELOG,
+PLAN (ticked preset-library item), NOTES (rewrote the "Modifications editor
+redesign" pin as shipped — [[deamidation-mass-doubt]] resolved: 0.984016).
 
-**Suggested improvement (Q5):** When the Run/Info rework (follow-up #3) lands,
-group Output Location, Output Options, and the launch/console area into one
-coherent "Run" region — right now Output Location is a standalone group grafted
-on top, and the tab will read better once the whole screen is intentionally laid
-out rather than accreted.
+**License (follow-up #4) deferred by the maintainer** — wants to talk to Sebastian
+(original author) before choosing MIT vs Apache-2.0; recorded as blocked in NOTES,
+so no LICENSE file was added and Cargo.toml/README/GUI were left untouched.
+
+**Least confident about (Q1):** That the multi-key remove path is intuitive — Add
+inserts three rows for Phospho, but Remove ▶ (preset still selected) removes only
+the exact keys in that preset from the *targeted* box; if a user manually edited
+rows first, the mismatch is a silent no-op (correct, but unobserved). Proven
+right/wrong by launching the GUI and exercising add → manual-remove-one →
+preset-remove; the per-row ✖ buttons are the reliable path regardless.
+
+**Unstated assumptions (Q2):** Assumed the serde round-trip still works after
+dropping the transient `new_mod_buffer`/`new_mass_buffer` fields — they were
+`#[serde(skip)]` so JSON shape is unchanged, but I did not re-run a Save/Load
+round-trip (still the untested UI-review #1 item).
+
+**Biggest thing being missed (Q3):** The Experiment archetypes (Phospho,
+Semi-tryptic, etc.) still don't auto-populate the mod boxes — the picker is fully
+manual. Wiring archetypes → `MOD_PRESETS` is the natural next step.
+
+**Suggested improvement (Q5):** Add unit tests over `MOD_PRESETS` — assert every
+`keys` entry parses via `ModificationSpecificity::from_str` and no mass is zero —
+so a future typo in the hardcoded table fails CI instead of silently producing a
+dead preset.
 
 ---
 

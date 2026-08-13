@@ -35,6 +35,14 @@ pub struct SageLauncher {
     pub is_running: bool,
     pub active_page: Page,
     pub experiment: ExperimentType,
+    /// Modifications tab: which box the master-list arrows act on.
+    pub mod_target: ModTarget,
+    /// Modifications tab: index of the selected preset in the master list.
+    pub mod_selected_preset: Option<usize>,
+    /// Modifications tab: free-type "Custom…" specificity buffer.
+    pub mod_custom_key: String,
+    /// Modifications tab: free-type "Custom…" mass buffer.
+    pub mod_custom_mass: f32,
 }
 
 impl Default for SageLauncher {
@@ -51,6 +59,10 @@ impl Default for SageLauncher {
             elapsed_time: String::new(),
             active_page: Page::Experiment,
             experiment: ExperimentType::Custom,
+            mod_target: ModTarget::Variable,
+            mod_selected_preset: None,
+            mod_custom_key: String::new(),
+            mod_custom_mass: 0.0,
         }
     }
 }

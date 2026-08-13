@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defaults before.
 - **Save / Load configuration** — export and import the full search
   configuration as JSON (Experiment tab).
+- **Modifications list-picker** — the Modifications tab is now a Mascot-style
+  two-box (Static / Variable) + curated "Common modifications" master list with
+  transfer arrows. Multi-residue presets (e.g. Phospho S/T/Y, Deamidation N/Q,
+  Acetyl K + protein N-term) insert as separate editable rows in one click; a
+  "+ Custom…" escape hatch keeps the free-type residue+mass entry. Static and
+  Variable are mutually exclusive (adding a key to one removes it from the other).
 - **Inline parameter tooltips** — hover any control for a short description.
 
 ### Changed

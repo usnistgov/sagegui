@@ -10,7 +10,7 @@
 
 - **Current phase:** Phase 5 in progress — UI restructure landed. Async execution still pending.
 - **Last updated:** 2026-08-13
-- **Next action:** Continue the UI-review follow-ups (see NOTES → "UI-review feedback"). **Done so far:** Output Location moved to the Run tab (2026-08-13). **Blocked:** the **license** decision (Apache vs MIT + LICENSE file) is on hold pending a conversation with Sebastian. **Remaining:** verify Load Config populates all tabs + re-save round-trip; rework Run/Info (re-home Info/Help, add a live Sage console readout); then the async **progress display** (run-bar ProgressBar is a placeholder) and the pinned **modifications-editor redesign** / **multi-FASTA UX**.
+- **Next action:** Continue the UI-review follow-ups (see NOTES → "UI-review feedback"). **Done so far:** Output Location moved to the Run tab; Modifications tab redesigned as a list-picker (2026-08-13). **Blocked:** the **license** decision (Apache vs MIT + LICENSE file) is on hold pending a conversation with Sebastian. **Remaining:** verify Load Config populates all tabs + re-save round-trip; rework Run/Info (re-home Info/Help, add a live Sage console readout); wire Experiment archetypes to auto-populate mods; then the async **progress display** (run-bar ProgressBar is a placeholder) and the **multi-FASTA UX**.
 - **Released:** `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`), binaries for Windows / macOS (x64+ARM64) / Linux.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -201,7 +201,7 @@ Provide a user-friendly graphical interface for Sage that:
 - [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI. *(Placeholder slot reserved on Run/Info tab.)*
 - [x] **Configuration persistence (save/load)** — Save/Load Config as JSON on the Experiment tab. *(Remembering last-used settings across sessions is still open.)*
 - [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory.
-- [ ] **Expanded modifications preset library** — Dropdown of common variable and static mods so users aren't typing them manually. Standard set + Sage encoding recorded in NOTES.md ("Sage parameter notes → modification syntax"). *(Folds into the pinned modifications-editor redesign — see NOTES.)*
+- [x] **Expanded modifications preset library** — Modifications tab redesigned as a two-box (Static/Variable) list-picker with a curated "Common modifications" master list + transfer arrows and a "+ Custom…" escape hatch. Multi-residue presets insert as separate rows; Static/Variable mutually exclusive. *(Landed 2026-08-13. Presets are hardcoded in `src/ui.rs` `MOD_PRESETS`; masses are Unimod monoisotopic deltas.)*
 - [x] **Parameter documentation in the GUI** — Inline `on_hover_text` tooltips on controls (copy sourced from `docs/ui-spec.md` §3 / NOTES).
 - [ ] Parameter presets (default, open search, semi-enzymatic) *(Experiment tab exists; only `Custom` wired — archetype values still TBD.)*
 - [x] Save/load configuration files (JSON export/import)

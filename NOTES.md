@@ -95,15 +95,21 @@ DIA/diaPASEF).
 
 ### Design pins — dedicated later sessions, NOT part of the layout port
 
-- **Modifications editor redesign.** Target UX: one "all mods" pool (common ⇄
-  show-all toggle) plus two windows — Variable and Fixed — with transfer arrows
-  to move a mod between pool and a window. A mod cannot be in both Variable and
-  Fixed simultaneously (mutual exclusion). **Open problem to think hard about:**
-  how per-amino-acid specificity works in a transfer-list model (a mod like
-  oxidation applies to specific residues; the UI must let you say "oxidation on
-  M" vs "on P" without exploding the list). Source masses from Unimod, not hand-
-  transcription (see [[deamidation-mass-doubt]] concern in JOURNAL). Ships after
-  the layout port.
+- **Modifications editor redesign.** ✅ Shipped 2026-08-13 (differs from the
+  originally-pinned dual-pool transfer-list). Landed as a **Mascot-style
+  list-picker**: two destination boxes (Static / Variable) on the left, a
+  curated **"Common modifications"** master list on the right, and ◀ Add /
+  Remove ▶ arrows that act on whichever box a **Target** toggle selects. The
+  open "per-amino-acid specificity" problem was resolved by **multi-key presets
+  that insert as separate editable rows** — e.g. "Phospho (S/T/Y)" adds three
+  independent rows (S, T, Y), so a user can then drop one residue without the
+  list exploding. A "+ Custom…" collapsing panel keeps the old free-type
+  residue+mass entry for anything not in the curated set. Static/Variable are
+  **mutually exclusive** (adding a key to one removes it from the other).
+  Presets live hardcoded in `src/ui.rs` `MOD_PRESETS` (masses = Unimod
+  monoisotopic deltas — [[deamidation-mass-doubt]] resolved: 0.984016). To
+  extend the list, edit that const. **Still open:** the Experiment archetypes
+  (Phospho etc.) don't yet auto-populate mods; the picker is manual.
 - **Multi-FASTA UX.** Files & Database should make it easy to add and select
   *multiple* FASTA files (target + contaminants + spike-ins), concatenated
   before Sage. Worth real design effort — not just a repeated file picker. Pairs
