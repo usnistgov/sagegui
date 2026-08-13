@@ -30,29 +30,16 @@ We loved the concept — a simple, cross-platform way to run Sage without touchi
 
 ## Status
 
-✅ **Working** — GUI compiles and runs searches successfully!
-
-**Completed:**
-- [x] Forked Sebastian's GUI
-- [x] Fixed TMT 16/18-plex selection bug
-- [x] Fixed fragment tolerance type switching bug
-- [x] Set up project documentation
-- [x] Forked Sage to neely/sage
-- [x] Updated to Sage v0.15.0-beta.2
-- [x] Fixed all API compatibility issues
-- [x] Tested with real data (60,672 PSMs from single mzML)
-- [x] LFQ quantification working
-- [x] CI/CD pipeline with automated releases
+✅ **v0.7.0** — Multi-FASTA + on-the-fly concatenation. Tested: 60,672 PSMs from single mzML, LFQ working.
 
 ## Features
 
-SageGUI supports:
-
-- **File Selection** — Browse for mzML files and FASTA databases
-- **Search Parameters** — Configure tolerances, enzyme rules, modifications
+- **Multi-FASTA support** — Add multiple FASTA files (target database, cRAP contaminants, spike-ins); concatenated automatically at search time
+- **Six-tab navigation** — Experiment, Files & Database, Search, Modifications, Quant, Run / Info; pinned Run bar visible on every tab
+- **Search parameters** — Tolerances, enzyme rules, charge handling, isotope errors, scoring function, ion kinds
+- **Modifications picker** — Mascot-style two-box (Static / Variable) list with a curated "Common modifications" master list and a custom escape hatch
 - **Quantification** — TMT (6/10/11/16/18-plex), LFQ
-- **Search Execution** — Run Sage with progress display
-- **Results Summary** — View identification statistics
+- **Cross-platform** — Windows, macOS (Intel + Apple Silicon), Linux
 
 ## Installation
 
@@ -84,13 +71,13 @@ The binary will be at `target/release/sagegui` (or `sagegui.exe` on Windows).
 1. **Download** the binary for your platform from the [Releases page](https://github.com/neely/sagegui/releases/latest)
 2. **Extract** the archive (unzip on Windows, `tar -xzf` on macOS/Linux)
 3. **Run** the executable (`sagegui.exe` on Windows, `sagegui` on macOS/Linux)
-4. **Select files:**
-   - Click "Browse" to select your FASTA database
-   - Click "Pick mzmls" to select your mzML files
-5. **Configure** search parameters (or use defaults)
-6. **Click "Launch"** to start the search
+4. **Files & Database tab:**
+   - Click "Add FASTA…" to add your target database and any contaminant FASTAs (e.g. cRAP). Files are concatenated automatically at search time.
+   - Click "Pick mzML files" to select your mzML files
+5. **Configure** search parameters across the Search, Modifications, and Quant tabs (or use defaults)
+6. **Click "Run"** in the bar at the bottom of any tab to start the search
 
-Results will be saved to the output directory (defaults to current working directory).
+Results are saved to the output directory configured on the Run / Info tab (defaults to current working directory).
 
 > **macOS users:** If you see "unidentified developer" warning, right-click the app and select "Open", or run: `xattr -d com.apple.quarantine sagegui`
 
