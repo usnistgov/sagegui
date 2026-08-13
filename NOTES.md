@@ -119,6 +119,37 @@ integration" item and the `.d` picker in current `main.rs`.) The Bruker/timsrust
 gotchas in the reference section stay documented for maintenance history but are
 no longer a feature target.
 
+### UI-review feedback (from first real run of the new layout, 2026-08-13)
+
+Collaborator ran the baseline search through the new 6-tab GUI. It worked
+(60,672 PSMs — see Test baseline). Follow-ups to address in the next UI session,
+roughly ordered:
+
+1. **Verify Load Config actually populates all tabs.** Does loading an
+   experiment JSON truly overwrite every field across all tabs (not just the
+   Experiment tab's own state)? And after loading, can you then Save the current
+   (possibly-edited) config back out? Round-trip both directions and confirm.
+   *(The save/load code replaces `self.config` wholesale, so it should — but this
+   was never observed working end-to-end; treat as unverified.)*
+2. **Move Output Location control to the Run tab.** Currently on Files & Database.
+   It belongs with the run action. *(Also relates to the still-open "smarter
+   output directory" item — default landed in `target/debug/` this run because
+   the default is cwd.)*
+3. **Rework the Run / Info screen.** The Info/Help block (author, repo, license,
+   citation, versions) doesn't need to occupy the run screen — but don't delete
+   that content, just re-home it (an About dialog/collapsing, or a footer). The
+   freed space would be better as a **live console readout of what Sage is
+   doing** (its log/progress stream) — pairs with the pending async-progress work.
+4. **License is wrong / missing.** `Cargo.toml` says `Apache-2.0`, README links a
+   `LICENSE` file that **does not exist**, and the GUI credits "Apache-2.0".
+   Upstream Sage is **MIT** (© 2022 Michael Lazear). **Open question (pinned, not
+   yet decided):** switch SageGUI to MIT to mirror Sage, or keep Apache-2.0 (which
+   is legally fine consuming MIT code) — either way we must actually add the
+   LICENSE file and make Cargo.toml/README/GUI agree. Decide next session.
+5. **Run-bar progress bar.** Confirmed it renders and animates a "% change" fine,
+   but it's a **placeholder** — not wired to real search progress. Real
+   step/percent reporting is the pending Phase 5 async-progress item.
+
 ---
 
 Things that look wrong but are correct. Do not "fix" these.
@@ -296,6 +327,7 @@ The validated reference run — use to sanity-check regressions:
 - **Data:** `B.naive_01steady-state.mzML.gz` + `UniProt-Human-UP000005640_canonical-2023_05.fasta` (from sagePreview testing).
 - **Params:** precursor ±10 ppm, fragment ±10 ppm, trypsin (KR not P) 2 missed cleavages, static C+57.021, variable M+15.995, LFQ on.
 - **Result:** 60,672 PSMs; LFQ worked; outputs `results.sage.tsv`, `lfq.tsv`, `results.json`.
+- **Post-restructure regression check (2026-08-13):** re-ran this exact baseline through the new 6-tab GUI (debug build, commit `6712bb1`) → **60,672 PSMs again** (identical). Confirms the sidebar restructure + `From<Config> for Input` remap + serde shadow-field workarounds preserved search behavior. Use this count as the known-good comparison for future UI changes. *(Output landed in `target/debug/` because the output-location default is cwd — see UI-review pin about moving that control.)*
 
 ### Related projects
 

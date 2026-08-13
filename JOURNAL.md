@@ -11,9 +11,20 @@ not current state. One entry per session: the shutdown debrief.
 
 ## 2026-08-13 — UI restructure: sidebar-nav + pinned run bar; extract src/ui.rs
 
+**Post-session addendum (same sitting):** Collaborator ran the Phase 2 baseline
+through the new GUI → **60,672 PSMs, identical** to the pre-restructure run. My
+Q1 doubt below is resolved: the layout port preserved search behavior. Recorded
+as a regression checkpoint in NOTES. Also captured five UI-review follow-ups in
+NOTES ("UI-review feedback") for next session: verify Load Config populates all
+tabs + re-save; move Output Location to the Run tab; rework Run/Info (re-home
+Info/Help, use the space for a live Sage console readout); **license is
+wrong/missing** — Cargo.toml/README/GUI say Apache-2.0 but the LICENSE file
+doesn't exist and upstream Sage is MIT (pinned as an open decision); run-bar
+progress bar animates but is still a placeholder.
+
 **Did:** Cleaned up four divergent `v0.7.0-alpha.*` tags (Sebastian's line, never on our main/origin) — documented provenance + harvest ideas (mimalloc, Bruker centroiding config, LFQ mobility tol) in NOTES, deleted the local tags. Wrote `docs/ui-spec.md` (paste-in design spec + web-LLM deliverable format: report + YAML layout). Collaborator ran it through a web LLM (MetaMorpheus-inspired result) and we iterated the tab structure together. Then ported: single scrolling page → **6-tab sidebar layout** (Experiment, Files & Database, Search, Modifications, Quant, Run/Info) with a **pinned bottom run bar** on every tab; extracted all UI into new `src/ui.rs` (main.rs 1074→299, ui.rs 1090). Surfaced the **6 previously-hidden Sage params** (precursor_charge, override_precursor_charge, isotope_errors, score_type, write_pin, annotate_matches) with real controls + tooltips. Added **Save/Load Config JSON** and `on_hover_text` tooltips throughout. **Dropped native Bruker `.d`** support (mzML/.gz only). A Sonnet subagent did the bulk port; I verified build/clippy/launch independently. Synced CHANGELOG ([Unreleased]), PLAN (status→Phase 5 in progress, ticked save/load + param-docs), NOTES (UI-redesign section + design pins). `.claude/` gitignored. Committed `6712bb1` and pushed.
 
-**Least confident about (Q1):** That a real search still completes end-to-end through the new UI. I verified compile + clippy-clean + GUI-launches-without-panic, but did NOT run an actual search — this was a layout-only change so behavior *should* be preserved by construction, but the `From<Config> for Input` mapping and the serde shadow-field workarounds (static_mods_ser sync, TmtSettingsSer) are the kind of thing that can silently produce a wrong config. Proven right/wrong by running the Phase 2 baseline (B.naive mzML + human FASTA, ±10ppm, trypsin, LFQ) and confirming ~60,672 PSMs again + a Save→Load round-trip that leaves the config byte-identical.
+**Least confident about (Q1):** ~~That a real search still completes end-to-end through the new UI.~~ **RESOLVED (see addendum): baseline re-ran at 60,672 PSMs.** Remaining sub-doubt: the Save→Load round-trip was *not* observed end-to-end — pinned as UI-review follow-up #1.
 
 **Unstated assumptions (Q2):** Assumed the subagent's serde workaround for `ModificationSpecificity` (shadow `HashMap<String,f32>` synced via `sync_to_ser`/`sync_from_ser`) round-trips losslessly for all valid mod syntaxes — I read the code but didn't test odd cases (protein-terminal `[`/`]`, peptide-terminal `^`/`$`). Also assumed `score_type`'s two variants are the complete set (verified against the Sage source mirror: `{SageHyperScore, OpenMSHyperScore}`).
 
