@@ -226,13 +226,13 @@ pub const MOD_PRESETS: &[ModPreset] = &[
         note: "Common artefact/PTM; N more common than Q.",
     },
     ModPreset {
-        label: "Glu->pyro-Glu (^E)",
+        label: "Glu->pyro-Glu (E, peptide N-term)",
         keys: &[("^E", -18.010565)],
         accession: 27,
         note: "Peptide N-term E; negative delta mass.",
     },
     ModPreset {
-        label: "Gln->pyro-Glu (^Q)",
+        label: "Gln->pyro-Glu (Q, peptide N-term)",
         keys: &[("^Q", -17.026549)],
         accession: 28,
         note: "Peptide N-term Q; negative delta mass.",

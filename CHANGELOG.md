@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hydroxyproline can be added on top of standard M oxidation. The master list is
   alphabetical; the "+ Custom…" panel shows a Sage key-syntax cheat-sheet; and a
   footnote notes that displayed Δmasses are rounded to 4 places while the full
-  monoisotopic value is stored and used.
+  monoisotopic value is stored and used. Pyro-Glu presets spell out their
+  specificity, e.g. "Glu->pyro-Glu (E, peptide N-term)".
 - **Inline parameter tooltips** — hover any control for a short description.
 
 ### Changed

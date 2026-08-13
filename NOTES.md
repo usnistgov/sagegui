@@ -186,6 +186,28 @@ roughly ordered:
 5. **Run-bar progress bar.** Confirmed it renders and animates a "% change" fine,
    but it's a **placeholder** — not wired to real search progress. Real
    step/percent reporting is the pending Phase 5 async-progress item.
+6. **Experiment archetypes are inert (confirmed 2026-08-13).** Collaborator
+   confirmed that changing the Experiment-tab dropdown (Custom / Tryptic LFQ /
+   Wide-open / Phospho / Semi-tryptic) does **nothing** to the settings on the
+   other tabs. Currently `self.experiment` is only stored + shown as the combo's
+   selected text ([src/ui.rs](src/ui.rs) `page_experiment`); there is **no
+   apply-archetype logic** that writes defaults into `self.config`. Needs: an
+   `apply_archetype(&mut self)` that, on selection change, sets the relevant
+   Search/Modifications/Quant fields (e.g. Phospho → add S/T/Y phospho variable
+   mods via `MOD_PRESETS`, drop Ox M; Wide-open → widen `precursor_tol`;
+   Semi-tryptic → set `semi_enzymatic`). Ties into the "wire archetypes →
+   MOD_PRESETS" note under the Modifications-editor pin above. **Decide:** does
+   selecting an archetype *overwrite* user edits, or only seed defaults once?
+7. **Theme is too low-contrast (2026-08-13, next-session request).** The default
+   egui dark-grey-on-grey is too faint for readability. Collaborator wants a
+   **high-contrast "Y2K"-style theme** (bright, chunky, high-contrast — think
+   late-90s/early-2000s desktop UI: solid button bevels, saturated accent, black
+   text on light). Scope for a dedicated session: build a custom `egui::Visuals`
+   (widget fill/stroke, `override_text_color`, larger default font, stronger
+   `widgets.*` contrast) applied at startup via `ctx.set_visuals` /
+   `set_style`; optionally a light/Y2K toggle. Pure styling — no behavior change.
+   Reference the mockup the collaborator shared (flat high-contrast panels,
+   visible borders). This is a **next-session** item, not built yet.
 
 ---
 

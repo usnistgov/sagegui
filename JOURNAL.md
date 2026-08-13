@@ -12,16 +12,22 @@ not current state. One entry per session: the shutdown debrief.
 ## 2026-08-13 — UI-review follow-up: move Output Location to Run tab; Modifications list-picker
 
 **Refinement addendum (same sitting):** After the collaborator ran the new
-Modifications tab in the debug build (works), three tweaks: (1) sorted
+Modifications tab in the debug build (works), several tweaks: (1) sorted
 `MOD_PRESETS` alphabetically by label + comment to keep it sorted; (2) replaced
 the combined "Oxidation (M/P)" preset with a standalone "Oxidation (P)" so it
 adds on top of Ox M rather than duplicating M; (3) the "+ Custom…" panel now
 shows a Sage key-syntax cheat-sheet grid (`X`, `^X`, `$X`, `[`/`[X`, `]`/`]X`)
 + a `^Q` hint; (4) added a tab footnote that displayed Δmasses round to 4 places
 while the full monoisotopic value is stored/used, plus a per-row hover showing
-the exact stored mass. Custom-mod *persistence* remains an open design question
-(see NOTES "Custom modifications — persistence") — collaborator chose spec-first,
-so nothing built there. Build + clippy clean.
+the exact stored mass; (5) spelled out the pyro-Glu preset labels
+("Glu->pyro-Glu (E, peptide N-term)" etc.) to match the Acetyl/Carbamyl style.
+Two next-session items were **captured, not built**: the Experiment archetypes
+are **inert** (changing the dropdown does nothing to other tabs — confirmed;
+needs `apply_archetype`), and the collaborator wants a **high-contrast "Y2K"
+theme** because the default grey-on-grey is too faint. Both recorded in NOTES
+(UI-review feedback #6, #7) and PLAN. Custom-mod *persistence* also remains an
+open design question (NOTES "Custom modifications — persistence"). Build +
+clippy clean.
 
 **Did (part 1 — Output Location):** Moved the Output Location control from Files &
 Database to the Run / Info tab, per UI-review follow-up #2. It now sits in its own

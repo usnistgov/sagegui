@@ -203,9 +203,10 @@ Provide a user-friendly graphical interface for Sage that:
 - [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory.
 - [x] **Expanded modifications preset library** — Modifications tab redesigned as a two-box (Static/Variable) list-picker with a curated "Common modifications" master list + transfer arrows and a "+ Custom…" escape hatch. Multi-residue presets insert as separate rows; Static/Variable mutually exclusive. *(Landed 2026-08-13. Presets are hardcoded in `src/ui.rs` `MOD_PRESETS`; masses are Unimod monoisotopic deltas.)*
 - [x] **Parameter documentation in the GUI** — Inline `on_hover_text` tooltips on controls (copy sourced from `docs/ui-spec.md` §3 / NOTES).
-- [ ] Parameter presets (default, open search, semi-enzymatic) *(Experiment tab exists; only `Custom` wired — archetype values still TBD.)*
+- [ ] Parameter presets (default, open search, semi-enzymatic) *(Experiment tab dropdown exists but is **inert** — selecting an archetype does nothing to the other tabs; confirmed 2026-08-13. Needs `apply_archetype`. See NOTES → UI-review feedback #6.)*
 - [x] Save/load configuration files (JSON export/import)
 - [ ] Better error messages and validation
+- [ ] **High-contrast "Y2K" theme** — the default grey-on-grey is too faint. Build a custom `egui::Visuals` (high-contrast, larger font, visible borders). Pure styling, next-session item. See NOTES → UI-review feedback #7.
 
 **UI restructure (landed 2026-08-13):** sidebar-nav + pinned run-bar, 6 tabs, UI extracted to `src/ui.rs`, the 6 previously-hidden Sage params surfaced, native `.d`/Bruker support dropped (mzML/.gz only). See NOTES → "UI redesign" and CHANGELOG [Unreleased].
 
