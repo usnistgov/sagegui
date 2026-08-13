@@ -8,9 +8,9 @@
 
 ## Status
 
-- **Current phase:** Phase 5 in progress — UI restructure landed. Async execution still pending.
+- **Current phase:** Phase 5 in progress — UI restructure + Modifications list-picker landed. Async execution still pending.
 - **Last updated:** 2026-08-13
-- **Next action:** Continue the UI-review follow-ups (see NOTES → "UI-review feedback"). **Done so far:** Output Location moved to the Run tab; Modifications tab redesigned as a list-picker (2026-08-13). **Blocked:** the **license** decision (Apache vs MIT + LICENSE file) is on hold pending a conversation with Sebastian. **Remaining:** verify Load Config populates all tabs + re-save round-trip; rework Run/Info (re-home Info/Help, add a live Sage console readout); wire Experiment archetypes to auto-populate mods; then the async **progress display** (run-bar ProgressBar is a placeholder) and the **multi-FASTA UX**.
+- **Next action (next session):** **Multi-FASTA + built-in cRAP toggle** — the top remaining file-input item and the target for a **v0.7.0 tagged release** so the lab (self + colleague Mike) can test. Turn the single-FASTA box into an add/select list, bundle a cRAP `.fasta` behind one checkbox, and concatenate all selected FASTAs to a temp file before the search. *(cRAP is just another FASTA, so it folds into the same concat mechanism.)* **Secondary if quick:** replace the inert Experiment dropdown with **JSON-file templates** — a template *is* a saved config; add a Templates dropdown that loads bundled example JSONs (tryptic-lfq / phospho / wide-open) + "Save current as template". If not quick, leave templates in-progress. **Blocked:** the **license** decision (Apache vs MIT + LICENSE file) is on hold pending a conversation with Sebastian (original GUI author) — but the LICENSE-file gap must be resolved (or a decision made to ship without it) before the v0.7.0 release, since CI/release reference it. **Also still open:** verify Load Config round-trip; rework Run/Info (live console); async progress %; flat high-contrast light theme (NOTES UI-review #6/#7).
 - **Released:** `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`), binaries for Windows / macOS (x64+ARM64) / Linux.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -210,10 +210,42 @@ Provide a user-friendly graphical interface for Sage that:
 
 **UI restructure (landed 2026-08-13):** sidebar-nav + pinned run-bar, 6 tabs, UI extracted to `src/ui.rs`, the 6 previously-hidden Sage params surfaced, native `.d`/Bruker support dropped (mzML/.gz only). See NOTES → "UI redesign" and CHANGELOG [Unreleased].
 
-#### Input: multi-FASTA & contaminants
+#### Input: multi-FASTA & contaminants — **NEXT SESSION, targets v0.7.0 release**
 
-- [ ] **Multi-FASTA selection** — Allow selecting multiple `.fasta` files; concatenate on-the-fly before passing to Sage (e.g., target organism + contaminants + spike-ins).
-- [ ] **Built-in cRAP toggle** — Bundle the cRAP contaminants database; one checkbox appends it to the search without users managing the file.
+The top remaining file-input item. cRAP is just another FASTA, so both share one
+concat mechanism. Concrete spec:
+
+- [ ] **Multi-FASTA selection** — replace the single `fasta: String` text/browse
+  box on Files & Database with an **add/select list**: "Add FASTA…" (multi-pick
+  append), a list showing each picked file with a per-row remove, in selection
+  order (target organism + contaminants + spike-ins). Data model: change
+  `DatabaseConfig.fasta: String` → `fasta_paths: Vec<PathBuf>` (keep a serde
+  migration path / default so old config JSONs still load).
+- [ ] **Built-in cRAP toggle** — bundle a cRAP `.fasta` in `assets/` (or embed via
+  `include_str!`); one checkbox "Append cRAP contaminants" adds it to the concat
+  set without the user managing the file. Record cRAP source + version in NOTES.
+- [ ] **On-the-fly concatenation** — before launching Sage, concatenate all
+  selected FASTAs (+ cRAP if toggled) into a **single temp file**, pass its path
+  as Sage's `fasta`. Sage takes one DB. Clean up the temp file after the run.
+  Watch: dedup identical headers? (probably just concatenate; note the decision.)
+- **Release gate:** cut **v0.7.0** with fresh Win/mac/Linux binaries after this
+  lands, for lab testing (self + colleague Mike). **Must first** resolve the
+  LICENSE-file gap (add the file, or decide to ship without) — CI/release ref it.
+
+#### Experiment templates (JSON-file approach) — secondary next session, if quick
+
+Chosen 2026-08-13 over hardcoded `apply_archetype`. **A template *is* a saved
+config JSON** — reuse the existing Save/Load Config plumbing:
+
+- [ ] Ship bundled example templates in `assets/templates/` (e.g.
+  `tryptic-lfq.json`, `phospho.json`, `wide-open.json`), built from real
+  `results.json` / settings the lab uses.
+- [ ] Replace the inert Experiment dropdown with a **Templates** dropdown that
+  loads a bundled JSON into `self.config` (same code path as Load Config), plus a
+  **"Save current as template"** that writes the current config to a user file.
+- [ ] Keep `Custom` = "no template applied." Removes the need for hardcoded
+  archetype values entirely. If this isn't fast, **leave the dropdown in-progress**
+  and ship v0.7.0 on multi-FASTA alone.
 
 #### Input: Thermo .raw conversion
 

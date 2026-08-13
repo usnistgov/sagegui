@@ -180,9 +180,14 @@ roughly ordered:
 4. **License is wrong / missing.** `Cargo.toml` says `Apache-2.0`, README links a
    `LICENSE` file that **does not exist**, and the GUI credits "Apache-2.0".
    Upstream Sage is **MIT** (© 2022 Michael Lazear). **Blocked pending
-   discussion with Sebastian** (2026-08-13) — the maintainer wants to talk to the
-   original author before choosing MIT vs Apache-2.0. Do not add the LICENSE file
-   or change Cargo.toml/README/GUI until that conversation resolves.
+   discussion with Sebastian Paez** (2026-08-13) — the *original GUI author*,
+   whom the maintainer wants to consult before choosing MIT vs Apache-2.0. Do not
+   add the LICENSE file or change Cargo.toml/README/GUI until that conversation
+   resolves. **Release note:** this must be settled (or a deliberate ship-without
+   decision made) before the planned **v0.7.0** tagged release, because CI/release
+   config references a LICENSE file. *(Clarification 2026-08-13: testing of the
+   new GUI is done by the maintainer's lab — self + colleague Mike — **not** by
+   Sebastian; Sebastian's only open involvement is the license question.)*
 5. **Run-bar progress bar.** Confirmed it renders and animates a "% change" fine,
    but it's a **placeholder** — not wired to real search progress. Real
    step/percent reporting is the pending Phase 5 async-progress item.
@@ -196,8 +201,16 @@ roughly ordered:
    Search/Modifications/Quant fields (e.g. Phospho → add S/T/Y phospho variable
    mods via `MOD_PRESETS`, drop Ox M; Wide-open → widen `precursor_tol`;
    Semi-tryptic → set `semi_enzymatic`). Ties into the "wire archetypes →
-   MOD_PRESETS" note under the Modifications-editor pin above. **Decide:** does
-   selecting an archetype *overwrite* user edits, or only seed defaults once?
+   MOD_PRESETS" note under the Modifications-editor pin above. **Decision
+   (2026-08-13):** do **not** hardcode `apply_archetype`. Instead ship
+   **JSON-file templates** — a template *is* a saved config JSON, reusing the
+   existing Save/Load Config plumbing. Bundle example templates in
+   `assets/templates/` (tryptic-lfq / phospho / wide-open, built from real lab
+   settings), replace the inert dropdown with a Templates picker that loads a
+   bundled JSON into `self.config`, and add "Save current as template." `Custom`
+   = no template applied. See PLAN "Experiment templates (JSON-file approach)".
+   Secondary priority — if not quick, leave the dropdown in-progress and ship
+   v0.7.0 on multi-FASTA alone.
 7. **Theme is too low-contrast (2026-08-13, next-session request).** The default
    egui dark-grey-on-grey is too faint for readability. Collaborator shared a
    **reference screenshot** (a color/font mock, *not* the live UI) showing the
