@@ -199,12 +199,49 @@ pub struct ModPreset {
 }
 
 /// Curated common-modifications list. Edit here to add/remove presets.
+/// Kept in alphabetical order by `label`.
 pub const MOD_PRESETS: &[ModPreset] = &[
+    ModPreset {
+        label: "Acetyl (K, protein N-term)",
+        keys: &[("K", 42.010565), ("[", 42.010565)],
+        accession: 1,
+        note: "Lysine acetylation and/or protein N-term acetylation.",
+    },
     ModPreset {
         label: "Carbamidomethyl (C)",
         keys: &[("C", 57.021464)],
         accession: 4,
         note: "Iodoacetamide alkylation of cysteine; standard fixed mod.",
+    },
+    ModPreset {
+        label: "Carbamyl (K, protein N-term)",
+        keys: &[("K", 43.005814), ("[", 43.005814)],
+        accession: 5,
+        note: "Urea/cyanate artefact; common in old/frozen samples.",
+    },
+    ModPreset {
+        label: "Deamidated (N/Q)",
+        keys: &[("N", 0.984016), ("Q", 0.984016)],
+        accession: 7,
+        note: "Common artefact/PTM; N more common than Q.",
+    },
+    ModPreset {
+        label: "Glu->pyro-Glu (^E)",
+        keys: &[("^E", -18.010565)],
+        accession: 27,
+        note: "Peptide N-term E; negative delta mass.",
+    },
+    ModPreset {
+        label: "Gln->pyro-Glu (^Q)",
+        keys: &[("^Q", -17.026549)],
+        accession: 28,
+        note: "Peptide N-term Q; negative delta mass.",
+    },
+    ModPreset {
+        label: "Methyl (K/R)",
+        keys: &[("K", 14.01565), ("R", 14.01565)],
+        accession: 34,
+        note: "Mono-methylation.",
     },
     ModPreset {
         label: "Oxidation (M)",
@@ -223,42 +260,6 @@ pub const MOD_PRESETS: &[ModPreset] = &[
         keys: &[("S", 79.96633), ("T", 79.96633), ("Y", 79.96633)],
         accession: 21,
         note: "Phosphoproteomics; typically replaces oxidation, not additive.",
-    },
-    ModPreset {
-        label: "Acetyl (K, protein N-term)",
-        keys: &[("K", 42.010565), ("[", 42.010565)],
-        accession: 1,
-        note: "Lysine acetylation and/or protein N-term acetylation.",
-    },
-    ModPreset {
-        label: "Deamidated (N/Q)",
-        keys: &[("N", 0.984016), ("Q", 0.984016)],
-        accession: 7,
-        note: "Common artefact/PTM; N more common than Q.",
-    },
-    ModPreset {
-        label: "Gln->pyro-Glu (^Q)",
-        keys: &[("^Q", -17.026549)],
-        accession: 28,
-        note: "Peptide N-term Q; negative delta mass.",
-    },
-    ModPreset {
-        label: "Glu->pyro-Glu (^E)",
-        keys: &[("^E", -18.010565)],
-        accession: 27,
-        note: "Peptide N-term E; negative delta mass.",
-    },
-    ModPreset {
-        label: "Methyl (K/R)",
-        keys: &[("K", 14.01565), ("R", 14.01565)],
-        accession: 34,
-        note: "Mono-methylation.",
-    },
-    ModPreset {
-        label: "Carbamyl (K, protein N-term)",
-        keys: &[("K", 43.005814), ("[", 43.005814)],
-        accession: 5,
-        note: "Urea/cyanate artefact; common in old/frozen samples.",
     },
     ModPreset {
         label: "Trimethyl (K/R)",
@@ -357,7 +358,8 @@ impl StaticModConfig {
             }
             for (mod_, mass) in self.static_mods.iter() {
                 ui.horizontal(|ui| {
-                    ui.monospace(format!("{:<3} {:+.4}", mod_.to_string(), mass));
+                    ui.monospace(format!("{:<3} {:+.4}", mod_.to_string(), mass))
+                        .on_hover_text(format!("Exact stored Δmass: {:+}", mass));
                     if ui.small_button("✖").on_hover_text("Remove").clicked() {
                         to_remove.push(mod_.to_string());
                     }
@@ -1120,11 +1122,35 @@ impl SageLauncher {
 
                 // ── Custom escape hatch ──────────────────────────────────────
                 ui.collapsing("+ Custom…", |ui| {
+                    ui.label("Enter a Sage specificity key and a delta mass (Da).");
+                    ui.label("Sage key syntax:");
+                    egui::Grid::new("custom_mod_key_hints")
+                        .num_columns(2)
+                        .spacing([12.0, 2.0])
+                        .show(ui, |ui| {
+                            ui.monospace("X");
+                            ui.label("anywhere on residue X (e.g. M, C)");
+                            ui.end_row();
+                            ui.monospace("^X");
+                            ui.label("residue X at peptide N-terminus (e.g. ^Q)");
+                            ui.end_row();
+                            ui.monospace("$X");
+                            ui.label("residue X at peptide C-terminus");
+                            ui.end_row();
+                            ui.monospace("[  /  [X");
+                            ui.label("protein N-terminus (any / residue X)");
+                            ui.end_row();
+                            ui.monospace("]  /  ]X");
+                            ui.label("protein C-terminus (any / residue X)");
+                            ui.end_row();
+                        });
+                    ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         ui.label("Key:");
                         ui.add(
                             egui::TextEdit::singleline(&mut self.mod_custom_key)
-                                .desired_width(40.0),
+                                .desired_width(40.0)
+                                .hint_text("^Q"),
                         )
                         .on_hover_text("Sage specificity, e.g. C, M, ^Q, $K, [, ].");
                         ui.label("Δmass:");
@@ -1201,6 +1227,13 @@ impl SageLauncher {
                 .text("Max Variable Mods"),
         )
         .on_hover_text("Caps how many variable mods can co-occur on one peptide (Sage default 2).");
+
+        ui.add_space(10.0);
+        ui.separator();
+        ui.weak(
+            "Note: delta masses are displayed rounded to 4 decimal places, but the \
+             full 5–6 decimal monoisotopic value is stored and used in the search.",
+        );
     }
 
     pub fn page_quant(&mut self, ui: &mut egui::Ui) {

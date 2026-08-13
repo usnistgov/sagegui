@@ -26,7 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "+ Custom…" escape hatch keeps the free-type residue+mass entry. Static and
   Variable are mutually exclusive (adding a key to one removes it from the other).
   Presets include Oxidation (M) and Oxidation (P) as separate entries so
-  hydroxyproline can be added on top of standard M oxidation.
+  hydroxyproline can be added on top of standard M oxidation. The master list is
+  alphabetical; the "+ Custom…" panel shows a Sage key-syntax cheat-sheet; and a
+  footnote notes that displayed Δmasses are rounded to 4 places while the full
+  monoisotopic value is stored and used.
 - **Inline parameter tooltips** — hover any control for a short description.
 
 ### Changed
