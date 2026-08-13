@@ -131,6 +131,29 @@ Also removed: the `BrukerSpectrumProcessor` import (no longer needed).
 | v0.14.7 | old (Sebastian's) | what the original GUI used |
 | v0.15.0-beta.2 | current | our version, commit `d74024df` |
 
+### Divergent `v0.7.0-alpha.*` tags (not our work — deleted locally)
+
+Local tags `v0.7.0-alpha.1`, `v0.7.0-alpha.2`, `0.7.0-alpha.1`, `0.7.0-alpha.2`
+pointed at commits from **Sebastian's line** (`jspaezp`), not our `main`. They
+branched from merge-base `69096ab` (2024-11-11) and were **never on our `main`**
+nor pushed to our `origin`. Deleted locally 2026-08-13 to keep the tag list
+reflecting only our releases (`v0.6.0` line). We do **not** use `v0.7.0` as our
+next version — our next tag continues our own sequence.
+
+Their Sage dep pointed at `jspaezp/sage` (`rev 9271e28d`, an "lfq branch"), a
+different fork than ours (`neely/sage`, `d74024df`) — so their pins are not
+directly reusable.
+
+**Worth harvesting** (ideas only, verify against current code before adopting):
+- **mimalloc global allocator** (`#[global_allocator]`) — reported to fix poor
+  Windows performance. Cheap win; consider for a future perf pass.
+- **Bruker MS1 centroiding config** — `BrukerProcessingConfig { ms1:
+  BrukerMS1CentoidingConfig { mz_ppm, ims_pct }, ms2: ... }` replacing the old
+  `bruker_spectrum_processor`. Relevant to the Phase 5 "Bruker configuration"
+  item; confirms the newer `sage-cloudpath::tdf` API shape.
+- **LFQ mobility % tolerance** surfaced in the UI (we already added the field to
+  `LfqOptions` as `None`; they wired a `DragValue` for it).
+
 ### Sage parameter notes
 
 Explanations of Sage config knobs the GUI exposes — for building inline
