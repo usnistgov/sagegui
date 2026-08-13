@@ -9,6 +9,22 @@ not current state. One entry per session: the shutdown debrief.
 
 ---
 
+## 2026-08-13 — UI restructure: sidebar-nav + pinned run bar; extract src/ui.rs
+
+**Did:** Cleaned up four divergent `v0.7.0-alpha.*` tags (Sebastian's line, never on our main/origin) — documented provenance + harvest ideas (mimalloc, Bruker centroiding config, LFQ mobility tol) in NOTES, deleted the local tags. Wrote `docs/ui-spec.md` (paste-in design spec + web-LLM deliverable format: report + YAML layout). Collaborator ran it through a web LLM (MetaMorpheus-inspired result) and we iterated the tab structure together. Then ported: single scrolling page → **6-tab sidebar layout** (Experiment, Files & Database, Search, Modifications, Quant, Run/Info) with a **pinned bottom run bar** on every tab; extracted all UI into new `src/ui.rs` (main.rs 1074→299, ui.rs 1090). Surfaced the **6 previously-hidden Sage params** (precursor_charge, override_precursor_charge, isotope_errors, score_type, write_pin, annotate_matches) with real controls + tooltips. Added **Save/Load Config JSON** and `on_hover_text` tooltips throughout. **Dropped native Bruker `.d`** support (mzML/.gz only). A Sonnet subagent did the bulk port; I verified build/clippy/launch independently. Synced CHANGELOG ([Unreleased]), PLAN (status→Phase 5 in progress, ticked save/load + param-docs), NOTES (UI-redesign section + design pins). `.claude/` gitignored. Committed `6712bb1` and pushed.
+
+**Least confident about (Q1):** That a real search still completes end-to-end through the new UI. I verified compile + clippy-clean + GUI-launches-without-panic, but did NOT run an actual search — this was a layout-only change so behavior *should* be preserved by construction, but the `From<Config> for Input` mapping and the serde shadow-field workarounds (static_mods_ser sync, TmtSettingsSer) are the kind of thing that can silently produce a wrong config. Proven right/wrong by running the Phase 2 baseline (B.naive mzML + human FASTA, ±10ppm, trypsin, LFQ) and confirming ~60,672 PSMs again + a Save→Load round-trip that leaves the config byte-identical.
+
+**Unstated assumptions (Q2):** Assumed the subagent's serde workaround for `ModificationSpecificity` (shadow `HashMap<String,f32>` synced via `sync_to_ser`/`sync_from_ser`) round-trips losslessly for all valid mod syntaxes — I read the code but didn't test odd cases (protein-terminal `[`/`]`, peptide-terminal `^`/`$`). Also assumed `score_type`'s two variants are the complete set (verified against the Sage source mirror: `{SageHyperScore, OpenMSHyperScore}`).
+
+**Biggest thing being missed (Q3):** The modifications editor is now on its own tab but is still the *old* add/list/remove form — the real UX win (dual-pool transfer-list, per-amino-acid handling, presets) is only pinned in NOTES, not built. This is the highest-value remaining UI work and the hardest; the current tab may under-deliver on the "substantially improve" goal until that lands.
+
+**Could have gone better (Q4):** I burned a Write call and two ExitPlanMode attempts fighting a harness hiccup (server-unavailable classifier + plan-mode state confusion). Should have recognized the ExitPlanMode rejection as a harness issue faster and just presented the plan in-chat, which is what worked.
+
+**Suggested improvement (Q5):** Before the next UI session, run the Phase 2 baseline search through the new GUI once and record the PSM count in NOTES as a post-restructure regression check — turns the Q1 doubt into a green checkmark and gives every future UI change a known-good comparison point.
+
+---
+
 ## 2026-07-24 — Preserve feedback + document parameters (post-shutdown addendum)
 
 **Did:** Saved the collaborator's original feature list verbatim to `docs/feedback-2026-07-24.md` (was only in chat before). Added live-use follow-up: `bucket_size` dial confused a user, and a standard-mods list. Recorded both in NOTES.md under a new "Sage parameter notes" subsection (bucket_size explanation + variable/static mod syntax table with encodings). Added a Phase 5 item for **in-GUI parameter documentation** (tooltips/doc links for every control), generalized from the bucket_size confusion.
