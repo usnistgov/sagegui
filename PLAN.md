@@ -10,7 +10,7 @@
 
 - **Current phase:** Phase 5 in progress — UI restructure + Modifications list-picker landed. Async execution still pending.
 - **Last updated:** 2026-08-13
-- **Next action (next session):** **Multi-FASTA + built-in cRAP toggle** — the top remaining file-input item and the target for a **v0.7.0 tagged release** so the lab (self + colleague Mike) can test. Turn the single-FASTA box into an add/select list, bundle a cRAP `.fasta` behind one checkbox, and concatenate all selected FASTAs to a temp file before the search. *(cRAP is just another FASTA, so it folds into the same concat mechanism.)* **Secondary if quick:** replace the inert Experiment dropdown with **JSON-file templates** — a template *is* a saved config; add a Templates dropdown that loads bundled example JSONs (tryptic-lfq / phospho / wide-open) + "Save current as template". If not quick, leave templates in-progress. **Blocked:** the **license** decision (Apache vs MIT + LICENSE file) is on hold pending a conversation with Sebastian (original GUI author) — but the LICENSE-file gap must be resolved (or a decision made to ship without it) before the v0.7.0 release, since CI/release reference it. **Also still open:** verify Load Config round-trip; rework Run/Info (live console); async progress %; flat high-contrast light theme (NOTES UI-review #6/#7).
+- **Next action (next session):** **Multi-FASTA + built-in cRAP toggle** — the top remaining file-input item and the target for a **v0.7.0 tagged release** so the lab (self + colleague Mike) can test. Turn the single-FASTA box into an add/select list, bundle a cRAP `.fasta` behind one checkbox, and concatenate all selected FASTAs to a temp file before the search. *(cRAP is just another FASTA, so it folds into the same concat mechanism.)* **Secondary if quick:** replace the inert Experiment dropdown with **JSON-file templates** — a template *is* a saved config; add a Templates dropdown that loads bundled example JSONs (tryptic-lfq / phospho / wide-open) + "Save current as template". If not quick, leave templates in-progress. **License decided 2026-08-13: ship v0.7.0 with NO LICENSE file** — Apache-2.0 claims stay as-is, README link stays broken; no longer a release blocker. **Also still open:** verify Load Config round-trip; rework Run/Info (live console); async progress %; flat high-contrast light theme (NOTES UI-review #6/#7).
 - **Released:** `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`), binaries for Windows / macOS (x64+ARM64) / Linux.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -229,8 +229,9 @@ concat mechanism. Concrete spec:
   as Sage's `fasta`. Sage takes one DB. Clean up the temp file after the run.
   Watch: dedup identical headers? (probably just concatenate; note the decision.)
 - **Release gate:** cut **v0.7.0** with fresh Win/mac/Linux binaries after this
-  lands, for lab testing (self + colleague Mike). **Must first** resolve the
-  LICENSE-file gap (add the file, or decide to ship without) — CI/release ref it.
+  lands, for lab testing (self + colleague Mike). **License decided 2026-08-13:
+  ship with NO LICENSE file** — leave Apache-2.0 claims as-is, broken README link
+  and all; no longer a blocker (NOTES UI-review #4).
 
 #### Experiment templates (JSON-file approach) — secondary next session, if quick
 

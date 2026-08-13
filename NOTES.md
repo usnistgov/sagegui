@@ -177,17 +177,15 @@ roughly ordered:
    that content, just re-home it (an About dialog/collapsing, or a footer). The
    freed space would be better as a **live console readout of what Sage is
    doing** (its log/progress stream) — pairs with the pending async-progress work.
-4. **License is wrong / missing.** `Cargo.toml` says `Apache-2.0`, README links a
-   `LICENSE` file that **does not exist**, and the GUI credits "Apache-2.0".
-   Upstream Sage is **MIT** (© 2022 Michael Lazear). **Blocked pending
-   discussion with Sebastian Paez** (2026-08-13) — the *original GUI author*,
-   whom the maintainer wants to consult before choosing MIT vs Apache-2.0. Do not
-   add the LICENSE file or change Cargo.toml/README/GUI until that conversation
-   resolves. **Release note:** this must be settled (or a deliberate ship-without
-   decision made) before the planned **v0.7.0** tagged release, because CI/release
-   config references a LICENSE file. *(Clarification 2026-08-13: testing of the
-   new GUI is done by the maintainer's lab — self + colleague Mike — **not** by
-   Sebastian; Sebastian's only open involvement is the license question.)*
+4. **License file missing — decision made 2026-08-13: SHIP WITHOUT.** `Cargo.toml`
+   says `Apache-2.0`, README links a `LICENSE` file that **does not exist**, and
+   the GUI credits "Apache-2.0". Upstream Sage is **MIT** (© 2022 Michael Lazear).
+   The maintainer decided to **ship v0.7.0 with no LICENSE file** — leave
+   Cargo.toml/README/GUI saying Apache-2.0, leave the README link broken, do
+   **not** add a LICENSE file. Revisit later. The MIT-vs-Apache question would
+   still be a conversation with **Sebastian Paez** (original GUI author) *if*
+   revisited, but it is **no longer a release blocker**. *(Testing of the new GUI
+   is by the maintainer's lab — self + colleague Mike — not Sebastian.)*
 5. **Run-bar progress bar.** Confirmed it renders and animates a "% change" fine,
    but it's a **placeholder** — not wired to real search progress. Real
    step/percent reporting is the pending Phase 5 async-progress item.
