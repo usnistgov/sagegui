@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 /// Is this pretty? No ... but is it well tested.... also no ... was an I on a deadline
 /// well ... not really. BUT I learned a lot about Rust and sage and I'm glad I did.
 /// I am more than happy to take PRs and suggestions for improvements!
