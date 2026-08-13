@@ -213,10 +213,10 @@ pub const MOD_PRESETS: &[ModPreset] = &[
         note: "Methionine oxidation; the default variable mod.",
     },
     ModPreset {
-        label: "Oxidation (M/P)",
-        keys: &[("M", 15.994915), ("P", 15.994915)],
+        label: "Oxidation (P)",
+        keys: &[("P", 15.994915)],
         accession: 35,
-        note: "Add P (hydroxyproline) for collagen/ECM-heavy samples.",
+        note: "Hydroxyproline; add for collagen/ECM-heavy samples (on top of Ox M).",
     },
     ModPreset {
         label: "Phospho (S/T/Y)",

@@ -125,7 +125,38 @@ integration" item and the `.d` picker in current `main.rs`.) The Bruker/timsrust
 gotchas in the reference section stay documented for maintenance history but are
 no longer a feature target.
 
-### UI-review feedback (from first real run of the new layout, 2026-08-13)
+### Custom modifications — persistence (open design question, 2026-08-13)
+
+The Modifications tab has a **"+ Custom…"** panel: raw Sage key + Δmass added
+directly to the targeted box. **Current behavior:** a custom mod lives in the
+config's `static_mods_ser` / `variable_mods_ser` maps, so it **round-trips
+through Save/Load Config JSON** — but it does *not* join the "Common
+modifications" master list and is invisible to the picker on the next launch.
+So custom mods are remembered *per-config-file*, not *per-machine* and not
+*in the picker*.
+
+Collaborator flagged (2026-08-13) that a **persistent, picker-visible** custom
+mod would be nicer, but wasn't sure how they'd be handled/remembered — so this
+is deferred to a spec-first design session. Options captured:
+
+1. **Session-only (status quo).** Custom = this-search-only; persists only via
+   Save/Load Config. Curated list stays code-controlled (`MOD_PRESETS`).
+2. **Persist to a user file.** Append user customs to e.g.
+   `%APPDATA%/sagegui/custom_mods.json` (Windows) / XDG-equivalent, loaded at
+   startup and merged into the picker so they reappear every launch. Needs:
+   storage format, load-merge-with-`MOD_PRESETS` logic, and edit/delete UI.
+3. **Add-to-list, session-only.** "Save as preset" appends to the in-memory
+   master list (visible in the picker until the app closes). No file.
+
+**Open sub-questions to resolve before building option 2/3:** dedup rule
+(same key+mass? same label?); can a user *delete/rename* a persisted custom;
+does it show a "(custom)" tag vs curated entries; multi-key customs (the
+current panel only does single-key — a real "Phospho-like" custom needs the
+multi-row model); and where the file lives cross-platform (use the `dirs`/
+`directories` crate for the config dir rather than hand-rolling `%APPDATA%`).
+Pairs with the still-open "remember last-used settings across sessions" item
+(PLAN Phase 5) — both want the same per-machine config-dir plumbing, so build
+that once.
 
 Collaborator ran the baseline search through the new 6-tab GUI. It worked
 (60,672 PSMs — see Test baseline). Follow-ups to address in the next UI session,
