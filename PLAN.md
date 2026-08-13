@@ -8,9 +8,9 @@
 
 ## Status
 
-- **Current phase:** None — Phases 0–4 complete. Phases 5 & 6 are planned, not started.
-- **Last updated:** 2026-07-24
-- **Next action:** Start Phase 5 — async execution is the highest-priority item (blocks everything else UX-wise). Also locate the rollup scripts before Phase 6 can be scoped.
+- **Current phase:** Phase 5 in progress — UI restructure landed. Async execution still pending.
+- **Last updated:** 2026-08-13
+- **Next action:** Wire the async **progress display** into the new pinned run bar (the `ProgressBar` there is currently a placeholder). Then tackle the pinned **modifications-editor redesign** (see NOTES → UI redesign) and **multi-FASTA UX**.
 - **Released:** `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`), binaries for Windows / macOS (x64+ARM64) / Linux.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -196,16 +196,18 @@ Provide a user-friendly graphical interface for Sage that:
 
 #### UI/UX (priority order)
 
-- [ ] **Async execution + progress display** — Run search on a background thread so the GUI stays responsive; show current step (building DB, searching, scoring), elapsed time, estimated remaining. Prevents "not responding" on 1hr+ jobs.
+- [ ] **Async execution + progress display** — Run search on a background thread so the GUI stays responsive; show current step (building DB, searching, scoring), elapsed time, estimated remaining. Prevents "not responding" on 1hr+ jobs. *(Background thread + pinned run bar exist; real progress-step reporting still pending — the run-bar ProgressBar is a placeholder.)*
 - [ ] **Session resilience / auto-recovery** — If the GUI is closed or crashes during a run, persist enough state to resume or at least report results.
-- [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI.
-- [ ] **Configuration persistence** — Save last-used settings; don't make users re-enter everything each session.
+- [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI. *(Placeholder slot reserved on Run/Info tab.)*
+- [x] **Configuration persistence (save/load)** — Save/Load Config as JSON on the Experiment tab. *(Remembering last-used settings across sessions is still open.)*
 - [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory.
-- [ ] **Expanded modifications preset library** — Dropdown of common variable and static mods so users aren't typing them manually. Standard set + Sage encoding recorded in NOTES.md ("Sage parameter notes → modification syntax").
-- [ ] **Parameter documentation in the GUI** — Every exposed control needs an inline description/tooltip or a link to Sage's docs. Prompted by a user finding `bucket_size` confusing (it's a pure speed knob — see NOTES.md). Generalizes to all parameters, not just that one.
-- [ ] Parameter presets (default, open search, semi-enzymatic)
-- [ ] Save/load configuration files (JSON export/import)
+- [ ] **Expanded modifications preset library** — Dropdown of common variable and static mods so users aren't typing them manually. Standard set + Sage encoding recorded in NOTES.md ("Sage parameter notes → modification syntax"). *(Folds into the pinned modifications-editor redesign — see NOTES.)*
+- [x] **Parameter documentation in the GUI** — Inline `on_hover_text` tooltips on controls (copy sourced from `docs/ui-spec.md` §3 / NOTES).
+- [ ] Parameter presets (default, open search, semi-enzymatic) *(Experiment tab exists; only `Custom` wired — archetype values still TBD.)*
+- [x] Save/load configuration files (JSON export/import)
 - [ ] Better error messages and validation
+
+**UI restructure (landed 2026-08-13):** sidebar-nav + pinned run-bar, 6 tabs, UI extracted to `src/ui.rs`, the 6 previously-hidden Sage params surfaced, native `.d`/Bruker support dropped (mzML/.gz only). See NOTES → "UI redesign" and CHANGELOG [Unreleased].
 
 #### Input: multi-FASTA & contaminants
 

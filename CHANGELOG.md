@@ -5,6 +5,30 @@ All notable changes to SageGUI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Sidebar-navigation UI** — replaced the single scrolling page with six tabs
+  (Experiment, Files & Database, Search, Modifications, Quant, Run / Info) and a
+  **pinned run bar** at the bottom of every tab, so Run/status/elapsed stay
+  visible regardless of the active tab. Each tab has a collapsible **Advanced**
+  section for rarely-touched knobs.
+- **Six previously-hidden Sage parameters now configurable** — precursor charge
+  range, isotope errors, scoring function (`score_type`), override precursor
+  charge, write Percolator `.pin`, and annotate matches. These were frozen at
+  defaults before.
+- **Save / Load configuration** — export and import the full search
+  configuration as JSON (Experiment tab).
+- **Inline parameter tooltips** — hover any control for a short description.
+
+### Changed
+- UI code split out of `src/main.rs` into a new `src/ui.rs` module.
+
+### Removed
+- **Native Bruker `.d` file picker** — SageGUI now takes `.mzML` / `.mzML.gz`
+  only. Convert other formats upstream. (Thermo `.raw` auto-conversion is also
+  dropped from the roadmap.)
+
 ## [0.6.0] - 2026-07-13
 
 ### Sage Engine

@@ -36,7 +36,91 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 
 ---
 
-## Intentional, not bugs
+## UI redesign (in progress)
+
+Decided 2026-08-13. Moving from the single scrolling `CentralPanel` to a
+**sidebar-nav + pinned run-bar** layout (inspired by MetaMorpheus's task-first
+pattern). Design finalized; port planned. Full paste-in design spec and the
+web-LLM proposal live in `docs/ui-spec.md`; the porter's handoff (ASCII mockups
++ YAML layout) was the source for the tab structure below.
+
+### Agreed tab structure (6 tabs + pinned run bar)
+
+1. **Experiment** — pick an archetype first (Custom / Tryptic LFQ / Wide-open /
+   Phospho / Semi-tryptic) that writes defaults into the other tabs; Save/Load
+   Config (JSON). Task-queue reserved but deferred.
+2. **Files & Database** — Data (output dir, mzML picker, picked list) +
+   Database sub-header (FASTA multi-file, cRAP toggle; ▸ Advanced: generate
+   decoys, bucket size, min_ion_index, decoy_tag). *(No standalone Database
+   tab — it dissolved into here + Search.)*
+3. **Search** — precursor/fragment tolerance; Charge Handling (precursor charge
+   range); Enzyme Settings; Mass Ranges; Ion Kinds; Search behavior
+   (isotope_errors, deisotope, chimera, wide_window — all **visible**); Scoring
+   (score_type, visible); ▸ Advanced (light): override_precursor_charge,
+   spectrum filtering (min/max peaks, min matched peaks, max fragment charge),
+   report_psms, predict_rt.
+4. **Modifications** — own tab. This port relocates the current static/variable
+   add-list-remove editors unchanged + max_variable_mods (visible, **not**
+   advanced). Redesign pinned below.
+5. **Quant** — standalone thin tab (enable, LFQ/TMT, per-type settings). Grows
+   later (LFQ mobility tol, TMT S/N).
+6. **Run / Info** — Output Options (write_pin, annotate_matches); Launch;
+   status; results summary (planned); export buttons (planned); Info/Help.
+
+Pinned **Run Bar** (`TopBottomPanel::bottom`) renders every frame regardless of
+active tab — the single most important structural change (today's Launch button
+scrolls away). "Advanced" now means a **per-tab collapsing sub-section**, not a
+page — so there is no "Advanced" tab.
+
+### The 6 previously-hidden Config fields — now surfaced
+
+These were in `Config`/`Input` but had **no widget** (frozen at defaults, user
+could not change them). Homes assigned:
+
+| Field | Was | New home | Widget |
+|-------|-----|----------|--------|
+| `precursor_charge` (2,4) | hardcoded | Search › Charge Handling (visible) | range slider |
+| `override_precursor_charge` (None, `//TODO`) | stub | Search › ▸ Advanced | checkbox "Force charge range" |
+| `isotope_errors` (-1,3) | hardcoded | Search › Search behavior (visible) | range slider + trade-off tooltip |
+| `score_type` (SageHyperScore) | hardcoded | Search › Scoring (visible) | ComboBox + conservative tooltip |
+| `write_pin` (false) | hardcoded | Run/Info › Output Options | checkbox (Percolator .pin) |
+| `annotate_matches` (false) | hardcoded | Run/Info › Output Options | checkbox |
+
+Trade-off tooltip for `isotope_errors`: Sage docs note isotope-error search is
+*slower* than simply widening `precursor_tol` to cover the same mass range, and
+a wider window generally IDs more PSMs — so prefer wide Da tolerance when in
+doubt. `override_precursor_charge` forces the `precursor_charge` range to be
+searched instead of trusting the file's charge annotation (relevant for
+DIA/diaPASEF).
+
+### Design pins — dedicated later sessions, NOT part of the layout port
+
+- **Modifications editor redesign.** Target UX: one "all mods" pool (common ⇄
+  show-all toggle) plus two windows — Variable and Fixed — with transfer arrows
+  to move a mod between pool and a window. A mod cannot be in both Variable and
+  Fixed simultaneously (mutual exclusion). **Open problem to think hard about:**
+  how per-amino-acid specificity works in a transfer-list model (a mod like
+  oxidation applies to specific residues; the UI must let you say "oxidation on
+  M" vs "on P" without exploding the list). Source masses from Unimod, not hand-
+  transcription (see [[deamidation-mass-doubt]] concern in JOURNAL). Ships after
+  the layout port.
+- **Multi-FASTA UX.** Files & Database should make it easy to add and select
+  *multiple* FASTA files (target + contaminants + spike-ins), concatenated
+  before Sage. Worth real design effort — not just a repeated file picker. Pairs
+  with the built-in cRAP toggle.
+
+### Scope decision: mzML/.gz only — drop native `.d` / `.raw`
+
+Decided to **not** add native Bruker `.d` or Thermo `.raw` reading. The GUI
+takes `.mzML` / `.mzML.gz` only; users convert upstream. Consequence for the
+port: the `.d` picker, `dotd_paths`, and `bruker_config` plumbing become dead
+code to strip. (This supersedes the earlier Phase 5 "ThermoRawFileParser
+integration" item and the `.d` picker in current `main.rs`.) The Bruker/timsrust
+gotchas in the reference section stay documented for maintenance history but are
+no longer a feature target.
+
+---
+
 Things that look wrong but are correct. Do not "fix" these.
 
 - **Default output directory is the current working directory.** Users set it explicitly in the GUI. (Smarter timestamped defaults are a *planned* Phase 5 improvement, not a bug to patch ad hoc.)
