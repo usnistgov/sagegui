@@ -131,10 +131,10 @@ roughly ordered:
    (possibly-edited) config back out? Round-trip both directions and confirm.
    *(The save/load code replaces `self.config` wholesale, so it should — but this
    was never observed working end-to-end; treat as unverified.)*
-2. **Move Output Location control to the Run tab.** Currently on Files & Database.
-   It belongs with the run action. *(Also relates to the still-open "smarter
-   output directory" item — default landed in `target/debug/` this run because
-   the default is cwd.)*
+2. **Move Output Location control to the Run tab.** ✅ Done 2026-08-13 — the
+   Output Location group now lives on the Run / Info tab (above Output Options);
+   removed from Files & Database. *(Still relates to the open "smarter output
+   directory" item — default is still cwd.)*
 3. **Rework the Run / Info screen.** The Info/Help block (author, repo, license,
    citation, versions) doesn't need to occupy the run screen — but don't delete
    that content, just re-home it (an About dialog/collapsing, or a footer). The
@@ -142,10 +142,10 @@ roughly ordered:
    doing** (its log/progress stream) — pairs with the pending async-progress work.
 4. **License is wrong / missing.** `Cargo.toml` says `Apache-2.0`, README links a
    `LICENSE` file that **does not exist**, and the GUI credits "Apache-2.0".
-   Upstream Sage is **MIT** (© 2022 Michael Lazear). **Open question (pinned, not
-   yet decided):** switch SageGUI to MIT to mirror Sage, or keep Apache-2.0 (which
-   is legally fine consuming MIT code) — either way we must actually add the
-   LICENSE file and make Cargo.toml/README/GUI agree. Decide next session.
+   Upstream Sage is **MIT** (© 2022 Michael Lazear). **Blocked pending
+   discussion with Sebastian** (2026-08-13) — the maintainer wants to talk to the
+   original author before choosing MIT vs Apache-2.0. Do not add the LICENSE file
+   or change Cargo.toml/README/GUI until that conversation resolves.
 5. **Run-bar progress bar.** Confirmed it renders and animates a "% change" fine,
    but it's a **placeholder** — not wired to real search progress. Real
    step/percent reporting is the pending Phase 5 async-progress item.

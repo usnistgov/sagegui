@@ -10,7 +10,7 @@
 
 - **Current phase:** Phase 5 in progress — UI restructure landed. Async execution still pending.
 - **Last updated:** 2026-08-13
-- **Next action:** Address the UI-review follow-ups from the first real run (see NOTES → "UI-review feedback"): verify Load Config populates all tabs + re-save round-trip; move Output Location to the Run tab; rework Run/Info (re-home Info/Help, add a live Sage console readout); resolve the **license** question (Apache vs MIT + add the missing LICENSE file). Then the async **progress display** (run-bar ProgressBar is a placeholder) and the pinned **modifications-editor redesign** / **multi-FASTA UX**.
+- **Next action:** Continue the UI-review follow-ups (see NOTES → "UI-review feedback"). **Done so far:** Output Location moved to the Run tab (2026-08-13). **Blocked:** the **license** decision (Apache vs MIT + LICENSE file) is on hold pending a conversation with Sebastian. **Remaining:** verify Load Config populates all tabs + re-save round-trip; rework Run/Info (re-home Info/Help, add a live Sage console readout); then the async **progress display** (run-bar ProgressBar is a placeholder) and the pinned **modifications-editor redesign** / **multi-FASTA UX**.
 - **Released:** `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`), binaries for Windows / macOS (x64+ARM64) / Linux.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.

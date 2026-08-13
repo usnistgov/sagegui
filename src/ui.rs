@@ -732,17 +732,6 @@ impl SageLauncher {
         ui.group(|ui| {
             ui.heading("Data");
 
-            // Output location
-            ui.horizontal(|ui| {
-                ui.label("Output Location:");
-                ui.text_edit_singleline(&mut self.config.output_directory);
-                if ui.button("Browse").clicked() {
-                    if let Some(path) = FileDialog::new().pick_folder() {
-                        self.config.output_directory = path.display().to_string();
-                    }
-                }
-            });
-
             // mzML file picker
             ui.horizontal(|ui| {
                 if ui.button("Pick mzML files").clicked() {
@@ -981,6 +970,21 @@ impl SageLauncher {
 
     pub fn page_run_info(&mut self, ui: &mut egui::Ui) {
         ui.heading("Run / Info");
+        ui.add_space(10.0);
+
+        ui.group(|ui| {
+            ui.heading("Output Location");
+            ui.horizontal(|ui| {
+                ui.label("Output Location:");
+                ui.text_edit_singleline(&mut self.config.output_directory);
+                if ui.button("Browse").clicked() {
+                    if let Some(path) = FileDialog::new().pick_folder() {
+                        self.config.output_directory = path.display().to_string();
+                    }
+                }
+            });
+        });
+
         ui.add_space(10.0);
 
         ui.group(|ui| {

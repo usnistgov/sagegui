@@ -9,7 +9,30 @@ not current state. One entry per session: the shutdown debrief.
 
 ---
 
-## 2026-08-13 — UI restructure: sidebar-nav + pinned run bar; extract src/ui.rs
+## 2026-08-13 — UI-review follow-up: move Output Location to Run tab
+
+**Did:** Moved the Output Location control from Files & Database to the Run / Info
+tab, per UI-review follow-up #2. It now sits in its own group above Output Options
+on the Run tab (browse-folder + text field unchanged). Verified `cargo build`
+passes. Synced CHANGELOG ([Unreleased] → Changed), NOTES (ticked follow-up #2),
+and PLAN (status block). **License decision (follow-up #4) deferred by the
+maintainer** — wants to talk to Sebastian (original author) before choosing MIT
+vs Apache-2.0; recorded as blocked in NOTES, so no LICENSE file was added and
+Cargo.toml/README/GUI were left untouched.
+
+**Least confident about (Q1):** That the Output Location group reads naturally at
+the *top* of the Run tab rather than buried below run controls — I placed it
+above Output Options but did not view the running GUI this session. Proven
+right/wrong by launching the GUI and eyeballing the Run/Info tab layout; trivial
+to reorder if it feels off.
+
+**Suggested improvement (Q5):** When the Run/Info rework (follow-up #3) lands,
+group Output Location, Output Options, and the launch/console area into one
+coherent "Run" region — right now Output Location is a standalone group grafted
+on top, and the tab will read better once the whole screen is intentionally laid
+out rather than accreted.
+
+---
 
 **Post-session addendum (same sitting):** Collaborator ran the Phase 2 baseline
 through the new GUI → **60,672 PSMs, identical** to the pre-restructure run. My

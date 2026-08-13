@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - UI code split out of `src/main.rs` into a new `src/ui.rs` module.
+- **Output Location moved to the Run / Info tab** — the output-directory control
+  now lives next to the run action instead of on Files & Database.
 
 ### Removed
 - **Native Bruker `.d` file picker** — SageGUI now takes `.mzML` / `.mzML.gz`
