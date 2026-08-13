@@ -68,8 +68,13 @@ dropping the transient `new_mod_buffer`/`new_mass_buffer` fields — they were
 round-trip (still the untested UI-review #1 item).
 
 **Biggest thing being missed (Q3):** The Experiment archetypes (Phospho,
-Semi-tryptic, etc.) still don't auto-populate the mod boxes — the picker is fully
-manual. Wiring archetypes → `MOD_PRESETS` is the natural next step.
+Semi-tryptic, etc.) don't touch the other tabs at all — **confirmed inert** by
+the collaborator this session, not just the mod boxes. Wiring `apply_archetype`
+(archetypes → Search/Mods/Quant defaults, reusing `MOD_PRESETS`) is the natural
+next step; the open decision is overwrite-user-edits vs seed-once. Also queued:
+a **flat high-contrast light theme** (the collaborator's screenshot was a
+color/font reference, not the live UI — black-on-white panels, light-blue
+active-item highlight, larger font). Both in NOTES UI-review #6/#7 + PLAN.
 
 **Suggested improvement (Q5):** Add unit tests over `MOD_PRESETS` — assert every
 `keys` entry parses via `ModificationSpecificity::from_str` and no mass is zero —

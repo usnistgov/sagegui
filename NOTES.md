@@ -199,15 +199,20 @@ roughly ordered:
    MOD_PRESETS" note under the Modifications-editor pin above. **Decide:** does
    selecting an archetype *overwrite* user edits, or only seed defaults once?
 7. **Theme is too low-contrast (2026-08-13, next-session request).** The default
-   egui dark-grey-on-grey is too faint for readability. Collaborator wants a
-   **high-contrast "Y2K"-style theme** (bright, chunky, high-contrast — think
-   late-90s/early-2000s desktop UI: solid button bevels, saturated accent, black
-   text on light). Scope for a dedicated session: build a custom `egui::Visuals`
-   (widget fill/stroke, `override_text_color`, larger default font, stronger
-   `widgets.*` contrast) applied at startup via `ctx.set_visuals` /
-   `set_style`; optionally a light/Y2K toggle. Pure styling — no behavior change.
-   Reference the mockup the collaborator shared (flat high-contrast panels,
-   visible borders). This is a **next-session** item, not built yet.
+   egui dark-grey-on-grey is too faint for readability. Collaborator shared a
+   **reference screenshot** (a color/font mock, *not* the live UI) showing the
+   target look: a **flat high-contrast light theme** — solid **black text on
+   white / very-light-grey panels**, a crisp **light-blue selection highlight**
+   on the active sidebar item, **thin flat borders** around inputs/buttons, and
+   a **larger, legible font**. (Read as "clean high-contrast light," closer to a
+   modern flat desktop UI than heavy Y2K bevels — earlier note said "chunky Y2K";
+   the actual reference is flatter.) Scope for a dedicated session: build a
+   custom `egui::Visuals` (light base, `override_text_color` → near-black, white
+   `panel_fill` / `window_fill`, light-blue `selection.bg_fill`, visible
+   `widgets.*` bg_stroke, bump default font sizes via `Style.text_styles`)
+   applied at startup via `ctx.set_visuals` / `ctx.set_style`; optionally a
+   theme toggle. Pure styling — no behavior change. This is a **next-session**
+   item, not built yet.
 
 ---
 
