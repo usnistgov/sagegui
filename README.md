@@ -27,6 +27,12 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - TMT (6/10/11/16/18-plex) and LFQ quantification
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
 
+## To be added
+
+- Experimental templates and loading in results.json for settings
+- Export options: pepXML/mzIdentML, Perseus-format (for Perseus/ProteoPlotter), MSstats (add feature to [MSstatsConvert](https://github.com/Vitek-Lab/MSstatsConvert)), DIAgui, FragPipe-Analyst, add import to PDV for viewing ([feature](https://github.com/wenbostar/PDV/issues/110#issue-5145322431)), Scaffold (?)
+- iBAQ and other LFQ options
+
 ## Download
 
 Get the latest release from the [Releases page](https://github.com/neely/sagegui/releases/latest):
