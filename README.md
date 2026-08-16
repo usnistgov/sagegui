@@ -81,4 +81,4 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 
 ## License
 
-Apache-2.0
+[Apache-2.0](LICENSE)

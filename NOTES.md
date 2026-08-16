@@ -184,15 +184,13 @@ roughly ordered:
    that content, just re-home it (an About dialog/collapsing, or a footer). The
    freed space would be better as a **live console readout of what Sage is
    doing** (its log/progress stream) — pairs with the pending async-progress work.
-4. **License file missing — decision made 2026-08-13: SHIP WITHOUT.** `Cargo.toml`
-   says `Apache-2.0`, README links a `LICENSE` file that **does not exist**, and
-   the GUI credits "Apache-2.0". Upstream Sage is **MIT** (© 2022 Michael Lazear).
-   The maintainer decided to **ship v0.7.0 with no LICENSE file** — leave
-   Cargo.toml/README/GUI saying Apache-2.0, leave the README link broken, do
-   **not** add a LICENSE file. Revisit later. The MIT-vs-Apache question would
-   still be a conversation with **Sebastian Paez** (original GUI author) *if*
-   revisited, but it is **no longer a release blocker**. *(Testing of the new GUI
-   is by the maintainer's lab — self + colleague Mike — not Sebastian.)*
+4. **License file — RESOLVED 2026-08-16.** Confirmed Apache-2.0 directly with
+   Sebastian Paez (original GUI author). Added a `LICENSE` file at repo root
+   with the standard Apache-2.0 text, crediting both Sebastian Paez (original
+   sagegui) and Benjamin Neely (this fork). README's License section now links
+   to it. Upstream Sage remains **MIT** (© 2022 Michael Lazear) — that's a
+   separate third-party-notice question for distributed binaries, not
+   addressed by this change.
 5. **Run-bar progress bar.** Confirmed it renders and animates a "% change" fine,
    but it's a **placeholder** — not wired to real search progress. Real
    step/percent reporting is the pending Phase 5 async-progress item.

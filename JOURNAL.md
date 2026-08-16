@@ -1,3 +1,43 @@
+## 2026-08-16 — License resolved; checked for existing upstream PRs
+
+**Did:** Confirmed with Sebastian Paez that the project license is Apache-2.0.
+Added a `LICENSE` file (standard Apache-2.0 text) with copyright lines for
+Sebastian Paez (original sagegui) and Benjamin Neely (this fork). Updated
+README's License section to link to it, and marked the old "ship without"
+NOTES entry resolved.
+
+Separately, checked whether any changes from this fork have already been
+submitted upstream to `jspaezp/sagegui` — the maintainer recalled Sebastian
+saying he'd merge some changes, but couldn't find a PR. Checked
+`jspaezp/sagegui`'s PR history, issues, and branches directly via the GitHub
+API: no PRs, issues, or branches from `neely` exist there. Everything
+open/closed on that repo is Dependabot version bumps or Sebastian's own
+`feat/ims_quant` branch. So whatever conversation happened about merging
+changes did not take the form of a GitHub PR — it was likely a direct
+conversation (call, email, chat) rather than anything tracked on GitHub. No
+fork changes have been upstreamed as of this entry.
+
+Also drafted a candidate list for what could go upstream, split by
+dependency risk: the two standalone bug fixes (TMT 16/18-plex mapping,
+fragment-tolerance field) are self-contained and safe to PR regardless of
+what Sebastian decides on anything else. Multi-FASTA and the CI/CD setup are
+probably portable with some rework. The tab-based redesign, Modifications
+picker, surfaced params, and Save/Load Config are all downstream of the
+UI-split decision — a PR for any of those only makes sense if Sebastian
+wants that direction, since the diff wouldn't apply cleanly to his
+single-scroll layout otherwise.
+
+**Least confident about (Q1):** Whether the "he said merge changes" exchange
+the maintainer remembers refers to a real conversation about this repo
+specifically, or something conflated from a different context. Proven right
+or wrong by the maintainer checking their own email/Slack/DM history with
+Sebastian for the actual exchange.
+
+**Suggested improvement (Q5):** Before opening any upstream PRs, re-confirm
+with Sebastian which specific changes he's actually open to — start with the
+two bug fixes as low-risk PRs, and treat the redesign-dependent items as a
+single up-front conversation rather than four separate asks.
+
 # SageGUI — Journal
 
 Append-only. Newest entry on top. Never edit past entries — this is history,
