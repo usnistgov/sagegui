@@ -7,14 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **Multi-FASTA selection** — Files & Database tab now shows an "Add FASTA…"
-  list (multi-file picker). Each file appears with a per-row ✖ remove button.
-  Order is preserved (target organism first, then contaminants, spike-ins, etc.).
-  Old single-FASTA configs migrate automatically on Load Config.
-- **On-the-fly FASTA concatenation** — when more than one FASTA is selected, a
-  temp file is written at launch, passed to Sage, and deleted when the run
-  completes. Single-file searches bypass the copy entirely.
+<!-- Next release items go here. -->
 
 ## [0.7.0] - 2026-08-13
 

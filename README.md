@@ -93,7 +93,7 @@ Full upstream license texts are provided in
 ## License
 
 NIST-authored portions of this project are distributed under the NIST Software
-Licensing Statement — see [LICENSE.md](LICENSE.md). Third-party components
+Licensing Statement — see [LICENSE](LICENSE). Third-party components
 (Sage and the original sagegui) retain their original licenses; see
 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details.
 

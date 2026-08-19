@@ -1,4 +1,22 @@
-## 2026-08-16 — License resolved; checked for existing upstream PRs
+## 2026-08-19 — Attribution notices; AGENTS writing standards; sync disk to GitHub
+
+**Did:** Pulled 6 commits from GitHub (LICENSE, THIRD_PARTY_LICENSES.md, NIST licensing statement, README attribution, JOURNAL entry). Stashed local tolerance-UI changes, pulled, re-applied.
+
+Added Apache 2.0 "prominent notice" comments to all files derived from jspaezp/sagegui: src/main.rs, src/ui.rs, Cargo.toml, .github/workflows/build.yml, .github/dependabot.yml. src/version.rs and update-badges.yml were written fresh and carry no notice.
+
+Applied stashed tolerance-UI work: Lower/Upper labels and inverted-window warning on Da and ppm tolerance fields in src/ui.rs. Matching NOTES and PLAN entries included in the same commit.
+
+Added two rules to AGENTS.md Editing standards: batched atomic commits, and ASD-STE100 writing.
+
+Fixed README LICENSE link (was LICENSE.md; file is LICENSE). Cleared the [Unreleased] CHANGELOG section — its items were already in [0.7.0].
+
+**Least confident about (Q1):** Whether the tolerance Lower/Upper labels and warning display correctly in the running app without visual regression on other tolerance widgets. Proven right or wrong by launching a debug build and clicking through Search tab tolerance controls.
+
+**Suggested improvement (Q5):** The [Unreleased] CHANGELOG section should be populated during each session, not cleaned at shutdown — add a one-liner for each landed change as it's committed so the release-cut step is trivial.
+
+---
+
+
 
 **Did:** Confirmed with Sebastian Paez that the project license is Apache-2.0.
 Added a `LICENSE` file (standard Apache-2.0 text) with copyright lines for

@@ -8,9 +8,9 @@
 
 ## Status
 
-- **Current phase:** Phase 5 in progress — Multi-FASTA + v0.7.0 landed. Templates, async execution, and theme still open.
-- **Last updated:** 2026-08-13
-- **Next action (next session):** Pick one of the remaining v0.7.0-follow-on items: (a) **verify Load Config round-trip** with the new `fasta_paths` field end-to-end; (b) **JSON-file templates** — replace inert Experiment dropdown with a Templates picker loading bundled JSONs (tryptic-lfq / phospho / wide-open) + "Save current as template"; (c) **high-contrast flat light theme** (NOTES UI-review #7); (d) **async execution progress** — wire real step/percent to the run bar. **License decided 2026-08-13: ship v0.7.0 with NO LICENSE file** — Apache-2.0 claims stay as-is.
+- **Current phase:** Phase 5 in progress. Licensing resolved (Apache-2.0, LICENSE file added 2026-08-16). Templates, async execution, and theme still open.
+- **Last updated:** 2026-08-19
+- **Next action (next session):** Pick one of the remaining Phase 5 items: (a) **verify Load Config round-trip** with the new `fasta_paths` field end-to-end; (b) **JSON-file templates** — replace inert Experiment dropdown with a Templates picker loading bundled JSONs (tryptic-lfq / phospho / wide-open) + "Save current as template"; (c) **high-contrast flat light theme** (NOTES UI-review #7); (d) **async execution progress** — wire real step/percent to the run bar.
 - **Released:** `v0.7.0` — Multi-FASTA + on-the-fly concatenation. Previous: `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`).
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
