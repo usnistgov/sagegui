@@ -36,6 +36,8 @@ Rule of thumb: **the four dev-context files (AGENTS, PLAN, NOTES, JOURNAL) are t
 - **Commit straight to `main`** with plain messages. No branches, no squashing, no PRs unless asked.
 - **Keep docs synced with live code.** If you change behavior, update the doc that describes it in the same session.
 - Match the surrounding code's style, naming, and comment density.
+- **Batched atomic commits.** Group logically-related file changes (a code change + the doc update explaining it) into a single commit. One commit = one coherent decision. Hold related edits together before committing rather than committing each as it's finished.
+- **Write in ASD-STE100.** Simplified Technical English. Short sentences. One idea each. Applies to commit messages and everything written in PLAN, NOTES, and JOURNAL.
 
 ---
 
