@@ -22,7 +22,7 @@ These exist alongside the dev-context files above. Know they're there and when t
 | File | What it's for | Touch it when… |
 | ---- | ------------- | -------------- |
 | `README.md` | User-facing landing page: install, quick start, feature list | user-visible behavior, install steps, or the doc list changes |
-| `CHANGELOG.md` | Release history (Keep-a-Changelog format) | cutting a release, or landing a change worth a release note |
+| `CHANGELOG.md` | Release history (Keep-a-Changelog format) | Add a one-liner to `[Unreleased]` for each user-visible change as it lands. Move entries to a versioned section when cutting a release. |
 | `MAINTENANCE.md` | Maintainer runbook for syncing the Sage fork to a new version | the update procedure changes, or a new Sage upgrade adds an API-change example |
 | `docs/GLOSSARY.md` | Definitions of proteomics / MS / Sage terms | a new domain term enters the docs and needs defining |
 

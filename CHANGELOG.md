@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- Next release items go here. -->
+### Added
+- **Tolerance Lower/Upper labels** — Da and ppm precursor/fragment tolerance fields now show "Lower" and "Upper" labels with hover text explaining the sign convention.
+- **Inverted-window warning** — a non-blocking ⚠ label appears when the lower bound exceeds the upper bound (empty search range).
+
+### Changed
+- **Apache 2.0 attribution notices** — files derived from jspaezp/sagegui now carry a short notice at the top per Apache 2.0 §4(b).
+
+### Fixed
+- **LICENSE link in README** — corrected from `LICENSE.md` to `LICENSE`.
 
 ## [0.7.0] - 2026-08-13
 
