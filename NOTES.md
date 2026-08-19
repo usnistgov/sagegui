@@ -373,6 +373,47 @@ A pure performance-tuning knob in Sage's database config block. **It does not ch
   Start there and tune empirically — optimal value depends on fragment tolerance and dataset. (The general config page shows 32768 as a middle-ground illustrative default, but the database-config page's table above is more authoritative.)
 - **Bottom line:** a speed dial. Pick by MS2 resolution; try a few values if you want to squeeze performance. Zero effect on PSM results.
 
+#### Precursor/fragment tolerance window — sign & delta-mass convention
+
+The Da tolerance window is **relative to the experimental precursor mass** and is
+**not symmetric-by-assumption** — the two boxes are an independent (lower, upper)
+pair. This trips people up, so the exact semantics:
+
+From Sage's `Tolerance::bounds` ([`crates/sage-core/src/mass.rs`], `Tolerance::Da`):
+
+```rust
+Tolerance::Da(lower, upper) => (center + lower, center + upper)
+```
+
+where `center` = the **experimental** monoisotopic precursor mass. Sage then
+searches for theoretical peptides whose mass lands in
+`[center + lower, center + upper]`.
+
+- **Lower is normally negative, upper positive.** `-500, 100` searches theoretical
+  peptides from **500 Da below to 100 Da above** the observed precursor.
+- **The sign flips when you think in delta-mass / modification space.** A candidate
+  peptide that is 500 Da *lighter* than the observed precursor means the observed
+  species carries a **+500 Da modification** relative to that peptide. So a `-500`
+  *lower bound* corresponds to finding IDs with a **+500 Da delta mass**. The two
+  framings (theoretical-peptide space vs. delta-mass space) are consistent —
+  they just reference opposite endpoints. This is the "-500,100 = -100 to 500"
+  confusion Michael flagged: it is the delta-mass reading of the same window.
+- **Inverted window = empty search.** If `lower > upper`, Sage computes an empty
+  range and finds nothing. Enter the smaller (usually negative) value in the
+  **Lower** box.
+
+**GUI behavior:** SageGUI passes the two DragValues straight through, verbatim —
+first box → `lower`, second box → `upper`, no sign manipulation or reordering
+([src/ui.rs](src/ui.rs) `ToleranceConfig::update_section`, and `From<ToleranceConfig>
+for Tolerance`). So an asymmetric window is preserved exactly as typed. The boxes
+are labelled **Lower / Upper**, carry hover text explaining the convention, and
+show a non-blocking ⚠ warning if `lower > upper`.
+
+**Deferred behavior change:** an optional "show as delta mass" framing (type
+`+500` for a +500 Da mod, GUI flips the sign) is captured in PLAN Phase 5 with
+caveats — *not* built, because it would diverge from every Sage config file/CLI.
+The raw `(lower, upper)` convention above is what's stored and shipped.
+
 #### Variable / static modification syntax
 
 All mods live under `variable_mods` / `static_mods` in the `database` section of `config.json`. Sage uses prefix syntax for position:

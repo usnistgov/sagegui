@@ -1,3 +1,7 @@
+// Derived from jspaezp/sagegui (Apache 2.0, J. Sebastian Paez).
+// Modified by Benjamin A. Neely (NIST) on 2026-08-13: extracted from main.rs into
+// this module, redesigned into 6-tab sidebar layout, rebuilt Modifications tab as
+// curated list-picker, added multi-FASTA UI, surfaced hidden Sage parameters.
 use eframe::egui;
 use egui::include_image;
 use rfd::FileDialog;
@@ -488,15 +492,60 @@ impl Default for ToleranceConfig {
 
 impl ToleranceConfig {
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
+        // Sage applies the window to the *experimental* precursor mass:
+        //   candidate theoretical mass ∈ [experimental + lower, experimental + upper]
+        // so the lower bound is normally negative and the upper positive. A
+        // negative lower bound searches theoretical peptides *below* the observed
+        // mass, i.e. peptides carrying a *positive* delta mass relative to the ID
+        // (e.g. lower = -500 finds peptides that would carry a +500 Da modification).
         match self {
             ToleranceConfig::Ppm(a, b) => {
-                ui.add(egui::DragValue::new(a).speed(1));
-                ui.add(egui::DragValue::new(b).speed(1));
+                ui.horizontal(|ui| {
+                    ui.label("Lower:");
+                    ui.add(egui::DragValue::new(a).speed(1)).on_hover_text(
+                        "Lower bound in ppm, relative to the experimental mass. \
+                         Normally negative.",
+                    );
+                    ui.label("Upper:");
+                    ui.add(egui::DragValue::new(b).speed(1)).on_hover_text(
+                        "Upper bound in ppm, relative to the experimental mass. \
+                         Normally positive.",
+                    );
+                });
+                Self::warn_if_inverted(ui, *a, *b);
             }
             ToleranceConfig::Da(a, b) => {
-                ui.add(egui::DragValue::new(a).speed(0.01));
-                ui.add(egui::DragValue::new(b).speed(0.01));
+                ui.horizontal(|ui| {
+                    ui.label("Lower:");
+                    ui.add(egui::DragValue::new(a).speed(0.01)).on_hover_text(
+                        "Lower bound in Da, relative to the experimental precursor mass \
+                         (normally negative). Sage searches theoretical peptides down to \
+                         `experimental + lower`. A negative value finds lighter peptides — \
+                         i.e. IDs carrying a positive delta mass. Example: Lower = -500 \
+                         searches peptides 500 Da below the observed mass (a +500 Da mod).",
+                    );
+                    ui.label("Upper:");
+                    ui.add(egui::DragValue::new(b).speed(0.01)).on_hover_text(
+                        "Upper bound in Da, relative to the experimental precursor mass \
+                         (normally positive). Sage searches theoretical peptides up to \
+                         `experimental + upper`. Example: -500, 100 searches from 500 Da \
+                         below to 100 Da above the observed precursor mass.",
+                    );
+                });
+                Self::warn_if_inverted(ui, *a, *b);
             }
+        }
+    }
+
+    /// Non-blocking hint if the window is inverted (lower > upper), which would
+    /// make Sage compute an empty search range.
+    fn warn_if_inverted(ui: &mut egui::Ui, lower: f32, upper: f32) {
+        if lower > upper {
+            ui.colored_label(
+                egui::Color32::from_rgb(0xE0, 0x8A, 0x00),
+                "⚠ Lower bound is greater than upper — this is an empty window. \
+                 The lower value should normally be the smaller (often negative) one.",
+            );
         }
     }
 }

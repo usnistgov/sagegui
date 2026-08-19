@@ -1,3 +1,6 @@
+# Derived from jspaezp/sagegui (Apache 2.0, J. Sebastian Paez).
+# Modified by Benjamin A. Neely (NIST) on 2026-07-13: added Cargo ecosystem and
+# ignore rules for pinned Sage dependencies.
 version: 2
 updates:
   # GitHub Actions

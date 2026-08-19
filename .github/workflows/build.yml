@@ -1,3 +1,6 @@
+# Derived from jspaezp/sagegui (Apache 2.0, J. Sebastian Paez).
+# Modified by Benjamin A. Neely (NIST) on 2026-07-13: added rustfmt/clippy/test
+# steps, multi-platform matrix, release artifact packaging, and generate_release_notes.
 name: Build and Release
 
 on:

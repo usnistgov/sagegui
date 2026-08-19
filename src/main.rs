@@ -1,3 +1,8 @@
+// Derived from jspaezp/sagegui (Apache 2.0, J. Sebastian Paez).
+// Modified by Benjamin A. Neely (NIST) on 2026-07-10: upgraded to Sage v0.15.0-beta.2,
+// fixed TMT plex and fragment-tolerance bugs, added structured logging and CI/CD.
+// Modified by Benjamin A. Neely (NIST) on 2026-08-13: restructured into sidebar-nav +
+// pinned run bar, extracted GUI code to src/ui.rs, added multi-FASTA concat.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 /// Is this pretty? No ... but is it well tested.... also no ... was an I on a deadline
 /// well ... not really. BUT I learned a lot about Rust and sage and I'm glad I did.
