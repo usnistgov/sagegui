@@ -73,6 +73,17 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 - [Sage](https://github.com/lazear/sage) — the search engine
 - [sagePreview](https://github.com/neely/sagePreview) — PTM discovery and reconnaissance using Sage
 
+## Attribution
+
+This project is an officially supported NIST fork of Sebastian Paez’s
+sagegui, built on Sage:
+
+- **Sage** (Michael Lazear), MIT License — https://github.com/lazear/sage
+- **sagegui** (J. Sebastian Paez), Apache License 2.0 — https://github.com/jspaezp/sagegui
+
+Full upstream license texts are provided in
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
 ## Credits
 
 - Michael Lazear — Sage
@@ -81,4 +92,13 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 
 ## License
 
-[Apache-2.0](LICENSE)
+NIST-authored portions of this project are distributed under the NIST Software
+Licensing Statement — see [LICENSE.md](LICENSE.md). Third-party components
+(Sage and the original sagegui) retain their original licenses; see
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details.
+
+## Contact
+
+Benjamin A. Neely — PI  
+Data Science and AI Group, Material Data Division, Material Measurement Laboratory, National Institute of Standards and Technology  
+benjamin.neely@nist.gov
