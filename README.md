@@ -26,6 +26,12 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - Modifications picker with a curated preset list (Static and Variable boxes, Mascot-style)
 - TMT (6/10/11/16/18-plex) and LFQ quantification
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
+- surface prefilter_low_memory option
+```
+  pub prefilter_low_memory: Option<bool>,
+// Current default: None (falsy) = faster, more memory
+// Set to Some(true) = slower, minimal memory during prefilter
+```
 
 ## To be added
 
