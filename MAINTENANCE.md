@@ -217,6 +217,27 @@ sagegui/
 
 ---
 
+## Memory Allocation
+
+**Sage does not expose a maximum RAM setting.** Allocation is automatic and managed by the Rust runtime. Memory usage depends on:
+
+1. **Database size**: Larger FASTA files → larger fragment index in RAM
+2. **Batching**: Spectra are processed in batches; tune batch size if needed (see "Performance tuning")
+3. **Quantification**: LFQ keeps identified peptides in memory; lower `peptide_q_value` threshold reduces this
+4. **Prefiltering**: Enable `prefilter_low_memory` for chunk-based FASTA processing (slower but lower peak memory)
+
+### If you're running out of memory:
+
+- **Reduce `max_peaks`** (default 150) — fewer peaks per spectrum = less processing overhead
+- **Enable `prefilter_low_memory`** — process FASTA in smaller chunks during database build
+- **Lower `peptide_q_value`** threshold if using LFQ — only keep high-confidence peptides in RAM
+- **Use OS-level limits** (Linux: `ulimit -v`, Windows: Job Objects) to constrain the process
+- **Split large datasets** — run smaller files separately rather than concatenating them
+
+This is by design: Sage trades "set-it-and-forget-it" configuration for speed. The automagic memory management works well for typical proteomics datasets.
+
+---
+
 ## Contact
 
 - **Repository:** https://github.com/neely/sagegui
