@@ -32,12 +32,7 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - Experimental templates and loading in results.json for settings
 - Export options: pepXML/mzIdentML, Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), MSstats (add feature to [MSstatsConvert](https://github.com/Vitek-Lab/MSstatsConvert), [feature requested](https://github.com/Vitek-Lab/MSstatsConvert/issues/143)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), add import to PDV for viewing ([feature requested](https://github.com/wenbostar/PDV/issues/110#issue-5145322431)), Scaffold (?)
 - iBAQ and other LFQ options
-- surface prefilter_low_memory option
-```
-  pub prefilter_low_memory: Option<bool>,
-// Current default: None (falsy) = faster, more memory
-// Set to Some(true) = slower, minimal memory during prefilter
-```
+- surface prefilter, prefilter_chunk_size, and prefilter_low_memory to think about memory use in semi-tryptic and non-specific searches
 - a stop button
 
 ## Download
