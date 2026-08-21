@@ -62,11 +62,21 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
   4-line addition by hand (diff is in PR #1 on `neely/sage` for reference) and
   re-verify with `cargo check` before re-pinning `sagegui`. If it's clean, no
   action needed beyond noting the new commit hash.
-- **No CI on `neely/sage`:** this fork has never had a GitHub Actions run
-  (Actions are enabled at the repo level but no workflow has ever fired — likely
-  never turned on since the repo was forked). `cargo check`/`cargo build` after
-  any fork change is currently the only verification; there's no automated
-  safety net on that repo the way `sagegui`'s own `build.yml` provides here.
+- **How fork patches are verified (corrected 2026-08-21):** `neely/sage` itself
+  has never had a GitHub Actions run. That matters less than an earlier note in
+  this file implied. `sage-core`/`sage-cli`/`sage-cloudpath` are **git
+  dependencies** in `Cargo.toml`, so cargo compiles the fork's source as part of
+  every `sagegui` build. `sagegui`'s own `.github/workflows/build.yml` runs
+  `cargo clippy -- -D warnings`, `cargo test` and `cargo build --release` on
+  Windows, Linux, macOS x64 and macOS ARM64. A fork patch that does not compile
+  on any of those platforms fails our CI. There is no separate fork CI to
+  arrange.
+  **What is still not covered:** Sage's own test suite (our `cargo test` runs
+  `sagegui`'s tests, not a dependency's), and clippy, which does not lint
+  dependency code. For a small additive patch — a `pub` field, an atomic load —
+  compilation across four targets is close to the whole risk surface. The
+  residual risk is behavioural, and the check for that is re-running the Phase 2
+  baseline by hand (see Test baseline).
 
 ---
 
@@ -417,6 +427,65 @@ A pure performance-tuning knob in Sage's database config block. **It does not ch
 
   Start there and tune empirically — optimal value depends on fragment tolerance and dataset. (The general config page shows 32768 as a middle-ground illustrative default, but the database-config page's table above is more authoritative.)
 - **Bottom line:** a speed dial. Pick by MS2 resolution; try a few values if you want to squeeze performance. Zero effect on PSM results.
+
+#### Database prefiltering — `prefilter`, `prefilter_chunk_size`, `prefilter_low_memory`
+
+Derived from the pinned Sage source on 2026-08-21. **Sage's own `DOCS.md` does
+not document these three parameters at all** — a grep of every `.md` in the Sage
+repo finds "prefilter" only in one CHANGELOG line. The code is the only source of
+truth. Do not re-derive this; the user-facing write-up is in
+`docs/PARAMETER_REFERENCE.md`.
+
+Resolved defaults, from `Builder::make_parameters`
+(`crates/sage/src/database.rs:111-113`):
+
+| Field | Resolves to when unset |
+| ----- | ---------------------- |
+| `prefilter` | `false` |
+| `prefilter_chunk_size` | `0` (auto) |
+| `prefilter_low_memory` | **`true`** |
+
+`prefilter_low_memory` is read at exactly one site
+(`sage-cli/src/runner.rs:271`). That site is reached only when `prefilter` is
+`true` **and** `prefilter_chunk_size < fasta.targets.len()`
+(`runner.rs:114-129`). So at defaults it resolves to `true` but never runs.
+
+**Mechanism** (`runner.rs:149-245`, `crates/sage/src/fasta.rs:81`):
+`iter_chunks(n)` splits `fasta.targets` — protein entries — into groups of `n`.
+Per chunk, Sage builds a full index for those proteins, quick-scores every MS2
+spectrum, keeps the peptides that matched, and frees the chunk index. After the
+last chunk, `build_from_peptides` builds one final index from the survivors.
+Peak memory becomes about the larger of one chunk index or the final index.
+
+**`quick_score`** (`crates/sage/src/scoring.rs:256-299`): with `low_memory =
+true`, Sage scores every preliminary hit and keeps the top `report_psms + 1` per
+spectrum per chunk. The `+1` comes from `prefilter_peptides` building its
+`Scorer` with `report_psms + 1`. With `false`, Sage keeps every preliminary hit
+unscored — more peptides, more memory, less CPU.
+
+**Auto chunk size** (`database.rs:142-159`): `0` makes Sage digest the whole
+FASTA to estimate peptide count, scale it by
+`(variable_mods.len() + 1) * 2^max_variable_mods`, and divide by `2^23`
+(8,388,608) peptides per chunk. If that gives zero chunks, chunk size becomes
+`fasta.targets.len()`, which trips the `>=` guard and skips prefiltering. So
+auto self-disables on small search spaces. The wasted work is the extra digest.
+
+**Two gotchas worth remembering:**
+- **File-count cliff** (`runner.rs:150-157`). If `parallel >= mzml_paths.len()`,
+  Sage reads all spectra once and holds them for the whole pass. Otherwise it
+  re-reads and re-processes every mzML file once per chunk. `sagegui` sets
+  `parallel = num_cpus::get() / 2` (`src/main.rs:266`), so a 16-core machine
+  switches at 9 files.
+- **Per-chunk decoys.** `prefilter_peptides` generates decoys per chunk and does
+  not regenerate them over the final filtered set. The disabling code is
+  commented out with an upstream TODO (`runner.rs:163-170`). Expect PSM counts
+  to differ slightly from a non-prefiltered run.
+
+**Progress-bar consequence.** `peptide_filter_processed_spectra` never touches
+`self.progress`, and the `mini_runner` holds its own separate `Arc`. The whole
+prefilter pass therefore shows 0% in the run bar. This was recorded as an
+unreachable path while `prefilter` was hardcoded off; it becomes reachable the
+moment the GUI exposes the checkbox.
 
 #### Precursor/fragment tolerance window — sign & delta-mass convention
 
