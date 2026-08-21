@@ -348,9 +348,15 @@ fn run_sage(
     sender: &Sender<ThreadMessage>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Running analysis... Building");
+    let _ = sender.send(ThreadMessage::Progress(
+        "Building peptide database…".to_string(),
+    ));
     let search = input.build()?;
     let runner = Runner::new(search, parallel.into())?;
     let _ = sender.send(ThreadMessage::RunnerReady(runner.progress.clone()));
+    let _ = sender.send(ThreadMessage::Progress(
+        "Reading and searching spectra…".to_string(),
+    ));
     println!("Running analysis... Executing");
     let _tel = runner.run(parallel.into(), parquet)?;
     Ok(())
