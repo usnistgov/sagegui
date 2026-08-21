@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Real run-bar progress** — the progress bar now shows the actual fraction of spectra scored (live count from Sage / pre-scanned mzML total), instead of a static placeholder.
 - **Tolerance Lower/Upper labels** — Da and ppm precursor/fragment tolerance fields now show "Lower" and "Upper" labels with hover text explaining the sign convention.
 - **Inverted-window warning** — a non-blocking ⚠ label appears when the lower bound exceeds the upper bound (empty search range).
 

@@ -8,9 +8,9 @@
 
 ## Status
 
-- **Current phase:** Phase 5 in progress. Licensing resolved (Apache-2.0, LICENSE file added 2026-08-16). Templates, async execution, and theme still open.
-- **Last updated:** 2026-08-19
-- **Next action (next session):** Pick one of the remaining Phase 5 items: (a) **verify Load Config round-trip** with the new `fasta_paths` field end-to-end; (b) **JSON-file templates** — replace inert Experiment dropdown with a Templates picker loading bundled JSONs (tryptic-lfq / phospho / wide-open) + "Save current as template"; (c) **high-contrast flat light theme** (NOTES UI-review #7); (d) **async execution progress** — wire real step/percent to the run bar.
+- **Current phase:** Phase 5 in progress. Licensing resolved (Apache-2.0, LICENSE file added 2026-08-16). Async run-bar progress done 2026-08-21. Templates and theme still open.
+- **Last updated:** 2026-08-21
+- **Next action (next session):** First, **manually test the new progress bar** with real mzML/FASTA data (never interactively verified — see NOTES.md item 5). Then pick one of the remaining Phase 5 items: (a) **verify Load Config round-trip** with the new `fasta_paths` field end-to-end; (b) **JSON-file templates** — replace inert Experiment dropdown with a Templates picker loading bundled JSONs (tryptic-lfq / phospho / wide-open) + "Save current as template"; (c) **high-contrast flat light theme** (NOTES UI-review #7).
 - **Released:** `v0.7.0` — Multi-FASTA + on-the-fly concatenation. Previous: `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`).
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -196,7 +196,7 @@ Provide a user-friendly graphical interface for Sage that:
 
 #### UI/UX (priority order)
 
-- [ ] **Async execution + progress display** — Run search on a background thread so the GUI stays responsive; show current step (building DB, searching, scoring), elapsed time, estimated remaining. Prevents "not responding" on 1hr+ jobs. *(Background thread + pinned run bar exist; real progress-step reporting still pending — the run-bar ProgressBar is a placeholder.)*
+- [ ] **Async execution + progress display** — Run search on a background thread so the GUI stays responsive; show current step (building DB, searching, scoring), elapsed time, estimated remaining. Prevents "not responding" on 1hr+ jobs. *(Background thread, pinned run bar, and elapsed time already existed. 2026-08-21: the ProgressBar is no longer a placeholder — it shows real spectra-scored / pre-scanned-total percentage during the search phase, via a small patch to `neely/sage` exposing `Runner.progress` — see NOTES.md. Still open: no named-step display (build DB / search / write outputs are not distinguished in the UI) and no estimated-remaining-time readout.)*
 - [ ] **Session resilience / auto-recovery** — If the GUI is closed or crashes during a run, persist enough state to resume or at least report results.
 - [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI. *(Placeholder slot reserved on Run/Info tab.)*
 - [x] **Configuration persistence (save/load)** — Save/Load Config as JSON on the Experiment tab. *(Remembering last-used settings across sessions is still open.)*

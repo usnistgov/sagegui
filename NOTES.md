@@ -225,9 +225,21 @@ roughly ordered:
    to it. Upstream Sage remains **MIT** (© 2022 Michael Lazear) — that's a
    separate third-party-notice question for distributed binaries, not
    addressed by this change.
-5. **Run-bar progress bar.** Confirmed it renders and animates a "% change" fine,
-   but it's a **placeholder** — not wired to real search progress. Real
-   step/percent reporting is the pending Phase 5 async-progress item.
+5. **Run-bar progress bar — ✅ real progress, 2026-08-21.** No longer a
+   placeholder. `total_mzml_spectra()` ([src/main.rs](src/main.rs)) pre-scans
+   each selected mzML/mzML.gz file's `<spectrumList count="N">` tag before
+   launch (plain-text scan, not a full XML parse; `None` if any file's count
+   can't be found, rather than a misleadingly-low partial sum). The numerator
+   comes from `Runner.progress` (see the fork-patch note above) via a new
+   `ThreadMessage::RunnerReady` sent once `Runner::new()` succeeds. Percent =
+   live count / pre-scanned total. **Known gap:** only the "searching spectra"
+   phase has a real percentage — database build and FDR/quant/write-output
+   phases still show whatever percent was last computed (no regression from
+   before, just not further instrumented; both are usually short relative to
+   search). **Not yet interactively tested** with real mzML/FASTA data — verified
+   `cargo check`/`clippy`/`fmt` clean and that the app launches, but the actual
+   live-percentage behavior during a real run needs a manual pass (see MAINTENANCE.md
+   Testing Checklist / the Test baseline above).
 6. **Experiment archetypes are inert (confirmed 2026-08-13).** Collaborator
    confirmed that changing the Experiment-tab dropdown (Custom / Tryptic LFQ /
    Wide-open / Phospho / Semi-tryptic) does **nothing** to the settings on the

@@ -4977,6 +4977,7 @@ dependencies = [
  "egui",
  "egui_extras",
  "env_logger 0.11.11",
+ "flate2",
  "image 0.24.9",
  "log",
  "num_cpus",

@@ -13,7 +13,10 @@ mod version;
 use eframe::egui;
 use log::info;
 use sage_cli::{input::Input, runner::Runner};
-use std::sync::mpsc::{self, Receiver};
+use std::io::Read;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -24,6 +27,9 @@ use ui::*;
 #[derive(Debug)]
 enum ThreadMessage {
     Progress(String),
+    /// Sent once `Runner::new` succeeds, carrying the live spectra-scored
+    /// counter so the GUI thread can poll it for a real progress percentage.
+    RunnerReady(Arc<AtomicUsize>),
     Completed(Result<String, String>),
 }
 
@@ -51,6 +57,11 @@ pub struct SageLauncher {
     pub mod_custom_mass: f32,
     /// Path of the temp-concatenated FASTA to delete after the run.
     temp_fasta_path: Option<std::path::PathBuf>,
+    /// Live spectra-scored count from the running search, once `Runner` exists.
+    search_progress: Option<Arc<AtomicUsize>>,
+    /// Total MSn spectra across selected mzML files, pre-scanned before launch.
+    /// `None` if any file's count couldn't be determined (unknown denominator).
+    total_spectra: Option<usize>,
 }
 
 impl Default for SageLauncher {
@@ -72,6 +83,8 @@ impl Default for SageLauncher {
             mod_custom_key: String::new(),
             mod_custom_mass: 0.0,
             temp_fasta_path: None,
+            search_progress: None,
+            total_spectra: None,
         }
     }
 }
@@ -123,8 +136,14 @@ impl eframe::App for SageLauncher {
                     }
                 }
 
+                let fraction = match (&self.search_progress, self.total_spectra) {
+                    (Some(scored), Some(total)) if total > 0 => {
+                        (scored.load(Ordering::Relaxed) as f32 / total as f32).min(1.0)
+                    }
+                    _ => 0.0,
+                };
                 ui.add(
-                    egui::ProgressBar::new(0.0)
+                    egui::ProgressBar::new(fraction)
                         .desired_width(120.0)
                         .show_percentage(),
                 );
@@ -172,6 +191,9 @@ impl SageLauncher {
                 Ok(ThreadMessage::Progress(msg)) => {
                     self.status_message = msg;
                 }
+                Ok(ThreadMessage::RunnerReady(progress)) => {
+                    self.search_progress = Some(progress);
+                }
                 Ok(ThreadMessage::Completed(result)) => {
                     match result {
                         Ok(msg) => self.status_message = msg,
@@ -195,6 +217,8 @@ impl SageLauncher {
         self.message_receiver = None;
         self.start_time = None;
         self.is_running = false;
+        self.search_progress = None;
+        self.total_spectra = None;
         if let Some(p) = self.temp_fasta_path.take() {
             let _ = std::fs::remove_file(&p);
         }
@@ -244,13 +268,16 @@ impl SageLauncher {
         let parquet = false;
         let sage_input: Input = self.config.clone().into();
 
+        self.search_progress = None;
+        self.total_spectra = total_mzml_spectra(&self.config.mzml_paths);
+
         let (sender, receiver) = mpsc::channel();
         self.message_receiver = Some(receiver);
 
         let thread_handle = thread::spawn(move || {
             let _ = sender.send(ThreadMessage::Progress("Starting analysis...".to_string()));
 
-            let result = match run_sage(sage_input, parallel, parquet) {
+            let result = match run_sage(sage_input, parallel, parquet, &sender) {
                 Ok(_) => Ok("Analysis completed successfully".to_string()),
                 Err(e) => Err(e.to_string()),
             };
@@ -314,13 +341,81 @@ impl From<Config> for Input {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-fn run_sage(input: Input, parallel: u16, parquet: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn run_sage(
+    input: Input,
+    parallel: u16,
+    parquet: bool,
+    sender: &Sender<ThreadMessage>,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("Running analysis... Building");
     let search = input.build()?;
     let runner = Runner::new(search, parallel.into())?;
+    let _ = sender.send(ThreadMessage::RunnerReady(runner.progress.clone()));
     println!("Running analysis... Executing");
     let _tel = runner.run(parallel.into(), parquet)?;
     Ok(())
+}
+
+/// Best-effort total MSn spectrum count across all selected mzML files, read
+/// from each file's `<spectrumList count="N">` opening tag (a plain-text scan,
+/// not a full XML parse — just enough to give the run-bar progress bar a
+/// denominator). Returns `None` if any file's count can't be determined,
+/// rather than reporting a partial (and misleadingly low) total.
+fn total_mzml_spectra(paths: &[std::path::PathBuf]) -> Option<usize> {
+    let mut total = 0usize;
+    for path in paths {
+        total += count_spectra_in_mzml(path)?;
+    }
+    Some(total)
+}
+
+fn count_spectra_in_mzml(path: &std::path::Path) -> Option<usize> {
+    // Cap how much of the file we scan — the spectrumList tag is near the top,
+    // well before any actual spectrum data, so this is normally a tiny read.
+    const MAX_SCAN_BYTES: usize = 8 * 1024 * 1024;
+
+    let file = std::fs::File::open(path).ok()?;
+    let is_gz = path
+        .extension()
+        .map(|e| e.eq_ignore_ascii_case("gz"))
+        .unwrap_or(false);
+
+    let mut reader: Box<dyn Read> = if is_gz {
+        Box::new(flate2::read::MultiGzDecoder::new(file))
+    } else {
+        Box::new(file)
+    };
+
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 65536];
+    loop {
+        let n = reader.read(&mut chunk).ok()?;
+        if n == 0 {
+            return None;
+        }
+        buf.extend_from_slice(&chunk[..n]);
+        if let Some(count) = extract_spectrum_list_count(&buf) {
+            return Some(count);
+        }
+        if buf.len() >= MAX_SCAN_BYTES {
+            return None;
+        }
+    }
+}
+
+fn extract_spectrum_list_count(buf: &[u8]) -> Option<usize> {
+    let text = String::from_utf8_lossy(buf);
+    let tag_start = text.find("spectrumList")?;
+    let after_tag = &text[tag_start..];
+    let count_start = after_tag.find("count=")?;
+    let after_count = &after_tag[count_start + "count=".len()..];
+    let quote = after_count.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let rest = &after_count[quote.len_utf8()..];
+    let end = rest.find(quote)?;
+    rest[..end].parse::<usize>().ok()
 }
 
 fn format_duration(duration: Duration) -> String {
