@@ -4906,7 +4906,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 [[package]]
 name = "sage-cli"
 version = "0.15.0-beta.2"
-source = "git+https://github.com/neely/sage.git?rev=d74024df774054fa411a9d5cca6013ce91d26208#d74024df774054fa411a9d5cca6013ce91d26208"
+source = "git+https://github.com/neely/sage.git?rev=cf20b75b00deec84e69a773e9c3468f6f7935a7f#cf20b75b00deec84e69a773e9c3468f6f7935a7f"
 dependencies = [
  "anyhow",
  "clap",
@@ -4932,7 +4932,7 @@ dependencies = [
 [[package]]
 name = "sage-cloudpath"
 version = "0.15.0-beta.2"
-source = "git+https://github.com/neely/sage.git?rev=d74024df774054fa411a9d5cca6013ce91d26208#d74024df774054fa411a9d5cca6013ce91d26208"
+source = "git+https://github.com/neely/sage.git?rev=cf20b75b00deec84e69a773e9c3468f6f7935a7f#cf20b75b00deec84e69a773e9c3468f6f7935a7f"
 dependencies = [
  "async-compression",
  "base64 0.13.1",
@@ -4958,7 +4958,7 @@ dependencies = [
 [[package]]
 name = "sage-core"
 version = "0.15.0-beta.2"
-source = "git+https://github.com/neely/sage.git?rev=d74024df774054fa411a9d5cca6013ce91d26208#d74024df774054fa411a9d5cca6013ce91d26208"
+source = "git+https://github.com/neely/sage.git?rev=cf20b75b00deec84e69a773e9c3468f6f7935a7f#cf20b75b00deec84e69a773e9c3468f6f7935a7f"
 dependencies = [
  "dashmap",
  "fnv",
