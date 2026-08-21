@@ -16,11 +16,97 @@ use sage_core::{
 use sage_core::{ion_series::Kind, lfq::PeakScoringStrategy};
 use sage_core::{lfq::IntegrationStrategy, scoring::ScoreType};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::SageLauncher;
+
+// ─── Theme ───────────────────────────────────────────────────────────────────
+
+/// Replacement for egui's stock dark palette, installed only into the
+/// `Theme::Dark` slot (see `SageLauncher::new`) — light mode is left at
+/// egui's own defaults, since egui already follows the OS and there's no
+/// reason to touch the half of the palette that isn't the reported problem.
+///
+/// Two things drove this: contrast, and giving the app a look of its own
+/// instead of default-egui gray. On contrast — the stock theme's body/button
+/// text (gray 140/180) is already faint against its near-black panels (gray
+/// 27), and disabled controls (`add_enabled(false, ..)`, e.g. Run/Stop and
+/// the prefilter fields) fade *halfway towards that same near-black panel*.
+/// Starting from low contrast, the faded result is close to unreadable —
+/// widening the base gap fixes both the normal and disabled states. For the
+/// look, everything leans on one muted sage-green accent (a nod to the Sage
+/// search engine this wraps) instead of egui's default blue, and true black
+/// is avoided in favor of a warm, slightly-green-tinted charcoal that's
+/// easier to stare at for a long search run.
+pub fn dark_visuals() -> egui::Visuals {
+    let mut visuals = egui::Visuals::dark();
+
+    let bg = egui::Color32::from_rgb(20, 22, 21); // panel / window: warm charcoal
+    let surface = egui::Color32::from_rgb(38, 43, 40); // buttons, combo boxes, checkboxes
+    let surface_hovered = egui::Color32::from_rgb(53, 60, 56);
+    let surface_active = egui::Color32::from_rgb(31, 36, 33);
+    let text = egui::Color32::from_rgb(232, 230, 224); // warm off-white, not stark white
+    let border = egui::Color32::from_rgb(66, 73, 68);
+    let sage = egui::Color32::from_rgb(120, 178, 148); // accent: hyperlinks, selection, focus
+    let sage_bright = egui::Color32::from_rgb(160, 214, 188);
+
+    visuals.panel_fill = bg;
+    visuals.window_fill = bg;
+    visuals.window_stroke.color = border;
+    visuals.extreme_bg_color = egui::Color32::from_rgb(12, 13, 12); // text edit fields
+    visuals.code_bg_color = egui::Color32::from_rgb(56, 60, 56);
+    visuals.hyperlink_color = sage_bright;
+    visuals.selection.bg_fill = egui::Color32::from_rgb(40, 66, 52);
+    visuals.selection.stroke.color = sage_bright;
+    visuals.warn_fg_color = egui::Color32::from_rgb(0xE0, 0x8A, 0x00); // matches ToleranceConfig's warning
+    visuals.error_fg_color = egui::Color32::from_rgb(210, 90, 90); // matches the app's error label
+
+    let widgets = &mut visuals.widgets;
+    widgets.noninteractive.weak_bg_fill = bg;
+    widgets.noninteractive.bg_fill = bg;
+    widgets.noninteractive.bg_stroke.color = border;
+    widgets.noninteractive.fg_stroke.color = text;
+
+    widgets.inactive.weak_bg_fill = surface;
+    widgets.inactive.bg_fill = surface;
+    widgets.inactive.fg_stroke.color = text;
+
+    widgets.hovered.weak_bg_fill = surface_hovered;
+    widgets.hovered.bg_fill = surface_hovered;
+    widgets.hovered.bg_stroke = egui::Stroke::new(1.0_f32, sage);
+    widgets.hovered.fg_stroke.color = egui::Color32::WHITE;
+
+    widgets.active.weak_bg_fill = surface_active;
+    widgets.active.bg_fill = surface_active;
+    widgets.active.bg_stroke = egui::Stroke::new(1.0_f32, sage_bright);
+    widgets.active.fg_stroke.color = egui::Color32::WHITE;
+
+    widgets.open.bg_fill = bg;
+    widgets.open.bg_stroke.color = border;
+    widgets.open.fg_stroke.color = text;
+
+    visuals
+}
+
+/// Body/button text at egui's 12.5pt default is small on a high-DPI monitor.
+/// Bumps every text style up while preserving their relative proportions.
+/// Theme-agnostic (applied to both light and dark `Style`s), since this is a
+/// legibility fix, not a look-and-feel one.
+pub fn readable_text_styles() -> BTreeMap<egui::TextStyle, egui::FontId> {
+    use egui::FontFamily::{Monospace, Proportional};
+    use egui::{FontId, TextStyle};
+
+    [
+        (TextStyle::Small, FontId::new(11.0, Proportional)),
+        (TextStyle::Body, FontId::new(15.0, Proportional)),
+        (TextStyle::Button, FontId::new(15.0, Proportional)),
+        (TextStyle::Heading, FontId::new(20.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(14.0, Monospace)),
+    ]
+    .into()
+}
 
 // ─── Page enum ───────────────────────────────────────────────────────────────
 

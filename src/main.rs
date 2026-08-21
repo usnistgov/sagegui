@@ -110,6 +110,11 @@ impl Default for SageLauncher {
 
 impl SageLauncher {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        cc.egui_ctx
+            .set_visuals_of(egui::Theme::Dark, ui::dark_visuals());
+        cc.egui_ctx
+            .all_styles_mut(|style| style.text_styles = ui::readable_text_styles());
+
         let mut app = Self::default();
         if let Some(storage) = cc.storage {
             if let Some(persisted) = eframe::get_value::<PersistedState>(storage, eframe::APP_KEY) {
