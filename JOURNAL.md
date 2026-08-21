@@ -1,3 +1,31 @@
+## 2026-08-21 — Real run-bar progress; Runner.progress patch on neely/sage
+
+**Did:** The run-bar `ProgressBar` was a hardcoded placeholder (`ProgressBar::new(0.0)`). Investigated real options: Sage's public API (`sage-cli::lib.rs`) has no progress hook, but `search_processed_spectra` already computes a per-spectrum `AtomicUsize` internally for rate-logging — just never exposed it.
+
+Decided to patch `neely/sage` directly (rather than scrape log output) since Sage releases infrequently, making a small additive patch a bounded, occasional cost. Added `pub progress: Arc<AtomicUsize>` to `Runner`, incremented per spectrum scored, via PR #1 on `neely/sage` (merged, commit `cf20b75b` on top of `d74024df`). This Mac had no Rust or git-push credentials set up at all — installed Homebrew's `rust` and `gh`, walked through `gh auth login` (browser OAuth, no PAT needed, since GitHub dropped password auth for git years ago).
+
+Repinned `sagegui`'s `Cargo.toml`/`src/version.rs` to the new commit; verified `cargo check`/`clippy`/`fmt` clean. Built the GUI side: `total_mzml_spectra()` pre-scans each selected mzML/mzML.gz file's `<spectrumList count="N">` tag (plain-text scan, not full XML) for the denominator; a new `ThreadMessage::RunnerReady` carries the `Arc<AtomicUsize>` across the thread boundary for the live numerator.
+
+Real-data test (human FASTA + a real mzML.gz, run by the user): completed successfully, 12,042 PSMs, LFQ output present, all files landed correctly. Observed: the bar sits at 0% through database build (FASTA digestion — the dominant wall-time cost for a full proteome) and the initial spectra read, then climbs quickly once scoring starts, since Sage's search itself is fast. Expected, given only the search phase is instrumented — but it read as "frozen" on first watch.
+
+Scoped a real database-build progress API and decided not to build it this session: `digest()`/`build_from_peptides()` run *inside* `Runner::new()`, before a `Runner` exists, so unlike the search counter (an additive field read back out afterward) build progress needs the counter passed *in* — real signature changes to `Builder::build`/`digest`/`build_from_peptides` (sage-core) and `Runner::new` (sage-cli), plus updating sage-cli's own CLI binary caller. Every individual hot loop in Sage is the same easy `.par_iter().map()` shape to instrument, but wiring them into one coherent two-crate API is a real feature (~2-4 hours), not a bounded patch. Shipped a stopgap instead: two more status-text messages ("Building peptide database…" / "Reading and searching spectra…") on the channel that already existed — zero fork risk, just removes the "is it dead?" ambiguity.
+
+Also: caught myself putting this session's narrative, test results, and forward-looking options into NOTES.md, which per AGENTS.md is for locked/immutable reference, not running notes — moved that content here and trimmed NOTES.md back to the durable facts (the patch exists, what it touches, what to check on the next Sage sync).
+
+**What did you assume without stating it? (Q2):** That mzML files reliably declare `spectrumList count="N"` within the first 8MB in a form a plain substring scan finds — only validated against one real file today, not a range of converters/vendors. Also assumed the per-spectrum unconditional `fetch_add` added to Sage's hot loop has negligible overhead (atomics are cheap, and the existing local rate-counter already did the same increment every spectrum) — not benchmarked.
+
+**What's the biggest thing you might be missing? (Q3):** `peptide_filter_processed_spectra` (the `prefilter: true` path in Sage) never touches `self.progress` — sagegui always sets `prefilter: None` today so this is unreachable, but if prefilter mode is ever exposed in the GUI the bar would sit at 0% through that whole pass with no warning. Also: `neely/sage` has never had a single GitHub Actions run in its history (Actions enabled, zero runs ever) — today's patch merged on local `cargo check` alone, no CI verification. Worth confirming whether the "Rust" workflow fires at all on that repo (a push straight to `master`, not just a PR, may be needed to find out).
+
+**What could have gone better? (Q4):** Should have told the user the bar wouldn't move during build+read *before* their first live test, not after they'd already watched two minutes of apparent silence and asked if something was broken. Also should have routed session narrative to JOURNAL from the start instead of loading it into NOTES.md mid-session.
+
+**Least confident about (Q1):** Whether `total_mzml_spectra()`'s plain-text `spectrumList count=` scan is robust across mzML files from different instrument vendors/converter versions — only tested against one file so far. Proven right or wrong by running the GUI against a handful of mzML files from different sources and confirming it returns the correct count each time, or falls back to indeterminate gracefully rather than a wrong number.
+
+**Future plans:** If the phase-label stopgap isn't enough, propose a real progress API to Lazear (`lazear/sage`) — a GitHub issue with the design sketch (phase enum + counters passed into `Builder`/`Runner` constructors) before writing code, since it needs his buy-in regardless. If he's receptive, revisit the ~2-4 hour in-fork version. If a real API lands upstream, delete the `total_mzml_spectra()`/`count_spectra_in_mzml()` pre-scan hack entirely — it'd be redundant once Sage reports file-read progress natively.
+
+**Suggested improvement (Q5):** Before trusting any future custom patch to `neely/sage`, confirm its GitHub Actions actually run on a real push to `master` — right now it's unknown whether the "Rust" workflow has ever executed there even once, so patches are currently landing on trust (local `cargo check`) rather than CI.
+
+---
+
 ## 2026-08-19 — Attribution notices; AGENTS writing standards; sync disk to GitHub
 
 **Did:** Pulled 6 commits from GitHub (LICENSE, THIRD_PARTY_LICENSES.md, NIST licensing statement, README attribution, JOURNAL entry). Stashed local tolerance-UI changes, pulled, re-applied.

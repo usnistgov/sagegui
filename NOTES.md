@@ -229,42 +229,16 @@ roughly ordered:
    placeholder. `total_mzml_spectra()` ([src/main.rs](src/main.rs)) pre-scans
    each selected mzML/mzML.gz file's `<spectrumList count="N">` tag before
    launch (plain-text scan, not a full XML parse; `None` if any file's count
-   can't be found, rather than a misleadingly-low partial sum). The numerator
-   comes from `Runner.progress` (see the fork-patch note above) via a new
-   `ThreadMessage::RunnerReady` sent once `Runner::new()` succeeds. Percent =
-   live count / pre-scanned total. **Known gap:** only the "searching spectra"
-   phase has a real percentage — database build and FDR/quant/write-output
-   phases still show whatever percent was last computed (no regression from
-   before, just not further instrumented; both are usually short relative to
-   search).
-   **Interactively tested 2026-08-21** on real data (human FASTA + a real
-   mzML.gz): completed successfully, 12,042 PSMs, LFQ ran, output files all
-   landed. Observed behavior: the bar sits at 0% through database build (FASTA
-   digestion — the dominant cost for a full proteome) and the initial spectra
-   read, then climbs quickly once scoring starts, since Sage's search itself
-   is fast. Expected, given only the search phase is instrumented.
-   **Status-text phase labels — ✅ 2026-08-21.** To stop the quiet build+read
-   phase reading as "frozen," `run_sage()` now sends
-   `ThreadMessage::Progress("Building peptide database…")` before
-   `Runner::new()` and `"Reading and searching spectra…"` right after
-   (alongside the existing spinner). Zero fork changes — just two more
-   messages on the channel that already existed. The percentage itself still
-   can't move during build/read; this only fixes the "is it dead?" ambiguity.
-   **Deliberately not pursued further (2026-08-21):** a real database-build
-   percentage was scoped and set aside. `digest()`/`build_from_peptides()`
-   ([crates/sage/src/database.rs](https://github.com/neely/sage/blob/master/crates/sage/src/database.rs))
-   run *inside* `Runner::new()`, before a `Runner` exists — so unlike the
-   search counter (an additive field read back out afterward), build progress
-   would need the counter passed *in*, meaning real signature changes to
-   `Builder::build`/`digest`/`build_from_peptides` (sage-core) and
-   `Runner::new` (sage-cli), plus updating sage-cli's own CLI binary caller.
-   Individually-easy counters (every hot loop in Sage is the same
-   `.par_iter().map()` shape), but a real multi-file, two-crate API design
-   rather than a bounded additive patch — estimated ~2-4 hours done properly.
-   Revisit if the stopgap still bothers users, either as a bigger fork patch
-   or — better — proposed upstream to `lazear/sage` first (a real progress API
-   there would let us delete our mzML pre-scan hack too, since Sage would
-   report file-read progress natively).
+   can't be found, rather than a misleadingly-low partial sum) for the
+   denominator. The numerator comes from `Runner.progress` (see the fork-patch
+   note above) via `ThreadMessage::RunnerReady`, sent once `Runner::new()`
+   succeeds. Percent = live count / pre-scanned total. Status text names the
+   current phase ("Building peptide database…" / "Reading and searching
+   spectra…") since only the search phase has a real percentage — database
+   build has no per-item signal available without changing public function
+   signatures in both Sage crates (see fork-patch note above); this is an
+   intentional limit, not a bug. See JOURNAL 2026-08-21 for the session
+   narrative and the deferred real-DB-progress option.
 6. **Experiment archetypes are inert (confirmed 2026-08-13).** Collaborator
    confirmed that changing the Experiment-tab dropdown (Custom / Tryptic LFQ /
    Wide-open / Phospho / Semi-tryptic) does **nothing** to the settings on the
