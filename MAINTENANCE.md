@@ -31,6 +31,15 @@ git merge upstream/main
 git push origin main
 ```
 
+**Check the custom patch survived the merge.** `neely/sage` carries one
+hand-written addition not from upstream: a `progress` counter on `Runner`
+(see NOTES.md "Custom patch carried on neely/sage" for the full detail and
+exact diff). If `git merge` reports a conflict in `crates/sage-cli/src/runner.rs`,
+that's almost certainly it — resolve by keeping both the upstream change and
+the `progress` field/increment, then confirm with `cargo check`. If the merge
+was clean, spot-check that `pub progress: Arc<AtomicUsize>` is still on the
+`Runner` struct before moving on.
+
 ### Step 2: Get the New Commit Hash
 
 ```bash

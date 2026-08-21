@@ -34,6 +34,40 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Why:** Simpler than the originally-considered `build.rs` auto-detection.
 - **Rejected:** `build.rs` that auto-detects the version from `Cargo.toml` — removed in favor of the plain constants. Do not re-add it.
 
+### Custom patch carried on `neely/sage`: `Runner.progress` counter (2026-08-21)
+- **What:** `neely/sage` `master` (merged PR #1, commit `cf20b75b`, on top of
+  `d74024df`) carries a small hand-written patch, not from upstream
+  `lazear/sage`: a `pub progress: Arc<AtomicUsize>` field on `Runner`
+  ([crates/sage-cli/src/runner.rs](https://github.com/neely/sage/blob/master/crates/sage-cli/src/runner.rs)),
+  incremented once per MSn spectrum scored inside `search_processed_spectra`,
+  alongside the pre-existing local rate-logging counter. A caller can clone the
+  `Arc` before calling `runner.run(...)` and poll `.load(Ordering::Relaxed)`
+  from another thread — this is what feeds the real run-bar progress bar.
+- **Why:** `sage-cli`'s public API (`lib.rs` exports `input`, `output`,
+  `runner`, `telemetry`) has no progress-reporting hook at all — `Runner::run()`
+  is one opaque blocking call. The atomic counter Sage already computes
+  internally was private to that function. Editing `neely/sage` directly
+  (rather than scraping log output) was a deliberate choice — see PLAN/NOTES
+  progress-bar discussion 2026-08-21 — because Sage releases infrequently, so a
+  small, isolated, additive diff is a bounded, occasional cost, not open-ended
+  maintenance burden.
+- **Consequence for the next Sage sync (MAINTENANCE.md Step 1):** when you
+  `git merge upstream/main` into `neely/sage`, this patch must survive the
+  merge. It touches: the `Runner` struct definition, both `Self { ... }`
+  literals in `Runner::new` (including the `mini_runner` prefilter path), and
+  one line inside `search_processed_spectra`'s `.map()` closure. If upstream
+  has rewritten any of those exact spots (this file has changed before — see
+  the `Runner::new` signature change and the TMT/fragment-tolerance bugs in the
+  Gotchas table below), git will flag a merge conflict there — re-apply the
+  4-line addition by hand (diff is in PR #1 on `neely/sage` for reference) and
+  re-verify with `cargo check` before re-pinning `sagegui`. If it's clean, no
+  action needed beyond noting the new commit hash.
+- **No CI on `neely/sage`:** this fork has never had a GitHub Actions run
+  (Actions are enabled at the repo level but no workflow has ever fired — likely
+  never turned on since the repo was forked). `cargo check`/`cargo build` after
+  any fork change is currently the only verification; there's no automated
+  safety net on that repo the way `sagegui`'s own `build.yml` provides here.
+
 ---
 
 ## UI redesign (in progress)
