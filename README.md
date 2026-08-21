@@ -25,6 +25,9 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - Run bar pinned at the bottom so you can launch from any tab
 - Modifications picker with a curated preset list (Static and Variable boxes, Mascot-style)
 - TMT (6/10/11/16/18-plex) and LFQ quantification
+- Database prefiltering (chunked FASTA processing) to bound peak memory on semi-enzymatic and non-specific searches
+- Settings remembered between sessions (parameters, file picks, and active tab)
+- Stop button — cancels a run at the end of its current step (database build/prefilter or search)
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
 
 ## To be added
@@ -32,8 +35,7 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - Experimental templates and loading in results.json for settings
 - Export options: pepXML/mzIdentML, Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), MSstats (add feature to [MSstatsConvert](https://github.com/Vitek-Lab/MSstatsConvert), [feature requested](https://github.com/Vitek-Lab/MSstatsConvert/issues/143)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), add import to PDV for viewing ([feature requested](https://github.com/wenbostar/PDV/issues/110#issue-5145322431)), Scaffold (?)
 - iBAQ and other LFQ options
-- surface prefilter, prefilter_chunk_size, and prefilter_low_memory to think about memory use in semi-tryptic and non-specific searches
-- a stop button
+- Stop button that interrupts a search already in progress (today's Stop only cancels between steps — see fork-patch design in NOTES.md)
 
 ## Download
 

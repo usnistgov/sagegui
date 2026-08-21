@@ -83,39 +83,70 @@ Every search. Typically add:
 
 ---
 
-### Database prefiltering (FASTA splitting) - to be added
+### Database prefiltering (FASTA chunking)
 
-Sage can optionally prefilter very large search spaces by digesting the FASTA in chunks, scoring candidates quickly, and building a reduced peptide database that is then searched with the normal Sage engine. This substantially reduces peak memory usage for non-specific or heavily modified searches at the cost of a small amount of extra CPU time and, in low-memory mode, a minor potential impact on FDR.
+Prefiltering trades CPU time for peak memory. It is off by default and most searches do not need it.
+
+**What happens at defaults (prefiltering off)**
+
+Sage reads the whole FASTA, digests every protein, and builds one fragment index covering every peptide. Peak memory scales with the size of that index. The index grows with database size, missed cleavages, and variable modifications — and most sharply with semi-enzymatic or non-specific digestion, which yields many more peptides per protein.
+
+All three fields below are inert at defaults. `prefilter` is `false`, so the prefiltering pass never runs. `prefilter_chunk_size` is `0` and `prefilter_low_memory` is `true`, but neither is read while `prefilter` is `false`.
+
+**What prefiltering changes**
+
+With `prefilter = true`, Sage splits the FASTA into chunks of `prefilter_chunk_size` protein sequences and handles them one at a time:
+
+1. Digest one chunk and build a fragment index for only those proteins.
+2. Quick-score every MS2 spectrum against that chunk index.
+3. Keep the peptides that matched a spectrum. Discard the rest and free the chunk index.
+4. Repeat for the next chunk.
+
+After the last chunk, Sage builds one final index from the kept peptides and runs the normal search against it.
+
+Peak memory becomes roughly the larger of one chunk index or the final filtered index, instead of the full-database index.
+
+**When to use it**
+
+Turn it on when the search space is large enough to exhaust memory:
+
+- Semi-enzymatic or non-specific digestion (HLA peptidomics, immunopeptidomics)
+- Many variable modifications, or a raised `max_variable_mods`
+- Very large FASTA files (metaproteomes, large sequence libraries)
+
+Leave it off for normal tryptic searches at normal database sizes. The pass costs CPU time and returns nothing when the full index already fits in memory.
+
+**Costs and caveats**
+
+- **Extra CPU.** Every spectrum is scored once per chunk before the real search starts.
+- **Slightly different results.** Decoys are generated per chunk and are not regenerated over the final filtered set, so PSM counts can differ a little from a non-prefiltered run of the same data.
+- **No progress readout.** The pass runs inside database construction, where SageGUI has no progress signal. The run bar stays at 0% for its duration.
+- **File-count cliff.** If SageGUI's thread count (half the CPU cores) is at least the number of mzML files, Sage reads all spectra once and holds them in memory for the whole pass. Otherwise it re-reads and re-processes every mzML file once per chunk, which is slow when there are many chunks. On a 16-core machine the switch happens at 9 files.
 
 **Fields**
 
-- `database.prefilter` (bool, default: `false`)
+- `database.prefilter` (bool, default `false`)
 
-  When `true`, enables the database prefiltering pass. Instead of building the full peptide index from the entire FASTA, Sage iterates over FASTA chunks, computes quick scores for candidate peptides per chunk, and retains only the best-scoring candidates to assemble a final, filtered database. The main search then runs against this filtered database without further code changes. Recommended for:
-  
-  - Non-specific or semi-enzymatic digestion (e.g. HLA peptidomics, immunopeptidomics)
-  - Searches with many variable PTMs
-  - Very large FASTA databases (large metaproteomes, large sequence libraries)
+  Enables the prefiltering pass described above.
 
-  Leave `prefilter = false` for typical tryptic LFQ and “normal” database sizes to avoid unnecessary overhead.
+- `database.prefilter_chunk_size` (integer, default `0` = auto)
 
-- `database.prefilter_chunk_size` (integer, default: `0`)
+  How many FASTA sequences are digested and scored per chunk. Larger values mean fewer chunks and less repeated work, but higher peak memory.
 
-  Controls how many FASTA *sequences* are digested and scored in memory at once during the prefiltering pass. Larger values reduce overhead but increase peak memory; smaller values reduce memory at the cost of more chunks and slower total runtime.
-  
-  - `0` (default) lets Sage auto-select a chunk size based on the database and search settings, targeting a safe number of peptides per chunk on typical 16–32 GB workstations.
-  - Positive values set a fixed number of FASTA entries per chunk. Use this when you need reproducible behavior across runs or want to force more aggressive splitting for extremely large databases.
+  `0` lets Sage choose. It estimates total peptide count from the digest, the variable-mod count and `max_variable_mods`, and targets about 8.4 million peptides per chunk. If the whole search space already fits inside one chunk, Sage skips prefiltering entirely — so auto is safe to leave on. Set a positive value for reproducible chunking or to force more aggressive splitting.
 
-  This parameter is ignored when `prefilter = false`.
+  Ignored when `prefilter = false`.
 
-- `database.prefilter_low_memory` (bool, default: `false`)
+- `database.prefilter_low_memory` (bool, default `true`)
 
-  Enables a more aggressive, lossy prefiltering mode. In this mode Sage only keeps the top *N + 1* preliminary hits per spectrum per chunk (where *N* is `report_psms`), instead of the default, more generous cap on initial hits. This can drastically reduce the number of peptides retained in the filtered database and further lower memory usage, at the cost of:
-  
-  - Slightly increased risk of losing near‑tie candidates, especially in very dense search spaces
-  - Potentially small differences in identification counts and FDR compared to full prefiltering
+  Controls how aggressively each chunk is filtered.
 
-  Use `prefilter_low_memory = true` only when normal prefiltering still exceeds available memory or when running extremely large, unspecific searches on constrained hardware. For most workflows, keep this `false` to preserve FDR behavior that is as close as possible to a non-prefiltered search.
+  - `true` — score every preliminary hit and keep only the top `report_psms + 1` per spectrum per chunk. Fewest peptides retained, lowest memory, most CPU. This is Sage's own default.
+  - `false` — keep every preliminary hit without scoring it. More peptides retained, more memory, less CPU, and FDR behaviour closer to a non-prefiltered search.
+
+  Set this to `false` only if you have memory to spare and want results as close as possible to a non-prefiltered run.
+
+  Ignored when `prefilter = false`.
 
 ---
 

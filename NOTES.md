@@ -287,10 +287,82 @@ roughly ordered:
 
 ---
 
+## Settings persistence (landed 2026-08-21)
+
+**What:** `SageLauncher` now saves `config`, `precursor_tolerance_type`,
+`fragment_tolerance_type`, `experiment`, and `active_page` through eframe's
+`persistence` feature (`Cargo.toml` — not a default eframe feature, enabled
+explicitly). Restored in `SageLauncher::new(cc)` from `cc.storage` at startup;
+saved via `App::save` on exit and on eframe's 30-second auto-save interval.
+Implementation: a small `PersistedState` struct in `src/main.rs` mirrors just
+those fields — `SageLauncher` itself is not `Serialize`, deliberately, so run
+state (thread handles, live progress, elapsed time) can never accidentally leak
+into the saved blob.
+
+**Why:** The maintainer's actual workflow for "start over" was closing the
+window — which already cancels a running search correctly (the process exits,
+the thread dies with it) — but that also discarded every parameter. This closes
+that gap without touching the deferred Save/Load Config work, which is a
+different problem (matching Sage's `results.json` schema for
+import/export — see "1. Save / Load Config" under UI-review feedback above).
+Persisting our own `Config` to our own file needs no schema alignment.
+
+**Consequence for future `Config` fields:** every field added to `Config` (or
+anything it contains) must carry `#[serde(default)]` — or the deserialize of an
+old saved blob fails outright (`eframe::get_value` returns `None` on failure,
+which silently falls back to `SageLauncher::default()`, i.e. **all** settings
+reset, not just the new field). The prefilter fields added in the same session
+already follow this rule; see `src/ui.rs` `tests::old_config_json_without_prefilter_fields_still_loads`
+for the regression pattern — extend it, don't just remember it, for the next
+field addition.
+
+**Storage location:** platform-native, chosen by eframe/`NativeOptions::persistence_path`
+default (not inspected this session — if the file ever needs to be found or
+cleared by hand, check eframe's `storage_dir` docs for the current version
+rather than assuming a path).
+
+**Side effect fixed in the same change:** closing the window mid-run used to
+leak the temp concatenated multi-FASTA file (`cleanup_thread`, which deletes
+it, never ran on that path). Now deleted in `App::on_exit` too.
+
+## Stop button (landed 2026-08-21, partial)
+
+**What works today:** a Stop button on the run bar sets an
+`Arc<AtomicBool>` cancel flag, checked in `run_sage` (`src/main.rs`) at three
+phase boundaries — before `input.build()`, after it, and after `Runner::new()`.
+A stop requested during the database build or the prefilter pass takes effect
+as soon as that phase ends. `check_thread_status` reports "Search stopped. No
+output files were written." (verified: Sage writes every output file at the end
+of `Runner::run()`, `sage-cli/src/runner.rs:608-670`, so a cancel before that
+point genuinely leaves nothing behind) and colours it distinctly (yellow, not
+red/green).
+
+**What doesn't work yet:** a search already inside `Runner::run()` — i.e.
+already scoring spectra — is **not interrupted**. It runs to completion
+regardless of Stop. The button's hover text says this plainly
+("Stops at the end of the current step. A search already scoring spectra runs
+to completion.") rather than implying something it doesn't do.
+
+**To make Stop interrupt an in-progress search:** needs a cooperative-cancellation
+flag threaded into `neely/sage`'s `Runner`, in the same additive shape as the
+`Runner.progress` patch documented above — a `pub cancel: Arc<AtomicBool>` field
+checked inside `search_processed_spectra`'s map closure
+(`sage-cli/src/runner.rs:308-330`) and a couple of other loop sites. Sketched but
+**not implemented** — deliberately deferred, since settings persistence (above)
+already removes most of the original pain (relaunching after a bad parameter
+choice is now fast and lossless). Revisit only if mid-search cancellation turns
+out to still matter once persistence has been used for a while. If it's built,
+extend the "Custom patch carried on `neely/sage`" section above with the new
+field — that section is the merge-conflict guide for the next Sage sync, and an
+unlisted patch is silently lost on the next `git merge upstream/main`.
+
+---
+
 Things that look wrong but are correct. Do not "fix" these.
 
 - **Default output directory is the current working directory.** Users set it explicitly in the GUI. (Smarter timestamped defaults are a *planned* Phase 5 improvement, not a bug to patch ad hoc.)
 - **TMT quantification is untested.** Only LFQ has been validated with real data — TMT code paths are believed correct but need TMT-labeled data to confirm. Not a defect; a known coverage gap (see below).
+- **Stop doesn't interrupt a search already in progress.** Intentional, current limitation — see "Stop button" above. Not a bug to "fix" without first reading why it was deferred.
 
 ---
 
@@ -563,6 +635,27 @@ The validated reference run — use to sanity-check regressions:
 - **Params:** precursor ±10 ppm, fragment ±10 ppm, trypsin (KR not P) 2 missed cleavages, static C+57.021, variable M+15.995, LFQ on.
 - **Result:** 60,672 PSMs; LFQ worked; outputs `results.sage.tsv`, `lfq.tsv`, `results.json`.
 - **Post-restructure regression check (2026-08-13):** re-ran this exact baseline through the new 6-tab GUI (debug build, commit `6712bb1`) → **60,672 PSMs again** (identical). Confirms the sidebar restructure + `From<Config> for Input` remap + serde shadow-field workarounds preserved search behavior. Use this count as the known-good comparison for future UI changes. *(Output landed in `target/debug/` because the output-location default is cwd — see UI-review pin about moving that control.)*
+- **Local copy (2026-08-21):** the baseline files live at
+  `~/Documents/proteomicsTesting/B.naive_01steady-state.mzML.gz` and
+  `~/Documents/proteomicsTesting/UniProt-Human-UP000005640_canonical-2023_05.fasta`
+  on the maintainer's Mac. Two other mzML.gz files sit alongside them
+  (`2019-4-9_909c_0311.mzML.gz`, `b1906_293T_proteinID_01A_QE3_122212.mzML.gz`) —
+  not the validated baseline, but available for spot-checks.
+- **Prefilter controls, settings persistence, and Stop button (2026-08-21) —
+  not yet re-run against this baseline.** These landed with `cargo
+  build`/`clippy`/`fmt`/`test` all clean and three new unit tests covering the
+  prefilter serde-migration path (`src/ui.rs` `mod tests`), but **no live GUI
+  run has confirmed the baseline PSM count is unaffected**, since driving the
+  native window isn't something the agent tooling in this session could do
+  (no accessibility/computer-use tool for a native macOS app was available —
+  only browser and iOS Simulator automation). Next session (or the maintainer,
+  interactively): (1) re-run the exact baseline above with prefiltering off,
+  confirm still 60,672 PSMs; (2) re-run with prefiltering on
+  (`prefilter_chunk_size` on auto, `low_memory` on), confirm a plausible but
+  *different* count — see "Database prefiltering" above for why it should
+  differ; (3) close-and-reopen the app after setting unusual parameters,
+  confirm they're restored; (4) click Stop during a run and confirm the
+  documented "stops at the end of the current step" behavior.
 
 ### Related projects
 

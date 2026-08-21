@@ -13,14 +13,27 @@ mod version;
 use eframe::egui;
 use log::info;
 use sage_cli::{input::Input, runner::Runner};
+use serde::{Deserialize, Serialize};
 use std::io::Read;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use ui::*;
+
+/// The subset of `SageLauncher` that survives between sessions. Run state
+/// (thread handles, live progress, elapsed time) is intentionally excluded —
+/// a saved run can't be resumed, only its parameters remembered.
+#[derive(Serialize, Deserialize)]
+struct PersistedState {
+    config: Config,
+    precursor_tolerance_type: ToleranceType,
+    fragment_tolerance_type: ToleranceType,
+    experiment: ExperimentType,
+    active_page: Page,
+}
 
 // ─── ThreadMessage ────────────────────────────────────────────────────────────
 
@@ -62,6 +75,10 @@ pub struct SageLauncher {
     /// Total MSn spectra across selected mzML files, pre-scanned before launch.
     /// `None` if any file's count couldn't be determined (unknown denominator).
     total_spectra: Option<usize>,
+    /// Set to request cancellation; checked at phase boundaries in `run_sage`.
+    cancel_flag: Option<Arc<AtomicBool>>,
+    /// True once Stop has been clicked, until the thread finishes cleaning up.
+    pub stop_requested: bool,
 }
 
 impl Default for SageLauncher {
@@ -85,7 +102,25 @@ impl Default for SageLauncher {
             temp_fasta_path: None,
             search_progress: None,
             total_spectra: None,
+            cancel_flag: None,
+            stop_requested: false,
         }
+    }
+}
+
+impl SageLauncher {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let mut app = Self::default();
+        if let Some(storage) = cc.storage {
+            if let Some(persisted) = eframe::get_value::<PersistedState>(storage, eframe::APP_KEY) {
+                app.config = persisted.config;
+                app.precursor_tolerance_type = persisted.precursor_tolerance_type;
+                app.fragment_tolerance_type = persisted.fragment_tolerance_type;
+                app.experiment = persisted.experiment;
+                app.active_page = persisted.active_page;
+            }
+        }
+        app
     }
 }
 
@@ -127,9 +162,30 @@ impl eframe::App for SageLauncher {
                     }
                 }
 
+                let stop_btn = ui
+                    .add_enabled(
+                        self.is_running && !self.stop_requested,
+                        egui::Button::new("Stop"),
+                    )
+                    .on_hover_text(
+                        "Stops at the end of the current step. A search already scoring \
+                         spectra runs to completion.",
+                    );
+                if stop_btn.clicked() {
+                    if let Some(flag) = &self.cancel_flag {
+                        flag.store(true, Ordering::Relaxed);
+                    }
+                    self.stop_requested = true;
+                    self.status_message = "Stopping — finishing the current step…".to_string();
+                }
+
                 if self.is_running {
                     ui.spinner();
-                    ui.colored_label(egui::Color32::GREEN, "Processing");
+                    if self.stop_requested {
+                        ui.colored_label(egui::Color32::YELLOW, "Stopping");
+                    } else {
+                        ui.colored_label(egui::Color32::GREEN, "Processing");
+                    }
                     if let Some(start_time) = self.start_time {
                         self.elapsed_time = format_duration(start_time.elapsed());
                         ui.label(format!("({})", self.elapsed_time));
@@ -153,6 +209,8 @@ impl eframe::App for SageLauncher {
                 ui.colored_label(
                     if self.status_message.starts_with("Error") {
                         egui::Color32::RED
+                    } else if self.status_message.starts_with("Search stopped") {
+                        egui::Color32::YELLOW
                     } else {
                         egui::Color32::GREEN
                     },
@@ -180,6 +238,25 @@ impl eframe::App for SageLauncher {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
     }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        let persisted = PersistedState {
+            config: self.config.clone(),
+            precursor_tolerance_type: self.precursor_tolerance_type,
+            fragment_tolerance_type: self.fragment_tolerance_type,
+            experiment: self.experiment,
+            active_page: self.active_page,
+        };
+        eframe::set_value(storage, eframe::APP_KEY, &persisted);
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // Closing the window while a search is running skips `cleanup_thread`,
+        // which would otherwise delete the temp concatenated FASTA.
+        if let Some(p) = self.temp_fasta_path.take() {
+            let _ = std::fs::remove_file(&p);
+        }
+    }
 }
 
 // ─── SageLauncher impl ────────────────────────────────────────────────────────
@@ -195,9 +272,14 @@ impl SageLauncher {
                     self.search_progress = Some(progress);
                 }
                 Ok(ThreadMessage::Completed(result)) => {
-                    match result {
-                        Ok(msg) => self.status_message = msg,
-                        Err(err) => self.status_message = format!("Error: {}", err),
+                    if self.stop_requested {
+                        self.status_message =
+                            "Search stopped. No output files were written.".to_string();
+                    } else {
+                        match result {
+                            Ok(msg) => self.status_message = msg,
+                            Err(err) => self.status_message = format!("Error: {}", err),
+                        }
                     }
                     self.cleanup_thread();
                 }
@@ -219,6 +301,8 @@ impl SageLauncher {
         self.is_running = false;
         self.search_progress = None;
         self.total_spectra = None;
+        self.cancel_flag = None;
+        self.stop_requested = false;
         if let Some(p) = self.temp_fasta_path.take() {
             let _ = std::fs::remove_file(&p);
         }
@@ -271,13 +355,17 @@ impl SageLauncher {
         self.search_progress = None;
         self.total_spectra = total_mzml_spectra(&self.config.mzml_paths);
 
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.cancel_flag = Some(cancel.clone());
+        self.stop_requested = false;
+
         let (sender, receiver) = mpsc::channel();
         self.message_receiver = Some(receiver);
 
         let thread_handle = thread::spawn(move || {
             let _ = sender.send(ThreadMessage::Progress("Starting analysis...".to_string()));
 
-            let result = match run_sage(sage_input, parallel, parquet, &sender) {
+            let result = match run_sage(sage_input, parallel, parquet, &sender, &cancel) {
                 Ok(_) => Ok("Analysis completed successfully".to_string()),
                 Err(e) => Err(e.to_string()),
             };
@@ -341,19 +429,42 @@ impl From<Config> for Input {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/// Returns an error (any error — the caller only checks `stop_requested`, not
+/// this text) as soon as `cancel` is observed set. A `Runner` search already
+/// scoring spectra is not interrupted by this check alone — see NOTES.md for
+/// the fork-patch design that would add checks inside `Runner::run`.
 fn run_sage(
     input: Input,
     parallel: u16,
     parquet: bool,
     sender: &Sender<ThreadMessage>,
+    cancel: &AtomicBool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if cancel.load(Ordering::Relaxed) {
+        return Err("cancelled".into());
+    }
+
     println!("Running analysis... Building");
-    let _ = sender.send(ThreadMessage::Progress(
-        "Building peptide database…".to_string(),
-    ));
+    let prefiltering = input.database.prefilter.unwrap_or(false);
+    let build_msg = if prefiltering {
+        "Prefiltering database in chunks… (no progress % for this phase)"
+    } else {
+        "Building peptide database…"
+    };
+    let _ = sender.send(ThreadMessage::Progress(build_msg.to_string()));
     let search = input.build()?;
+
+    if cancel.load(Ordering::Relaxed) {
+        return Err("cancelled".into());
+    }
+
     let runner = Runner::new(search, parallel.into())?;
     let _ = sender.send(ThreadMessage::RunnerReady(runner.progress.clone()));
+
+    if cancel.load(Ordering::Relaxed) {
+        return Err("cancelled".into());
+    }
+
     let _ = sender.send(ThreadMessage::Progress(
         "Reading and searching spectra…".to_string(),
     ));
@@ -449,9 +560,9 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Sage Launcher",
         options,
-        Box::new(|_cc| {
-            egui_extras::install_image_loaders(&_cc.egui_ctx);
-            Ok(Box::new(SageLauncher::default()))
+        Box::new(|cc| {
+            egui_extras::install_image_loaders(&cc.egui_ctx);
+            Ok(Box::new(SageLauncher::new(cc)))
         }),
     )
 }

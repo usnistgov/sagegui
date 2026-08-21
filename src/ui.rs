@@ -24,7 +24,7 @@ use crate::SageLauncher;
 
 // ─── Page enum ───────────────────────────────────────────────────────────────
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Page {
     Experiment,
     FilesDatabase,
@@ -420,6 +420,15 @@ pub struct DatabaseConfig {
     pub generate_decoys: bool,
     pub static_mods: StaticModConfig,
     pub variable_mods: VariableModConfig,
+    /// Enable Sage's chunked database prefiltering pass (lower peak memory).
+    #[serde(default)]
+    pub prefilter: bool,
+    /// FASTA sequences per prefilter chunk. 0 = let Sage auto-calculate.
+    #[serde(default)]
+    pub prefilter_chunk_size: usize,
+    /// Aggressive prefilter mode — keeps only report_psms + 1 hits per chunk.
+    #[serde(default = "default_prefilter_low_memory")]
+    pub prefilter_low_memory: bool,
     /// List of FASTA files to search (concatenated at launch time).
     #[serde(default)]
     pub fasta_paths: Vec<PathBuf>,
@@ -429,6 +438,10 @@ pub struct DatabaseConfig {
     /// Resolved path of the concatenated FASTA written at launch; not persisted.
     #[serde(skip)]
     pub fasta_for_launch: String,
+}
+
+fn default_prefilter_low_memory() -> bool {
+    true
 }
 
 impl From<DatabaseConfig> for Builder {
@@ -446,9 +459,9 @@ impl From<DatabaseConfig> for Builder {
             fasta: Some(val.fasta_for_launch),
             static_mods: Some(val.static_mods.as_hashmap()),
             variable_mods: Some(val.variable_mods.as_hashmap()),
-            prefilter: None,
-            prefilter_chunk_size: None,
-            prefilter_low_memory: None,
+            prefilter: Some(val.prefilter),
+            prefilter_chunk_size: Some(val.prefilter_chunk_size),
+            prefilter_low_memory: Some(val.prefilter_low_memory),
         }
     }
 }
@@ -465,6 +478,9 @@ impl Default for DatabaseConfig {
             max_variable_mods: 2,
             decoy_tag: Some("rev_".to_string()),
             generate_decoys: true,
+            prefilter: false,
+            prefilter_chunk_size: 0,
+            prefilter_low_memory: true,
             fasta_paths: Vec::new(),
             fasta: String::new(),
             fasta_for_launch: String::new(),
@@ -892,6 +908,57 @@ impl SageLauncher {
             if let Some(i) = remove_idx {
                 self.config.database.fasta_paths.remove(i);
             }
+
+            ui.separator();
+            ui.strong("Database prefiltering (memory)");
+
+            ui.checkbox(&mut self.config.database.prefilter, "Enable prefiltering")
+                .on_hover_text(
+                    "Digest the FASTA in chunks and keep only peptides that matched a \
+                     spectrum, then search that reduced database. Cuts peak memory for \
+                     semi-enzymatic or non-specific digests, many variable mods, or very \
+                     large databases. Costs extra CPU. Off by default; with chunk size on \
+                     auto, Sage skips the pass when the search space is small enough not \
+                     to need it.",
+                );
+
+            if self.config.database.enzyme.semi_enzymatic && !self.config.database.prefilter {
+                ui.label("ℹ Semi-enzymatic digestion is on. Prefiltering limits peak memory.");
+            }
+
+            let prefiltering_enabled = self.config.database.prefilter;
+            ui.add_enabled_ui(prefiltering_enabled, |ui| {
+                ui.add(
+                    egui::DragValue::new(&mut self.config.database.prefilter_chunk_size)
+                        .prefix("Chunk size: ")
+                        .speed(100.0)
+                        .range(0..=10_000_000)
+                        .custom_formatter(|n, _| {
+                            if n <= 0.0 {
+                                "auto".to_owned()
+                            } else {
+                                format!("{}", n as usize)
+                            }
+                        }),
+                )
+                .on_hover_text(
+                    "FASTA sequences digested and scored per chunk. 0 = auto: Sage targets \
+                     about 8.4 million peptides per chunk, and skips prefiltering entirely \
+                     if the whole search space already fits. Smaller values use less memory \
+                     but add chunks.",
+                );
+
+                ui.checkbox(
+                    &mut self.config.database.prefilter_low_memory,
+                    "Low-memory mode",
+                )
+                .on_hover_text(
+                    "On (Sage's default): score every preliminary hit and keep only the \
+                     best few per spectrum per chunk. Lowest memory, most CPU. Off: keep \
+                     every preliminary hit unscored — more memory, less CPU, and closer \
+                     to a non-prefiltered search's FDR behaviour.",
+                );
+            });
 
             egui::CollapsingHeader::new("Advanced")
                 .default_open(false)
@@ -1413,5 +1480,70 @@ impl SageLauncher {
 
             self.config.quant.update_section(ui);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Simulates a config JSON saved by v0.7.0, before the prefilter fields
+    /// existed: serializes the real default shape, then strips the three new
+    /// keys out of the JSON `Value` (rather than hand-typing a fixture that
+    /// could drift from the actual serde shape of nested types like
+    /// `IonKindSelection` or `StaticModConfig`). Must still deserialize once
+    /// `prefilter`/`prefilter_chunk_size`/`prefilter_low_memory` exist, falling
+    /// back to Sage's own resolved defaults (see NOTES "Database prefiltering").
+    #[test]
+    fn old_config_json_without_prefilter_fields_still_loads() {
+        let mut value = serde_json::to_value(DatabaseConfig::default())
+            .expect("DatabaseConfig::default() must serialize");
+        let obj = value
+            .as_object_mut()
+            .expect("DatabaseConfig serializes as an object");
+        for key in ["prefilter", "prefilter_chunk_size", "prefilter_low_memory"] {
+            assert!(
+                obj.remove(key).is_some(),
+                "expected `{key}` in the serialized default — did the field get renamed?"
+            );
+        }
+
+        let db: DatabaseConfig = serde_json::from_value(value)
+            .expect("a pre-prefilter config JSON must still deserialize");
+        assert!(
+            !db.prefilter,
+            "prefilter must default to false (Sage's own default)"
+        );
+        assert_eq!(
+            db.prefilter_chunk_size, 0,
+            "chunk size must default to 0 (auto)"
+        );
+        assert!(
+            db.prefilter_low_memory,
+            "low_memory must default to true, matching Sage's own resolved default \
+             (Builder::make_parameters, crates/sage/src/database.rs) — NOT false"
+        );
+    }
+
+    #[test]
+    fn default_database_config_maps_to_sage_defaults_in_builder() {
+        let builder: Builder = DatabaseConfig::default().into();
+        assert_eq!(builder.prefilter, Some(false));
+        assert_eq!(builder.prefilter_chunk_size, Some(0));
+        assert_eq!(builder.prefilter_low_memory, Some(true));
+    }
+
+    #[test]
+    fn enabling_prefilter_round_trips_through_builder() {
+        let db = DatabaseConfig {
+            prefilter: true,
+            prefilter_chunk_size: 5000,
+            prefilter_low_memory: false,
+            ..DatabaseConfig::default()
+        };
+        let builder: Builder = db.into();
+        assert_eq!(builder.prefilter, Some(true));
+        assert_eq!(builder.prefilter_chunk_size, Some(5000));
+        assert_eq!(builder.prefilter_low_memory, Some(false));
     }
 }

@@ -11,12 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Real run-bar progress** — the progress bar now shows the actual fraction of spectra scored (live count from Sage / pre-scanned mzML total), instead of a static placeholder. Status text also now names the current phase ("Building peptide database…" / "Reading and searching spectra…") so the quiet build phase doesn't read as frozen.
 - **Tolerance Lower/Upper labels** — Da and ppm precursor/fragment tolerance fields now show "Lower" and "Upper" labels with hover text explaining the sign convention.
 - **Inverted-window warning** — a non-blocking ⚠ label appears when the lower bound exceeds the upper bound (empty search range).
+- **Database prefiltering controls** — `prefilter`, `prefilter_chunk_size`, and `prefilter_low_memory` are now exposed on the Files & Database tab, with a contextual hint when semi-enzymatic digestion is on. Bounds peak memory on semi-enzymatic/non-specific searches, large databases, or heavily modified searches, at the cost of extra CPU time. Defaults match Sage's own resolved defaults (off; low-memory mode on when enabled).
+- **Settings persistence** — the GUI now remembers your configuration, tolerance-type selections, experiment archetype, and active tab between sessions (via eframe's `persistence` feature), auto-saving every 30 seconds and on exit. Closing the window to start over no longer loses your parameters.
+- **Stop button** — cancels a run from the run bar. Takes effect at the end of the current step (database build/prefilter, or the search itself finishing); a search already scoring spectra is not interrupted mid-flight yet. A cancelled run writes no output files.
 
 ### Changed
 - **Apache 2.0 attribution notices** — files derived from jspaezp/sagegui now carry a short notice at the top per Apache 2.0 §4(b).
 
 ### Fixed
 - **LICENSE link in README** — corrected from `LICENSE.md` to `LICENSE`.
+- **`prefilter_low_memory` documented default** — `docs/PARAMETER_REFERENCE.md` previously stated `false`; Sage actually resolves it to `true`. Corrected, and the prefiltering section rewritten to cover the file-count re-read cliff and the per-chunk decoy caveat.
 
 ## [0.7.0] - 2026-08-13
 
