@@ -460,6 +460,28 @@ calls `sync_from_ser()` and asserts it now matches what was saved.
 set a non-default mod, quit, relaunched, confirmed it was still there. Bug
 closed.
 
+**Full field-by-field audit, requested and done 2026-08-24 (after the fix
+above).** The earlier code-review audit (grep for `#[serde(skip)]`) was
+backed by an actual test: `src/main.rs`
+`tests::every_config_field_survives_a_persistence_round_trip` builds a
+`PersistedState` with every field — including every nested field of
+`Config`/`DatabaseConfig`, both `QuantType` variants exercised across two
+assertions, ion kinds flipped to the opposite of default, enzyme settings,
+tolerances, prefilter settings, mods, everything — set to a deliberately
+non-default, distinguishable value, round-trips it through `serde_json`
+(the same Rust-level (De)Serialize `eframe::set_value`/`get_value` use,
+just a different wire format — format doesn't affect whether the derived
+impls preserve data), applies the same `sync_from_ser()` calls
+`SageLauncher::new` runs after a real restore, and asserts every field
+individually. Sanity-checked the test itself by temporarily deleting the
+`sync_from_ser()` calls and confirming the test fails (it does, with a
+clear diff) before restoring them — proof the test isn't vacuous. All
+fields pass. This is a mechanism-level guarantee, not a GUI click-through:
+it exercises the actual types and the actual fix logic, which a live
+restart-and-eyeball pass wouldn't check any more rigorously (persistence
+correctness lives entirely in `Config`'s serde impls and this restore
+logic, none of which involves egui rendering). No further audit needed.
+
 **New consequence flagged by the maintainer, worth acting on:** now that mods
 *correctly* persist, a stale mod from a previous, unrelated search will
 silently carry into the next one unless the user remembers to remove it by

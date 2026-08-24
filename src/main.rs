@@ -732,4 +732,210 @@ mod tests {
         assert_eq!(app.status_message, "Error: database file not found");
         assert!(!app.is_running);
     }
+
+    /// Field-by-field persistence audit (requested 2026-08-24, after the
+    /// modifications-shadow-map bug). Builds a `PersistedState` with every
+    /// field set to a deliberately non-default, distinguishable value —
+    /// including every nested field of `Config`/`DatabaseConfig` — round-trips
+    /// it through serde exactly as `eframe::set_value`/`get_value` do, applies
+    /// the same `sync_from_ser()` calls `SageLauncher::new` applies after a
+    /// real restore, and asserts every single field survived unchanged. This
+    /// is the mechanism-level proof that the mods bug was the only gap of its
+    /// kind — a plain code review (grepping for `#[serde(skip)]`) already
+    /// suggested that; this test actually exercises the round trip instead of
+    /// trusting the review.
+    #[test]
+    fn every_config_field_survives_a_persistence_round_trip() {
+        use sage_core::ion_series::Kind;
+        use sage_core::scoring::ScoreType;
+        use sage_core::tmt::Isobaric;
+        use std::path::PathBuf;
+
+        let mut ion_kinds = std::collections::HashMap::new();
+        for kind in IonKindSelection::variants() {
+            ion_kinds.insert(kind, false);
+        }
+        // Opposite of `IonKindSelection::default()` (which sets B, Y true).
+        ion_kinds.insert(Kind::A, true);
+        ion_kinds.insert(Kind::C, true);
+        ion_kinds.insert(Kind::X, true);
+        ion_kinds.insert(Kind::Z, true);
+
+        let mut static_mods = StaticModConfig {
+            static_mods: std::collections::HashMap::new(),
+            static_mods_ser: std::collections::HashMap::new(),
+        };
+        static_mods.insert_key("C", 57.021464);
+        static_mods.insert_key("^Q", -17.026549);
+
+        let mut variable_mods = VariableModConfig {
+            variable_mods: StaticModConfig {
+                static_mods: std::collections::HashMap::new(),
+                static_mods_ser: std::collections::HashMap::new(),
+            },
+        };
+        variable_mods.variable_mods.insert_key("M", 15.994915);
+        variable_mods.variable_mods.insert_key("N", 0.98402);
+
+        let database = DatabaseConfig {
+            bucket_size: 65536,
+            enzyme: EnzymeConfig {
+                missed_cleavages: 3,
+                min_len: 8,
+                max_len: 40,
+                cleave_at: "RK".to_string(),
+                enable_restrict: false,
+                restrict_char: "D".to_string(),
+                c_terminal: false,
+                semi_enzymatic: true,
+            },
+            peptide_min_mass: 300.0,
+            peptide_max_mass: 6000.0,
+            ion_kinds: IonKindSelection { ion_kinds },
+            min_ion_index: 5,
+            max_variable_mods: 4,
+            decoy_tag: Some("DECOY_".to_string()),
+            generate_decoys: false,
+            static_mods,
+            variable_mods,
+            prefilter: true,
+            prefilter_chunk_size: 12345,
+            prefilter_low_memory: false,
+            fasta_paths: vec![
+                PathBuf::from("/tmp/db1.fasta"),
+                PathBuf::from("/tmp/db2.fasta"),
+            ],
+            fasta: String::new(),
+            fasta_for_launch: "/tmp/should-not-persist.fasta".to_string(),
+        };
+
+        let original = PersistedState {
+            config: Config {
+                database,
+                precursor_tol: ToleranceConfig::Da(-500.0, 123.4),
+                fragment_tol: ToleranceConfig::Ppm(-33.0, 44.0),
+                precursor_charge: (3, 6),
+                isotope_errors: (-2, 5),
+                deisotope: true,
+                chimera: true,
+                wide_window: true,
+                predict_rt: false,
+                min_peaks: 22,
+                max_peaks: 200,
+                min_matched_peaks: 9,
+                max_fragment_charge: 2,
+                report_psms: 3,
+                mzml_paths: vec![
+                    PathBuf::from("/tmp/a.mzML"),
+                    PathBuf::from("/tmp/b.mzML.gz"),
+                ],
+                quant: QuantType::Tmt(
+                    IsobarSelection {
+                        selected: Isobaric::Tmt16,
+                    },
+                    TmtSettingsSer { level: 3, sn: true },
+                ),
+                quant_enabled: false,
+                quant_class: SupportedQuantTypes::Tmt,
+                annotate_matches: true,
+                write_pin: true,
+                score_type: ScoreType::OpenMSHyperScore,
+                output_directory: "/custom/output/dir".to_string(),
+                override_precursor_charge: true,
+            },
+            precursor_tolerance_type: ToleranceType::Da,
+            fragment_tolerance_type: ToleranceType::Da,
+            experiment: ExperimentType::Phospho,
+            active_page: Page::Quant,
+        };
+
+        let json = serde_json::to_string(&original).expect("PersistedState must serialize");
+        let mut restored: PersistedState =
+            serde_json::from_str(&json).expect("a saved PersistedState must deserialize");
+        // The exact fix from the mods-persistence bug: SageLauncher::new must
+        // do this after every restore, or the live mod maps come back empty.
+        restored.config.database.static_mods.sync_from_ser();
+        restored
+            .config
+            .database
+            .variable_mods
+            .variable_mods
+            .sync_from_ser();
+
+        let od = &original.config.database;
+        let rd = &restored.config.database;
+        assert_eq!(rd.bucket_size, od.bucket_size);
+        assert_eq!(rd.enzyme.missed_cleavages, od.enzyme.missed_cleavages);
+        assert_eq!(rd.enzyme.min_len, od.enzyme.min_len);
+        assert_eq!(rd.enzyme.max_len, od.enzyme.max_len);
+        assert_eq!(rd.enzyme.cleave_at, od.enzyme.cleave_at);
+        assert_eq!(rd.enzyme.enable_restrict, od.enzyme.enable_restrict);
+        assert_eq!(rd.enzyme.restrict_char, od.enzyme.restrict_char);
+        assert_eq!(rd.enzyme.c_terminal, od.enzyme.c_terminal);
+        assert_eq!(rd.enzyme.semi_enzymatic, od.enzyme.semi_enzymatic);
+        assert_eq!(rd.peptide_min_mass, od.peptide_min_mass);
+        assert_eq!(rd.peptide_max_mass, od.peptide_max_mass);
+        assert_eq!(rd.ion_kinds.ion_kinds, od.ion_kinds.ion_kinds);
+        assert_eq!(rd.min_ion_index, od.min_ion_index);
+        assert_eq!(rd.max_variable_mods, od.max_variable_mods);
+        assert_eq!(rd.decoy_tag, od.decoy_tag);
+        assert_eq!(rd.generate_decoys, od.generate_decoys);
+        assert_eq!(rd.static_mods.static_mods, od.static_mods.static_mods);
+        assert_eq!(
+            rd.variable_mods.variable_mods.static_mods,
+            od.variable_mods.variable_mods.static_mods
+        );
+        assert_eq!(rd.prefilter, od.prefilter);
+        assert_eq!(rd.prefilter_chunk_size, od.prefilter_chunk_size);
+        assert_eq!(rd.prefilter_low_memory, od.prefilter_low_memory);
+        assert_eq!(rd.fasta_paths, od.fasta_paths);
+        assert_eq!(
+            rd.fasta_for_launch, "",
+            "fasta_for_launch is `#[serde(skip)]` on purpose (recomputed at \
+             launch from fasta_paths) — it must NOT come back from storage"
+        );
+
+        let oc = &original.config;
+        let rc = &restored.config;
+        assert!(matches!(rc.precursor_tol, ToleranceConfig::Da(l, u) if l == -500.0 && u == 123.4));
+        assert!(matches!(rc.fragment_tol, ToleranceConfig::Ppm(l, u) if l == -33.0 && u == 44.0));
+        assert_eq!(rc.precursor_charge, oc.precursor_charge);
+        assert_eq!(rc.isotope_errors, oc.isotope_errors);
+        assert_eq!(rc.deisotope, oc.deisotope);
+        assert_eq!(rc.chimera, oc.chimera);
+        assert_eq!(rc.wide_window, oc.wide_window);
+        assert_eq!(rc.predict_rt, oc.predict_rt);
+        assert_eq!(rc.min_peaks, oc.min_peaks);
+        assert_eq!(rc.max_peaks, oc.max_peaks);
+        assert_eq!(rc.min_matched_peaks, oc.min_matched_peaks);
+        assert_eq!(rc.max_fragment_charge, oc.max_fragment_charge);
+        assert_eq!(rc.report_psms, oc.report_psms);
+        assert_eq!(rc.mzml_paths, oc.mzml_paths);
+        match &rc.quant {
+            QuantType::Tmt(isobar, tmt) => {
+                assert!(matches!(isobar.selected, Isobaric::Tmt16));
+                assert_eq!(tmt.level, 3);
+                assert!(tmt.sn);
+            }
+            QuantType::Lfq(_) => panic!("expected QuantType::Tmt to survive the round trip"),
+        }
+        assert_eq!(rc.quant_enabled, oc.quant_enabled);
+        assert_eq!(rc.quant_class, oc.quant_class);
+        assert_eq!(rc.annotate_matches, oc.annotate_matches);
+        assert_eq!(rc.write_pin, oc.write_pin);
+        assert!(matches!(rc.score_type, ScoreType::OpenMSHyperScore));
+        assert_eq!(rc.output_directory, oc.output_directory);
+        assert_eq!(rc.override_precursor_charge, oc.override_precursor_charge);
+
+        assert_eq!(
+            restored.precursor_tolerance_type,
+            original.precursor_tolerance_type
+        );
+        assert_eq!(
+            restored.fragment_tolerance_type,
+            original.fragment_tolerance_type
+        );
+        assert_eq!(restored.experiment, original.experiment);
+        assert_eq!(restored.active_page, original.active_page);
+    }
 }
