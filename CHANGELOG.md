@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-08-24
+
 ### Added
 - **App icon** — the crab-wizard mascot cropped from the existing logo now appears as the window/taskbar icon (`assets/icon-256.png`, via `eframe::ViewportBuilder::with_icon`) and the macOS app bundle icon (`assets/AppIcon.icns`), replacing eframe's default "e on black" placeholder. A Windows `.ico` was also built (`assets/AppIcon.ico`) but isn't wired into the `.exe` file icon yet — only the running-app icon is fixed so far.
 - **Real run-bar progress** — the progress bar now shows the actual fraction of spectra scored (live count from Sage / pre-scanned mzML total), instead of a static placeholder. Status text also now names the current phase ("Building peptide database…" / "Reading and searching spectra…") so the quiet build phase doesn't read as frozen.
