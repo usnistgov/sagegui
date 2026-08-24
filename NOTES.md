@@ -62,6 +62,63 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
   4-line addition by hand (diff is in PR #1 on `neely/sage` for reference) and
   re-verify with `cargo check` before re-pinning `sagegui`. If it's clean, no
   action needed beyond noting the new commit hash.
+
+### Custom patch carried on `neely/sage`: `Runner.cancel` cooperative cancellation (2026-08-24)
+- **What:** `neely/sage` `master` (commit `ed5f06c`, pushed straight to
+  master, on top of `cf20b75b`) carries a second additive patch: a
+  `pub cancel: Arc<AtomicBool>` field on `Runner`, defaulted off in both
+  `Runner::new` constructors, plus a `pub fn with_cancel(mut self, cancel:
+  Arc<AtomicBool>) -> Self` builder method that lets a caller swap in their
+  own externally-owned flag before calling `run()`. Checked in three places:
+  right before the per-spectrum `scorer.score()` call inside
+  `search_processed_spectra` (a `.filter()` right before `.flat_map(|spec|
+  scorer.score(spec))` — skips the expensive scoring call once cancelled,
+  though rayon's parallel iterator still visits every remaining item, just
+  cheaply); at the top of `process_chunk`, returning `SageResults::default()`
+  immediately if already cancelled, so a cancelled multi-file run skips
+  unread files entirely; and once more in `run()` right after
+  `self.batch_files(...)` returns, `anyhow::bail!("cancelled")` before FDR,
+  protein grouping, quant, or any output-writing step runs.
+- **Why:** the false "no output written" Stop-button message (fixed the same
+  day, `sagegui` commit `f720053`/`ed80ca3`) turned out to be masking the
+  real problem: `Runner::run()` had **no** cancellation check anywhere inside
+  it, so Stop genuinely could not interrupt a search once scoring started —
+  it could only avoid *starting* `run()` at all. This was flagged as a known,
+  deliberately-deferred limitation in the original 2026-08-21 Stop-button
+  design (see below), but the maintainer confirmed after live-testing the
+  message fix that non-interruption is not acceptable — "I need it to
+  stop" — so the deferred cancellation patch was built the same session,
+  in the same additive, non-breaking shape as the `progress` field: `with_cancel`
+  is opt-in, so the stock `sage-cli` CLI binary (`crates/sage-cli/src/main.rs`,
+  the only other `Runner::new` caller) is unaffected — it simply never calls it,
+  and its `Runner.cancel` flag stays permanently `false`.
+- **`sagegui` side:** `run_sage` (`src/main.rs`) now calls
+  `Runner::new(search, parallel.into())?.with_cancel(cancel.clone())`, reusing
+  the *same* `Arc<AtomicBool>` already used for the pre-`Runner::new()`
+  checkpoints — one shared flag end to end. The Stop button's existing
+  `flag.store(true, Ordering::Relaxed)` now reaches into an active
+  `runner.run()` call, not just the pre-search checkpoints. `run_sage`'s
+  signature changed from `cancel: &AtomicBool` to `cancel: &Arc<AtomicBool>`
+  so it has an `Arc` to clone into `with_cancel`.
+- **Verification done:** `cargo check`/`build` clean on both the `sage-cli`
+  library and the stock `sage` CLI binary inside `neely/sage` itself;
+  `cargo build`/`test`/`clippy --all-targets -D warnings`/`fmt --check` all
+  clean on `sagegui` after repinning `Cargo.toml`/`src/version.rs` to
+  `ed5f06c` and running `cargo update`. **Verification NOT done: an actual
+  live GUI test of mid-search cancellation.** Nothing in this session could
+  drive the native macOS window to click Stop during a real `runner.run()`
+  and confirm (a) it now genuinely stops quickly instead of running to
+  completion, and (b) no output files are written afterward. The maintainer
+  needs to do that click-Stop-mid-scoring reproduction before this is
+  trusted — see PLAN's next-action.
+- **Consequence for the next Sage sync (MAINTENANCE.md Step 1):** same
+  merge-conflict risk as the `progress` patch above, plus this patch. It
+  touches the same `Runner` struct definition and both `Runner::new`
+  `Self { ... }` literals (extend the same edit, don't handle separately),
+  the `search_processed_spectra` `.filter()` line, the top of
+  `process_chunk`, and the `run()` bail-out right after `batch_files(...)`.
+  Re-apply by hand from `neely/sage` commit `ed5f06c` if upstream conflicts
+  with any of those spots.
 - **How fork patches are verified (corrected 2026-08-21):** `neely/sage` itself
   has never had a GitHub Actions run. That matters less than an earlier note in
   this file implied. `sage-core`/`sage-cli`/`sage-cloudpath` are **git
@@ -371,7 +428,7 @@ mods themselves live somewhere similarly excluded rather than in
 fields besides mods might have the same problem — do a full field-by-field
 audit next session, not just a mods fix.
 
-## Stop button (landed 2026-08-21; false-message bug fixed 2026-08-24)
+## Stop button (landed 2026-08-21; false-message fixed and real cancellation built 2026-08-24)
 
 **What works:** clicking Stop *before* the search phase starts (during
 database build or the prefilter pass) — the `Arc<AtomicBool>` cancel flag is
@@ -419,16 +476,64 @@ looking at `delme/`'s older 12:25 files from an earlier prefilter run rather
 than the nested `delme/blah/` this run actually used — an easy mix-up, not a
 GUI bug). Bug closed.
 
-**"Didn't stop" is the documented by-design limitation, not a new bug.**
-Clicking Stop at/after the last cancellation checkpoint (right before
-"Reading and searching spectra…" fires) cannot interrupt `runner.run()` —
-exactly as the button's own hover text says. The false-message bug above was
-the only thing wrong; the non-interruption itself is intentional (see "What
-doesn't work by design, not by bug" below) and behaved correctly in this
-test.
+**"Didn't stop" was the documented by-design limitation at the time — the
+maintainer explicitly rejected leaving it that way.** The false-message fix
+above corrected what the status message *said*, but a search already inside
+`Runner::run()` genuinely could not be interrupted — Stop could only avoid
+*starting* the search, never abort one in progress. This had been scoped out
+of the original 2026-08-21 design as a deliberately deferred ~2-3hr fork
+patch (see the crossed-out plan immediately below, kept for history). After
+seeing the corrected message still describe a search that ran to completion
+despite Stop being clicked, the maintainer said plainly: "I need it to stop,
+like kill the process." That's explicit instruction to stop deferring it —
+see AGENTS.md "Respect the markers": a deferred/intentional item stays
+settled only until the user gives explicit instruction otherwise.
 
-**New follow-ups found in this same test, not yet triaged (Sage Log panel
-UX):**
+**Built the same session (2026-08-24): real cooperative cancellation.**
+Patched `neely/sage` (commit `ed5f06c`) to add a `pub cancel: Arc<AtomicBool>`
+field on `Runner` plus an opt-in `with_cancel()` builder, checked in three
+places — right before the expensive per-spectrum `scorer.score()` call,
+between file chunks, and once more in `run()` right after scoring completes,
+before any FDR/grouping/quant/write step. Full technical detail (why it's
+shaped as an opt-in builder rather than a constructor-signature change, what
+it touches for the next Sage merge) lives in "Custom patch carried on
+`neely/sage`: `Runner.cancel` cooperative cancellation" above — this section
+just covers the Stop-button-specific history. `sagegui`'s `run_sage` now
+threads the *same* `Arc<AtomicBool>` used for the pre-search checkpoints into
+`Runner::new(...).with_cancel(cancel.clone())`, so one flag covers the whole
+pipeline, pre- and mid-search.
+
+**By design, still not instant.** Cancellation is cooperative, not a hard
+kill (Rust has no safe way to force-terminate another thread mid-instruction —
+doing so risks leaving a partially-written output file or corrupted internal
+state). A rayon parallel scoring pass still visits every remaining spectrum
+after Stop is clicked, but skips the expensive scoring call for each one, so
+the pass finishes in roughly the time left for cheap iteration, not real
+scoring — from anywhere near-instant (if clicked right at the start of a
+large search) up to however long the *current* in-flight parallel batch takes
+to drain. The FASTA digest inside `Runner::new()` (the other genuinely long
+phase, often 1-2+ minutes on a full human proteome) still has no internal
+checkpoint and cannot be shortened once started — Stop there waits for digest
+to finish, then aborts immediately afterward, before scoring ever begins.
+That matches the button's existing hover text ("Stops at the end of the
+current step") for the digest phase, and is a materially faster stop than
+before for the scoring phase.
+
+**Verification status — code-level only, NOT live-tested yet.** `cargo
+build`/`test`/`clippy`/`fmt` all clean on both `neely/sage` and `sagegui`
+after repinning to `ed5f06c`. No live GUI run has confirmed that clicking
+Stop mid-scoring now (a) actually shortens the run instead of completing
+normally, and (b) writes zero output files, the way the pre-search-phase
+Stop already reliably does. This needs the maintainer's hands — click Stop
+partway through a real search's scoring phase (not right at the very start,
+so there's meaningful time left in the pass) and confirm the run ends early
+with "Search stopped. No output files were written." and nothing new lands in
+the output directory. Do not describe this as "closed" or "fixed" in
+PLAN/CHANGELOG until that live test passes — see the 2026-08-24 correction in
+JOURNAL for why this distinction matters here specifically.
+
+**New follow-ups found in the false-message live test, not yet triaged (Sage
+Log panel UX):**
 - **Log text isn't selectable/copyable.** The reporter could not select text
   in the "Sage Log" panel to paste it elsewhere; had to hand-copy it
   piecemeal. `egui::ScrollArea` showing plain `ui.label()` per line
@@ -436,32 +541,12 @@ UX):**
   selectable by default in egui; needs `Label::new(..).selectable(true)` or
   a read-only `TextEdit::multiline` instead. Small fix, next Run/Info session.
 - **Reporter initially believed the panel was empty** ("no generated log")
-  during this same run, before pasting its actual content — the panel *did*
+  during that same run, before pasting its actual content — the panel *did*
   eventually fill with the full log shown above by the end of the run. Given
   the panel is `stick_to_bottom`, unclear whether this was a real transient
   empty-look during the ~125s digest phase (matches the already-documented
   gap, see "Run-bar progress bar" / point 3 above) or a UI refresh issue.
   Not enough evidence yet to call this a bug — revisit if it recurs.
-
-**What doesn't work by design, not by bug:** a search already inside
-`Runner::run()` — i.e. already scoring spectra — is **not interrupted**. It
-runs to completion regardless of Stop. The button's hover text says this
-plainly ("Stops at the end of the current step. A search already scoring
-spectra runs to completion.") — this part is working as intended; only the
-resulting status message and run-bar state are wrong.
-
-**To make Stop interrupt an in-progress search:** needs a cooperative-cancellation
-flag threaded into `neely/sage`'s `Runner`, in the same additive shape as the
-`Runner.progress` patch documented above — a `pub cancel: Arc<AtomicBool>` field
-checked inside `search_processed_spectra`'s map closure
-(`sage-cli/src/runner.rs:308-330`) and a couple of other loop sites. Sketched but
-**not implemented** — deliberately deferred, since settings persistence (above)
-already removes most of the original pain (relaunching after a bad parameter
-choice is now fast and lossless). Revisit only if mid-search cancellation turns
-out to still matter once persistence has been used for a while. If it's built,
-extend the "Custom patch carried on `neely/sage`" section above with the new
-field — that section is the merge-conflict guide for the next Sage sync, and an
-unlisted patch is silently lost on the next `git merge upstream/main`.
 
 ---
 
@@ -469,7 +554,7 @@ Things that look wrong but are correct. Do not "fix" these.
 
 - **Default output directory is the current working directory.** Users set it explicitly in the GUI. (Smarter timestamped defaults are a *planned* Phase 5 improvement, not a bug to patch ad hoc.)
 - **TMT quantification is untested.** Only LFQ has been validated with real data — TMT code paths are believed correct but need TMT-labeled data to confirm. Not a defect; a known coverage gap (see below).
-- **Stop doesn't interrupt a search already in progress.** Intentional, current limitation — see "Stop button" above. Not a bug to "fix" without first reading why it was deferred. **This is separate from the false "No output files were written" message** after a Stop-then-natural-completion — that was a real bug, fixed 2026-08-24 (same section).
+- **~~Stop doesn't interrupt a search already in progress.~~ Superseded 2026-08-24.** Real cooperative cancellation was built the same day the maintainer flagged this as unacceptable — see "Stop button" above. What's still true, by design: cancellation isn't an instant hard kill (a rayon batch in flight finishes its cheap remainder; the FASTA digest phase can't be shortened once started). Not yet live-tested — see "Stop button" for the exact reproduction needed before trusting it.
 
 ---
 

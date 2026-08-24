@@ -18,9 +18,9 @@ serde_json = "1.0"
 # our CI therefore covers the fork on all four target platforms. Patch inventory
 # and the merge-conflict guide for the next Sage sync live in NOTES.md, under
 # "Custom patch carried on neely/sage". Add any new patch to that list.
-sage-core = { git = "https://github.com/neely/sage.git", rev = "cf20b75b00deec84e69a773e9c3468f6f7935a7f" }
-sage-cli = { git = "https://github.com/neely/sage.git", rev = "cf20b75b00deec84e69a773e9c3468f6f7935a7f" }
-sage-cloudpath = { git = "https://github.com/neely/sage.git", rev = "cf20b75b00deec84e69a773e9c3468f6f7935a7f" }
+sage-core = { git = "https://github.com/neely/sage.git", rev = "ed5f06caae7305d1599bd877758759112e772d20" }
+sage-cli = { git = "https://github.com/neely/sage.git", rev = "ed5f06caae7305d1599bd877758759112e772d20" }
+sage-cloudpath = { git = "https://github.com/neely/sage.git", rev = "ed5f06caae7305d1599bd877758759112e772d20" }
 timsrust = "0.4.1"
 num_cpus = "1.13"
 egui_extras = { version = "0.29.1", features = ["all_loaders"] }

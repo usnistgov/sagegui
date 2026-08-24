@@ -504,15 +504,17 @@ impl From<Config> for Input {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /// Returns an error (any error — the caller only checks `stop_requested`, not
-/// this text) as soon as `cancel` is observed set. A `Runner` search already
-/// scoring spectra is not interrupted by this check alone — see NOTES.md for
-/// the fork-patch design that would add checks inside `Runner::run`.
+/// this text, except for the specific "cancelled" text `run_sage` itself
+/// produces or forwards from `Runner::run`) as soon as `cancel` is observed
+/// set. Also injected into the `Runner` via `with_cancel` before `run()`, so
+/// a click during the scoring phase interrupts it too — see NOTES.md "Stop
+/// button" for the fork-patch details (`neely/sage` commit `ed5f06c`).
 fn run_sage(
     input: Input,
     parallel: u16,
     parquet: bool,
     sender: &Sender<ThreadMessage>,
-    cancel: &AtomicBool,
+    cancel: &Arc<AtomicBool>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if cancel.load(Ordering::Relaxed) {
         return Err("cancelled".into());
@@ -532,7 +534,7 @@ fn run_sage(
         return Err("cancelled".into());
     }
 
-    let runner = Runner::new(search, parallel.into())?;
+    let runner = Runner::new(search, parallel.into())?.with_cancel(cancel.clone());
     let _ = sender.send(ThreadMessage::RunnerReady(runner.progress.clone()));
 
     if cancel.load(Ordering::Relaxed) {
