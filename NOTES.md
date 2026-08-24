@@ -456,15 +456,21 @@ which serializes a `DatabaseConfig` with non-default mods, deserializes it
 back, asserts the live map comes back empty (documenting the bug), then
 calls `sync_from_ser()` and asserts it now matches what was saved.
 
-**Verification status:** `cargo build`/`test`/`clippy`/`fmt` all clean.
-**Not yet live-tested** — nothing in this session can click through the
-native macOS window, save mods, quit, and relaunch to confirm the fix
-end-to-end. Reproduction for the maintainer: add a non-default static or
-variable mod on the Modifications tab, quit the app, relaunch, and confirm
-the mod is still shown (and still gets applied — check `Builder::from`'s
-output indirectly by running a search and confirming the mod affects
-results, or just trust the tab display plus the unit test). Do not mark this
-"done" in PLAN/CHANGELOG until that passes.
+**Live-tested and confirmed 2026-08-24 (same day, after the fix).** Maintainer
+set a non-default mod, quit, relaunched, confirmed it was still there. Bug
+closed.
+
+**New consequence flagged by the maintainer, worth acting on:** now that mods
+*correctly* persist, a stale mod from a previous, unrelated search will
+silently carry into the next one unless the user remembers to remove it by
+hand — e.g. last week's phospho search's S/T/Y variable mods are still
+selected when starting today's plain tryptic LFQ run. Before this fix, that
+risk was masked (mods always reset because persistence was broken); now it's
+real. This makes the still-open "Experiment templates" item (PLAN Phase 5 —
+bundled JSON configs + a picker to load a known-good starting point,
+replacing the inert archetype dropdown) more than a nice-to-have: it's the
+planned mechanism for "reset to sensible defaults" between unrelated
+searches. No code change here — just raises that item's priority.
 
 ## Stop button (landed 2026-08-21; false-message fixed and real cancellation built 2026-08-24)
 
