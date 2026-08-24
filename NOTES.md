@@ -104,13 +104,12 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
   library and the stock `sage` CLI binary inside `neely/sage` itself;
   `cargo build`/`test`/`clippy --all-targets -D warnings`/`fmt --check` all
   clean on `sagegui` after repinning `Cargo.toml`/`src/version.rs` to
-  `ed5f06c` and running `cargo update`. **Verification NOT done: an actual
-  live GUI test of mid-search cancellation.** Nothing in this session could
-  drive the native macOS window to click Stop during a real `runner.run()`
-  and confirm (a) it now genuinely stops quickly instead of running to
-  completion, and (b) no output files are written afterward. The maintainer
-  needs to do that click-Stop-mid-scoring reproduction before this is
-  trusted — see PLAN's next-action.
+  `ed5f06c` and running `cargo update`. **Live-tested and confirmed
+  2026-08-24 (same day):** maintainer clicked Stop partway into a real
+  search's scoring phase — Sage log shows only 2,201 ms of scoring before
+  abort (vs. 60,305 ms for the same search run to completion), and the
+  output directory was confirmed completely empty afterward. Real
+  mid-search cancellation works as designed.
 - **Consequence for the next Sage sync (MAINTENANCE.md Step 1):** same
   merge-conflict risk as the `progress` patch above, plus this patch. It
   touches the same `Runner` struct definition and both `Runner::new`
@@ -519,18 +518,17 @@ That matches the button's existing hover text ("Stops at the end of the
 current step") for the digest phase, and is a materially faster stop than
 before for the scoring phase.
 
-**Verification status — code-level only, NOT live-tested yet.** `cargo
-build`/`test`/`clippy`/`fmt` all clean on both `neely/sage` and `sagegui`
-after repinning to `ed5f06c`. No live GUI run has confirmed that clicking
-Stop mid-scoring now (a) actually shortens the run instead of completing
-normally, and (b) writes zero output files, the way the pre-search-phase
-Stop already reliably does. This needs the maintainer's hands — click Stop
-partway through a real search's scoring phase (not right at the very start,
-so there's meaningful time left in the pass) and confirm the run ends early
-with "Search stopped. No output files were written." and nothing new lands in
-the output directory. Do not describe this as "closed" or "fixed" in
-PLAN/CHANGELOG until that live test passes — see the 2026-08-24 correction in
-JOURNAL for why this distinction matters here specifically.
+**Live-tested and confirmed 2026-08-24 (same day, after the build).**
+`cargo build`/`test`/`clippy`/`fmt` all clean on both `neely/sage` and
+`sagegui` after repinning to `ed5f06c`. Maintainer re-ran the real baseline,
+let the digest phase finish (progress bar reached the search/scoring phase),
+then clicked Stop partway through — Sage log shows scoring aborted after
+**2,201 ms** (vs. 60,305 ms for the same search allowed to finish, ~27x
+faster), and `delme/blah/` (the output directory for this run) was confirmed
+**completely empty** via `ls -la` — no `lfq.tsv`, `results.json`, or
+`results.sage.tsv`, matching the "No output files were written" guarantee
+exactly. Both halves of the Stop-button bug (the false message, and the
+actual non-interruption) are now fixed and confirmed. Bug closed.
 
 **New follow-ups found in the false-message live test, not yet triaged (Sage
 Log panel UX):**
