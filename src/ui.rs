@@ -1474,6 +1474,27 @@ impl SageLauncher {
         ui.add_space(10.0);
 
         ui.group(|ui| {
+            ui.heading("Sage Log");
+            ui.label("Live output from Sage's own search engine, captured during a run.");
+            egui::ScrollArea::vertical()
+                .id_salt("sage_log_scroll")
+                .max_height(220.0)
+                .stick_to_bottom(true)
+                .show(ui, |ui| {
+                    ui.set_min_width(ui.available_width());
+                    if self.log_lines.is_empty() {
+                        ui.weak("No output yet — run a search to see live log output here.");
+                    } else {
+                        for line in &self.log_lines {
+                            ui.monospace(line);
+                        }
+                    }
+                });
+        });
+
+        ui.add_space(10.0);
+
+        ui.group(|ui| {
             ui.heading("Info / Help");
             ui.label("Sage GUI Version:");
             ui.label(env!("CARGO_PKG_VERSION"));

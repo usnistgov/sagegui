@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -43,7 +43,49 @@ enum ThreadMessage {
     /// Sent once `Runner::new` succeeds, carrying the live spectra-scored
     /// counter so the GUI thread can poll it for a real progress percentage.
     RunnerReady(Arc<AtomicUsize>),
+    /// One line captured from Sage's own `info`-level log output during a run.
+    LogLine(String),
     Completed(Result<String, String>),
+}
+
+/// Longest the Sage-log scrollback is allowed to grow before old lines drop.
+const MAX_LOG_LINES: usize = 500;
+
+/// The channel to forward Sage's log lines into, while a run is active.
+/// `log::set_boxed_logger` is process-global and installed once at startup,
+/// long before any particular run's `mpsc::Sender` exists — this is how a
+/// fresh sender gets handed to the logger each time `launch_application` runs.
+static LOG_SENDER: OnceLock<Mutex<Option<Sender<ThreadMessage>>>> = OnceLock::new();
+
+/// Wraps the normal `env_logger` logger (still prints to stderr as before)
+/// and additionally forwards Sage's own log lines into the GUI, so the run
+/// bar's log panel shows real output instead of nothing during the quiet
+/// database-build/spectra-read phases.
+struct GuiLogger {
+    inner: env_logger::Logger,
+}
+
+impl log::Log for GuiLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        self.inner.enabled(metadata)
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) && record.target().starts_with("sage_") {
+            let sender = LOG_SENDER
+                .get()
+                .and_then(|mutex| mutex.lock().ok())
+                .and_then(|guard| guard.clone());
+            if let Some(sender) = sender {
+                let _ = sender.send(ThreadMessage::LogLine(record.args().to_string()));
+            }
+        }
+        self.inner.log(record);
+    }
+
+    fn flush(&self) {
+        self.inner.flush();
+    }
 }
 
 // ─── SageLauncher ─────────────────────────────────────────────────────────────
@@ -79,6 +121,9 @@ pub struct SageLauncher {
     cancel_flag: Option<Arc<AtomicBool>>,
     /// True once Stop has been clicked, until the thread finishes cleaning up.
     pub stop_requested: bool,
+    /// Sage's own log output captured during the current/last run. Persists
+    /// after completion so the run can be reviewed; cleared on the next Run.
+    pub log_lines: Vec<String>,
 }
 
 impl Default for SageLauncher {
@@ -104,6 +149,7 @@ impl Default for SageLauncher {
             total_spectra: None,
             cancel_flag: None,
             stop_requested: false,
+            log_lines: Vec::new(),
         }
     }
 }
@@ -276,6 +322,13 @@ impl SageLauncher {
                 Ok(ThreadMessage::RunnerReady(progress)) => {
                     self.search_progress = Some(progress);
                 }
+                Ok(ThreadMessage::LogLine(line)) => {
+                    self.log_lines.push(line);
+                    if self.log_lines.len() > MAX_LOG_LINES {
+                        let excess = self.log_lines.len() - MAX_LOG_LINES;
+                        self.log_lines.drain(0..excess);
+                    }
+                }
                 Ok(ThreadMessage::Completed(result)) => {
                     if self.stop_requested {
                         self.status_message =
@@ -308,6 +361,11 @@ impl SageLauncher {
         self.total_spectra = None;
         self.cancel_flag = None;
         self.stop_requested = false;
+        if let Some(mutex) = LOG_SENDER.get() {
+            if let Ok(mut guard) = mutex.lock() {
+                *guard = None;
+            }
+        }
         if let Some(p) = self.temp_fasta_path.take() {
             let _ = std::fs::remove_file(&p);
         }
@@ -366,6 +424,12 @@ impl SageLauncher {
 
         let (sender, receiver) = mpsc::channel();
         self.message_receiver = Some(receiver);
+        self.log_lines.clear();
+        LOG_SENDER
+            .get_or_init(|| Mutex::new(None))
+            .lock()
+            .unwrap()
+            .replace(sender.clone());
 
         let thread_handle = thread::spawn(move || {
             let _ = sender.send(ThreadMessage::Progress("Starting analysis...".to_string()));
@@ -556,7 +620,21 @@ fn format_duration(duration: Duration) -> String {
 }
 
 fn main() -> Result<(), eframe::Error> {
-    env_logger::init();
+    // Default filter elevates Sage's own crates to `info` (their actual lib
+    // names are sage_cli/sage_core/sage_cloudpath — stock Sage's own default
+    // filter, "sage=info", is a no-op against those, since env_logger directive
+    // matching requires an exact name or a "::" boundary). RUST_LOG still
+    // overrides this if set.
+    let env_logger_inner = env_logger::Builder::from_env(
+        env_logger::Env::default()
+            .default_filter_or("error,sage_cli=info,sage_core=info,sage_cloudpath=info"),
+    )
+    .build();
+    log::set_max_level(env_logger_inner.filter());
+    log::set_boxed_logger(Box::new(GuiLogger {
+        inner: env_logger_inner,
+    }))
+    .expect("logger not already initialized");
 
     let options = eframe::NativeOptions {
         ..Default::default()

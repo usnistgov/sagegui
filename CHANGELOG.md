@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Database prefiltering controls** — `prefilter`, `prefilter_chunk_size`, and `prefilter_low_memory` are now exposed on the Files & Database tab, with a contextual hint when semi-enzymatic digestion is on. Bounds peak memory on semi-enzymatic/non-specific searches, large databases, or heavily modified searches, at the cost of extra CPU time. Defaults match Sage's own resolved defaults (off; low-memory mode on when enabled).
 - **Settings persistence** — the GUI now remembers your configuration, tolerance-type selections, experiment archetype, and active tab between sessions (via eframe's `persistence` feature), auto-saving every 30 seconds and on exit. Closing the window to start over no longer loses your parameters.
 - **Stop button** — cancels a run from the run bar. Takes effect at the end of the current step (database build/prefilter, or the search itself finishing); a search already scoring spectra is not interrupted mid-flight yet. A cancelled run writes no output files.
+- **Live Sage log panel** — a "Sage Log" group on Run/Info shows Sage's own log output as it happens, auto-scrolled, capped at 500 lines. No changes to the Sage fork needed — a wrapped logger forwards matching records onto the existing run-bar channel.
 
 ### Changed
 - **Apache 2.0 attribution notices** — files derived from jspaezp/sagegui now carry a short notice at the top per Apache 2.0 §4(b).

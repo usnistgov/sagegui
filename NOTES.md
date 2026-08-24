@@ -223,11 +223,33 @@ roughly ordered:
    Output Location group now lives on the Run / Info tab (above Output Options);
    removed from Files & Database. *(Still relates to the open "smarter output
    directory" item — default is still cwd.)*
-3. **Rework the Run / Info screen.** The Info/Help block (author, repo, license,
-   citation, versions) doesn't need to occupy the run screen — but don't delete
-   that content, just re-home it (an About dialog/collapsing, or a footer). The
-   freed space would be better as a **live console readout of what Sage is
-   doing** (its log/progress stream) — pairs with the pending async-progress work.
+3. **Rework the Run / Info screen — log panel done, Info/Help re-home still
+   open.** The Info/Help block (author, repo, license, citation, versions)
+   still occupies the run screen and hasn't been re-homed — that half is
+   unchanged. **The live console readout is done (2026-08-21):** a "Sage Log"
+   group above it shows Sage's own `info`-level log output live, in a
+   `stick_to_bottom` scroll area, capped at 500 lines (`MAX_LOG_LINES`), no
+   fork changes. Mechanism: `GuiLogger` ([src/main.rs](src/main.rs)) wraps the
+   normal `env_logger::Logger` — still prints to stderr exactly as before —
+   and additionally forwards any record whose target starts with `sage_` onto
+   the same `mpsc` channel already used for run-bar messages, as a new
+   `ThreadMessage::LogLine`. The sender is registered into a process-global
+   `LOG_SENDER` slot at the start of each run (a fresh `Sender` each time,
+   since `log::set_boxed_logger` is a one-time global install at startup, long
+   before any run exists) and cleared on completion; the line buffer itself
+   persists after a run so it can be reviewed, and clears on the next Run.
+   **Gotcha found building this:** Sage's own crates' actual lib names are
+   `sage_cli`/`sage_core`/`sage_cloudpath` (confirmed via `sage-cli`'s
+   `[lib] name = "sage_cli"` and Cargo's default hyphen→underscore rule for
+   the other two, which have no `[lib]` override). `env_logger`/`env_filter`
+   directive matching requires an exact target match or a `::` boundary, so
+   stock Sage CLI's own default filter — literally `"sage=info"`, see
+   `sage-cli/src/main.rs` — **does not match any of them** and is effectively
+   a no-op; Sage's official CLI likely shows only `error`-level output by
+   default, less than it appears to intend. `sagegui`'s logger avoids the same
+   bug by naming all three crates explicitly:
+   `"error,sage_cli=info,sage_core=info,sage_cloudpath=info"` (still
+   overridable via `RUST_LOG`).
 4. **License file — RESOLVED 2026-08-16.** Confirmed Apache-2.0 directly with
    Sebastian Paez (original GUI author). Added a `LICENSE` file at repo root
    with the standard Apache-2.0 text, crediting both Sebastian Paez (original
