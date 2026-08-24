@@ -250,6 +250,18 @@ roughly ordered:
    bug by naming all three crates explicitly:
    `"error,sage_cli=info,sage_core=info,sage_cloudpath=info"` (still
    overridable via `RUST_LOG`).
+   **Confirmed working, with an explained gap (live test 2026-08-24):** the
+   panel stays empty for the first ~2 minutes on a large database (human
+   FASTA), then fills quickly once `"generated N fragments, M peptides in T"`
+   fires — matching the progress bar's own known gap during the same phase,
+   for the same reason: `digest()`/`build_from_peptides()` only log at
+   `trace!` level internally (see `crates/sage/src/database.rs`), so nothing
+   crosses the `info` threshold until that one summary line at the very end.
+   **With prefiltering on, the log starts instantly instead** — the chunked
+   path logs `"using N db chunks of size M"` and `"pre-filtering fasta chunk
+   N"` at `info!` per chunk, much earlier than the monolithic path's single
+   end-of-phase summary. Not something to fix by itself; worth knowing if a
+   future session wants less silence during a non-prefiltered build.
 4. **License file — RESOLVED 2026-08-16.** Confirmed Apache-2.0 directly with
    Sebastian Paez (original GUI author). Added a `LICENSE` file at repo root
    with the standard Apache-2.0 text, crediting both Sebastian Paez (original
@@ -347,23 +359,48 @@ rather than assuming a path).
 leak the temp concatenated multi-FASTA file (`cleanup_thread`, which deletes
 it, never ran on that path). Now deleted in `App::on_exit` too.
 
-## Stop button (landed 2026-08-21, partial)
+**Confirmed gap (live test 2026-08-24):** mzML/FASTA file paths, output
+directory, and other core fields persist correctly across a restart —
+**modifications (static/variable) do not.** Not yet root-caused; check whether
+the Modifications tab's selections actually live inside `Config` (which
+`PersistedState` saves whole) or in separate `SageLauncher` fields
+(`mod_target`, `mod_selected_preset`, `mod_custom_key`, `mod_custom_mass` are
+known to be picker-UI-only state, correctly excluded — but if the chosen
+mods themselves live somewhere similarly excluded rather than in
+`Config.database`, that would explain it). Also unconfirmed which *other*
+fields besides mods might have the same problem — do a full field-by-field
+audit next session, not just a mods fix.
 
-**What works today:** a Stop button on the run bar sets an
-`Arc<AtomicBool>` cancel flag, checked in `run_sage` (`src/main.rs`) at three
-phase boundaries — before `input.build()`, after it, and after `Runner::new()`.
-A stop requested during the database build or the prefilter pass takes effect
-as soon as that phase ends. `check_thread_status` reports "Search stopped. No
-output files were written." (verified: Sage writes every output file at the end
-of `Runner::run()`, `sage-cli/src/runner.rs:608-670`, so a cancel before that
-point genuinely leaves nothing behind) and colours it distinctly (yellow, not
-red/green).
+## Stop button (landed 2026-08-21, confirmed broken 2026-08-24 for the in-progress case)
 
-**What doesn't work yet:** a search already inside `Runner::run()` — i.e.
-already scoring spectra — is **not interrupted**. It runs to completion
-regardless of Stop. The button's hover text says this plainly
-("Stops at the end of the current step. A search already scoring spectra runs
-to completion.") rather than implying something it doesn't do.
+**What works:** clicking Stop *before* the search phase starts (during
+database build or the prefilter pass) — the `Arc<AtomicBool>` cancel flag is
+checked in `run_sage` (`src/main.rs`) at phase boundaries before
+`input.build()`, after it, and after `Runner::new()`; the run genuinely
+aborts and writes nothing, matching the "No output files were written" message.
+
+**Confirmed bug (live test 2026-08-24):** clicking Stop *after* the search
+phase has started does not stop anything — `Runner::run()` has no cancellation
+check inside it (this was always known and is separately, correctly documented
+below), so the search runs to completion normally, **writing its output files
+as usual**. But `check_thread_status`'s `Completed` handler only looks at
+`self.stop_requested` (still `true` from the click) to decide what message to
+show — so it reports "Search stopped. No output files were written." even
+though the run actually finished and the files exist. The earlier "verified"
+note in this section was only checking the pre-`run()` cancellation path; it
+did not cover a Stop clicked during `run()` followed by natural completion,
+where the message is simply false. Reporter also saw the run bar left in a
+confusing state after this ("turns yellow and doesn't stop, and then run is
+not open") — not yet root-caused; reproduce and check whether `cleanup_thread`
+actually fires and the Run button re-enables. **Do not trust the "No output
+files were written" message today; check the output directory directly.**
+
+**What doesn't work by design, not by bug:** a search already inside
+`Runner::run()` — i.e. already scoring spectra — is **not interrupted**. It
+runs to completion regardless of Stop. The button's hover text says this
+plainly ("Stops at the end of the current step. A search already scoring
+spectra runs to completion.") — this part is working as intended; only the
+resulting status message and run-bar state are wrong.
 
 **To make Stop interrupt an in-progress search:** needs a cooperative-cancellation
 flag threaded into `neely/sage`'s `Runner`, in the same additive shape as the
@@ -384,7 +421,7 @@ Things that look wrong but are correct. Do not "fix" these.
 
 - **Default output directory is the current working directory.** Users set it explicitly in the GUI. (Smarter timestamped defaults are a *planned* Phase 5 improvement, not a bug to patch ad hoc.)
 - **TMT quantification is untested.** Only LFQ has been validated with real data — TMT code paths are believed correct but need TMT-labeled data to confirm. Not a defect; a known coverage gap (see below).
-- **Stop doesn't interrupt a search already in progress.** Intentional, current limitation — see "Stop button" above. Not a bug to "fix" without first reading why it was deferred.
+- **Stop doesn't interrupt a search already in progress.** Intentional, current limitation — see "Stop button" above. Not a bug to "fix" without first reading why it was deferred. **This is separate from the confirmed bug** in the same section (the false "No output files were written" message after a Stop-then-natural-completion) — that one *is* a bug, not intentional.
 
 ---
 
