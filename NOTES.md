@@ -401,29 +401,47 @@ regardless of whether Stop was clicked, and any other `Err` shows the real
 error. Covered by three unit tests in `src/main.rs` `mod tests`
 (`stop_clicked_but_search_finished_reports_real_success`,
 `stop_clicked_before_completion_reports_no_output_written`,
-`genuine_failure_without_stop_reports_error`) that drive
-`check_thread_status` directly through a real `mpsc` channel — no live GUI
-run needed to verify this specific logic bug, since it lived entirely in
-message handling, not in Sage interaction. **Not yet live-tested in the real
-GUI** (same tooling gap as before — no accessibility/computer-use tool for a
-native macOS app); the maintainer should re-run the click-Stop-mid-search
-reproduction from the 2026-08-24 test to confirm the fix end-to-end.
+`genuine_failure_without_stop_reports_error`).
 
-**"Run bar left in a confusing state" symptom — likely explained, not
-separately fixed.** The reporter also described the run bar as looking stuck
-("turns yellow and doesn't stop, and then run is not open") after a Stop
-click during an active search. Reading `cleanup_thread`: it unconditionally
-resets `is_running`, `thread_handle`, `stop_requested`, etc. as soon as the
-`Completed` message arrives, so the Run button does re-enable once the search
-actually finishes — there is no separate deadlock in the code. The most
-likely explanation is that `is_running` (and the yellow "Stopping" spinner)
-correctly stays true for the *entire remaining duration of the real search*,
-since nothing past the last cancellation checkpoint can shorten it — on a long
-search this can look frozen for minutes, and the false completion message
-made it look like something had gone permanently wrong on top of that. If the
-maintainer's live re-test still sees a stuck state *after* the search
-actually completes (not just during the long wait), that would be a second,
-distinct bug — reopen this section if so.
+**Live-tested and confirmed 2026-08-24 (same day, after the fix).** Maintainer
+ran the real baseline (human FASTA + mzML.gz, `~/Documents/proteomicsTesting/`,
+output to `delme/blah/`) and clicked Stop right as the run left the build
+phase and entered scoring (progress bar at 0%, i.e. at or after the last
+cancellation checkpoint in `run_sage` — see the by-design note below). The
+search ran to completion (Sage log shows the full run: 259,962,216 fragments,
+7,440,579 peptides digested in 125.65s, 91k+ spectra searched at 1516/s,
+42,004 target peptides / 5,017 target proteins at 1% FDR, "finished in 269s").
+**Status message correctly read "Analysis completed successfully"** — not the
+old false message. **Output genuinely landed**: `delme/blah/lfq.tsv`,
+`results.json`, `results.sage.tsv` all timestamped to the run, confirmed via
+`ls -la` (the reporter first thought nothing had been written, but was
+looking at `delme/`'s older 12:25 files from an earlier prefilter run rather
+than the nested `delme/blah/` this run actually used — an easy mix-up, not a
+GUI bug). Bug closed.
+
+**"Didn't stop" is the documented by-design limitation, not a new bug.**
+Clicking Stop at/after the last cancellation checkpoint (right before
+"Reading and searching spectra…" fires) cannot interrupt `runner.run()` —
+exactly as the button's own hover text says. The false-message bug above was
+the only thing wrong; the non-interruption itself is intentional (see "What
+doesn't work by design, not by bug" below) and behaved correctly in this
+test.
+
+**New follow-ups found in this same test, not yet triaged (Sage Log panel
+UX):**
+- **Log text isn't selectable/copyable.** The reporter could not select text
+  in the "Sage Log" panel to paste it elsewhere; had to hand-copy it
+  piecemeal. `egui::ScrollArea` showing plain `ui.label()` per line
+  (`page_run_info` in `src/ui.rs`) is the likely cause — labels aren't
+  selectable by default in egui; needs `Label::new(..).selectable(true)` or
+  a read-only `TextEdit::multiline` instead. Small fix, next Run/Info session.
+- **Reporter initially believed the panel was empty** ("no generated log")
+  during this same run, before pasting its actual content — the panel *did*
+  eventually fill with the full log shown above by the end of the run. Given
+  the panel is `stick_to_bottom`, unclear whether this was a real transient
+  empty-look during the ~125s digest phase (matches the already-documented
+  gap, see "Run-bar progress bar" / point 3 above) or a UI refresh issue.
+  Not enough evidence yet to call this a bug — revisit if it recurs.
 
 **What doesn't work by design, not by bug:** a search already inside
 `Runner::run()` — i.e. already scoring spectra — is **not interrupted**. It
