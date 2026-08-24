@@ -10,7 +10,7 @@
 
 - **Current phase:** Phase 5 in progress. Licensing resolved (Apache-2.0, LICENSE file added 2026-08-16). Async run-bar progress, prefilter controls, settings persistence, a Stop button, and a live Sage-log panel all landed 2026-08-21 — live-tested for the first time 2026-08-24, which found real bugs, all now fixed and live-tested same day: the Stop button (both the false completion message and, via a `neely/sage` fork patch, real mid-search cancellation — a cancelled run aborted after 2.2s of scoring vs. 60s+ to finish, wrote zero output) and settings persistence (modifications weren't surviving a restart — root cause was a `sync_from_ser()` call that was simply never made; fixed, confirmed). Templates and theme still open — modifications now correctly persisting raises the priority of the templates item (see below), since a stale mod from an unrelated prior search can now silently carry forward.
 - **Last updated:** 2026-08-24
-- **Next action (next session):** Two small UX gaps in the Sage Log panel surfaced during Stop-button testing (not urgent, see NOTES "Stop button" → new follow-ups): log text isn't selectable/copyable, and the panel briefly looked empty before filling in. Other smaller items also logged: a macOS-only terminal window opens alongside the GUI (Windows already fixed), the green "Processing" run-bar label reads poorly, and the app icon needs real branding. **Not yet tested on Windows at all** — Mac-only so far. Also still open, and now higher-priority given the persistence fix above: **JSON-file templates** (bundled starting configs + a picker, replacing the inert archetype dropdown — see "Experiment templates" below), Load Config round-trip with `fasta_paths`, the high-contrast flat light theme (NOTES UI-review #7), and re-homing the Info/Help block off the Run screen (NOTES UI-review #3).
+- **Next action (next session):** 2026-08-24 also reconciled PLAN against README.md's "To be added" list (the maintainer's own running wishlist) — found real gaps: Phase 6's export-format list was missing Perseus/ProteoPlotter, DIAgui, and PDV-import targets (now added, with the upstream feature-request links the maintainer had already found), and a new "iBAQ and other LFQ options" item was added, seeded with a concrete finding from the persistence audit (`LfqSettings.peak_scoring`/`integration` are hardcoded at launch regardless of the stored config; `mobility_pct_tolerance`/`peptide_q_value` have no UI at all). The Sage Log panel's two polish follow-ups were dropped from the backlog by maintainer decision (debugging aid, not a user feature — panel itself stays, just not investing more time). Smaller items still open: a macOS-only terminal window opens alongside the GUI (Windows already fixed), the green "Processing" run-bar label reads poorly, and the app icon needs real branding. **Not yet tested on Windows at all** — Mac-only so far. Highest-priority open item given the persistence fix: **JSON-file templates** (bundled starting configs + a picker, replacing the inert archetype dropdown — see "Experiment templates" below) plus a `results.json` importer (README-requested; scoped in NOTES "UI-review feedback #1" as import-only, not a full Save/Load). Also open: the high-contrast flat light theme (NOTES UI-review #7), re-homing the Info/Help block off the Run screen (NOTES UI-review #3), and the new Phase 6 export-format and LFQ-options items above.
 - **Released:** `v0.7.0` — Multi-FASTA + on-the-fly concatenation. Previous: `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`).
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -202,8 +202,7 @@ Provide a user-friendly graphical interface for Sage that:
 - [ ] **macOS: a terminal window opens alongside the GUI** — found in live testing 2026-08-24. Windows already suppresses this via `windows_subsystem = "windows"` (macOS/Linux no-op); macOS needs proper `.app` bundle investigation (check CI's macOS packaging step in `build.yml`, likely missing an `Info.plist`/bundle structure that lets Finder launch it without attaching a console).
 - [ ] **Run-bar "Processing" label color** — found in live testing 2026-08-24: the green text reads poorly, especially against the new dark theme. Needs a better color choice (candidate: the theme's own sage-green accent rather than plain `egui::Color32::GREEN`).
 - [ ] **App icon** — current icon is a placeholder ("just an E on a black background" per live-test feedback 2026-08-24). Needs real branding before any wider release.
-- [ ] **Sage Log panel: selectable/copyable text** — found in live testing 2026-08-24: the log lines can't be selected/copied (needed `Label::new(..).selectable(true)` or a read-only `TextEdit::multiline`, not plain `ui.label()`, in `page_run_info`, `src/ui.rs`). Reporter had to hand-copy the log piecemeal to share it.
-- [ ] **Sage Log panel: confirm no real emptiness bug** — same live test: the panel briefly looked empty before filling with the full log. Likely the already-documented digest-phase silence (see "Run-bar progress bar" item above), not a new issue — but not confirmed. Watch for recurrence before treating as done.
+- ~~**Sage Log panel: selectable/copyable text**~~ and ~~**Sage Log panel: confirm no real emptiness bug**~~ — dropped 2026-08-24. The panel was built as a debugging aid during the async-execution work, not a feature end users need; maintainer decided to keep it as-is (it works) but not invest further polish time. Not dead code, just no longer an active backlog item — see NOTES if it needs picking back up.
 - [ ] **Session resilience / auto-recovery** — If the GUI is closed or crashes during a run, persist enough state to resume or at least report results.
 - [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI. *(Placeholder slot reserved on Run/Info tab.)*
 - [x] **Configuration persistence (save/load)** — Save/Load Config as JSON on the Experiment tab. *(Remembering last-used settings across sessions is still open.)*
@@ -288,13 +287,44 @@ config JSON** — reuse the existing Save/Load Config plumbing:
 
 #### Format spoofing for downstream tools
 
+*(Reconciled 2026-08-24 against README.md's "To be added" list — README had
+several targets PLAN didn't yet track. This is now the complete list; keep
+both in sync going forward, per AGENTS.md.)*
+
 Each of these requires understanding the target format and confirming Sage's output contains the required fields. Research is an action item per format before implementing.
 
-- [ ] **MSstats-compatible export** — Understand MSstats input format (feature-level TSV with specific column names); produce it from Sage results. Likely feasible with our existing data.
-- [ ] **FragPipe Analyst / LFQ-analyst export** — Identify required format; map Sage output columns.
-- [ ] **Scaffold-compatible export** — Scaffold ingests pepXML or mzIdentML. Investigate whether spoofing pepXML from Sage results is complete enough to be useful.
+- [ ] **pepXML / mzIdentML export** — the two standard interchange formats several downstream tools (Scaffold among them) ingest. Investigate whether spoofing pepXML from Sage results is complete enough to be useful; mzIdentML is the more modern/complete standard but more complex to produce correctly.
+- [ ] **MSstats-compatible export** — Understand MSstats input format (feature-level TSV with specific column names); produce it from Sage results. Likely feasible with our existing data. **Preferred path:** contribute a Sage-input feature directly to [MSstatsConvert](https://github.com/Vitek-Lab/MSstatsConvert) rather than (or in addition to) exporting our own spoofed file — [feature already requested upstream](https://github.com/Vitek-Lab/MSstatsConvert/issues/143).
+- [ ] **Perseus-format export** — for [Perseus](https://maxquant.net/perseus/) and [ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter). Format/column requirements not yet researched.
+- [ ] **DIAgui-compatible export** — for [DIAgui](https://github.com/mgerault/DIAgui). Format/column requirements not yet researched.
+- [ ] **FragPipe Analyst / LFQ-Analyst / *-Analyst export** — [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst), FragPipe-Analyst, and the other tools under the [*-Analyst suite](https://analyst-suites.org/) likely share a common input shape. Identify required format; map Sage output columns.
+- [ ] **PDV import** — add SageGUI/Sage output as a supported import format in [PDV](https://github.com/wenbostar/PDV) (a spectrum/PSM viewer), rather than building our own viewer. [Feature already requested upstream](https://github.com/wenbostar/PDV/issues/110).
+- [ ] **Scaffold-compatible export (?)** — Scaffold ingests pepXML or mzIdentML (see above), so this may fall out of that work rather than needing a dedicated exporter. Still marked uncertain (README: "Scaffold (?)") — confirm Scaffold's actual import requirements before committing effort here.
 
-**Note on scope:** Format export is "spoof where we have the data, document gaps where we don't." We won't invent data that Sage doesn't produce.
+**Note on scope:** Format export is "spoof where we have the data, document gaps where we don't." We won't invent data that Sage doesn't produce. Where an upstream tool already has an open feature request for Sage support (MSstatsConvert #143, PDV #110), **contributing there may be less total work and more durable than a parallel SageGUI-side exporter** — worth a real "build vs. contribute upstream" decision per format before implementing, not just defaulting to building our own.
+
+#### iBAQ and other LFQ options
+
+Not yet in PLAN before this session (added from README's "To be added" list,
+2026-08-24). **Concrete starting point found during the settings-persistence
+audit the same day:** `sage_core::lfq::LfqSettings` (used internally by
+`QuantType::Lfq`) already has `peak_scoring`, `integration`,
+`mobility_pct_tolerance`, and `peptide_q_value` fields, but only
+`ppm_tolerance`, `spectral_angle`, and `combine_charge_states` have UI
+widgets (`QuantType::update_section`, `src/ui.rs`) — the other four are
+never user-editable. Worse, `peak_scoring`/`integration` aren't even read
+from the stored `LfqSettings` at launch: `From<QuantType> for QuantOptions`
+(`src/ui.rs`) hardcodes `PeakScoringStrategy::Hybrid` and
+`IntegrationStrategy::Sum` regardless of what's in the struct. iBAQ itself
+(intensity-based absolute quantification — sum of peptide intensities
+divided by the number of theoretically observable tryptic peptides for a
+protein) isn't a `LfqSettings` field at all; check whether Sage computes it
+internally anywhere, or whether this needs a rollup-script-style post-
+processing step (ties to the Phase 5 "Port rollup scripts" item above).
+Research needed before implementing: what `peak_scoring`/`integration`
+options Sage actually supports and what tradeoff each represents (worth
+tooltips, matching the existing pattern for other advanced fields), and
+whether iBAQ is a Sage-side computation or a downstream one.
 
 ---
 

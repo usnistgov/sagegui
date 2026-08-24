@@ -275,6 +275,17 @@ roughly ordered:
    dedicated Sage-JSON importer that maps fields explicitly, or (b) align
    SageGUI's serde output with Sage's schema end-to-end. Pairs with the
    "remember last-used settings" item.
+   **Confirmed 2026-08-24 which direction is actually wanted:** README.md's
+   "To be added" list specifically asks for "loading in results.json for
+   settings" — i.e. **import-only, option (a) above**: point SageGUI at an
+   existing Sage `results.json` from a past run and load the parameters it
+   used back into `Config`, so a search can be reproduced or tweaked without
+   remembering every setting by hand. Not a full bidirectional Save/Load —
+   Save (SageGUI's own JSON, already removed from v0.7.0) and full schema
+   alignment (option b) are not what was actually requested. Scope the next
+   attempt at this as a `results.json`-importer only, ties into the
+   "Experiment templates" work (PLAN Phase 5) since both need the same
+   "load a JSON into `self.config`" code path.
 2. **Move Output Location control to the Run tab.** ✅ Done 2026-08-13 — the
    Output Location group now lives on the Run / Info tab (above Output Options);
    removed from Files & Database. *(Still relates to the open "smarter output
@@ -597,21 +608,19 @@ faster), and `delme/blah/` (the output directory for this run) was confirmed
 exactly. Both halves of the Stop-button bug (the false message, and the
 actual non-interruption) are now fixed and confirmed. Bug closed.
 
-**New follow-ups found in the false-message live test, not yet triaged (Sage
-Log panel UX):**
-- **Log text isn't selectable/copyable.** The reporter could not select text
-  in the "Sage Log" panel to paste it elsewhere; had to hand-copy it
-  piecemeal. `egui::ScrollArea` showing plain `ui.label()` per line
-  (`page_run_info` in `src/ui.rs`) is the likely cause — labels aren't
-  selectable by default in egui; needs `Label::new(..).selectable(true)` or
-  a read-only `TextEdit::multiline` instead. Small fix, next Run/Info session.
-- **Reporter initially believed the panel was empty** ("no generated log")
-  during that same run, before pasting its actual content — the panel *did*
-  eventually fill with the full log shown above by the end of the run. Given
-  the panel is `stick_to_bottom`, unclear whether this was a real transient
-  empty-look during the ~125s digest phase (matches the already-documented
-  gap, see "Run-bar progress bar" / point 3 above) or a UI refresh issue.
-  Not enough evidence yet to call this a bug — revisit if it recurs.
+**Follow-ups found in the false-message live test (Sage Log panel UX),
+deprioritized 2026-08-24:** the log text isn't selectable/copyable
+(`egui::ScrollArea` showing plain `ui.label()` per line in `page_run_info`,
+`src/ui.rs` — labels aren't selectable by default in egui; would need
+`Label::new(..).selectable(true)` or a read-only `TextEdit::multiline`), and
+the panel briefly looked empty before filling in (likely just the
+already-documented digest-phase silence, never confirmed as a separate
+issue). **Decision:** the maintainer clarified the whole panel was built as
+a debugging aid for this session's Stop-button/persistence work, not a
+feature end users need — keep the panel as-is (it works), but these two
+polish items are off the active backlog, not because they're wrong, just
+not worth more time. Revisit only if the panel turns out to matter for
+something beyond debugging.
 
 ---
 
