@@ -330,15 +330,20 @@ impl SageLauncher {
                     }
                 }
                 Ok(ThreadMessage::Completed(result)) => {
-                    if self.stop_requested {
-                        self.status_message =
-                            "Search stopped. No output files were written.".to_string();
-                    } else {
-                        match result {
-                            Ok(msg) => self.status_message = msg,
-                            Err(err) => self.status_message = format!("Error: {}", err),
+                    // `stop_requested` only means Stop was clicked, not that the
+                    // run actually stopped — `run_sage` may have already passed
+                    // its last cancellation checkpoint and completed normally
+                    // (writing real output) before this message arrives. Trust
+                    // `result`, not the flag: only the "cancelled" error text
+                    // (from `run_sage`'s own cancellation checks) means the run
+                    // genuinely aborted and wrote nothing.
+                    self.status_message = match result {
+                        Ok(msg) => msg,
+                        Err(err) if self.stop_requested && err == "cancelled" => {
+                            "Search stopped. No output files were written.".to_string()
                         }
-                    }
+                        Err(err) => format!("Error: {}", err),
+                    };
                     self.cleanup_thread();
                 }
                 Err(mpsc::TryRecvError::Empty) => {}
@@ -648,4 +653,70 @@ fn main() -> Result<(), eframe::Error> {
             Ok(Box::new(SageLauncher::new(cc)))
         }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Wires a fresh channel into a default `SageLauncher` and marks it
+    /// "running" the way `launch_application` would, without spawning Sage.
+    fn running_launcher(stop_requested: bool) -> (SageLauncher, Sender<ThreadMessage>) {
+        let mut app = SageLauncher::default();
+        let (sender, receiver) = mpsc::channel();
+        app.message_receiver = Some(receiver);
+        app.thread_handle = Some(thread::spawn(|| {}));
+        app.is_running = true;
+        app.stop_requested = stop_requested;
+        (app, sender)
+    }
+
+    #[test]
+    fn stop_clicked_but_search_finished_reports_real_success() {
+        // Reproduces the 2026-08-24 live-test bug: Stop was clicked after
+        // `run_sage` passed its last cancellation checkpoint, so the search
+        // completed and wrote output — `result` is `Ok`, not "cancelled".
+        let (mut app, sender) = running_launcher(true);
+        sender
+            .send(ThreadMessage::Completed(Ok(
+                "Analysis completed successfully".to_string(),
+            )))
+            .unwrap();
+
+        app.check_thread_status();
+
+        assert_eq!(app.status_message, "Analysis completed successfully");
+        assert!(!app.is_running);
+    }
+
+    #[test]
+    fn stop_clicked_before_completion_reports_no_output_written() {
+        let (mut app, sender) = running_launcher(true);
+        sender
+            .send(ThreadMessage::Completed(Err("cancelled".to_string())))
+            .unwrap();
+
+        app.check_thread_status();
+
+        assert_eq!(
+            app.status_message,
+            "Search stopped. No output files were written."
+        );
+        assert!(!app.is_running);
+    }
+
+    #[test]
+    fn genuine_failure_without_stop_reports_error() {
+        let (mut app, sender) = running_launcher(false);
+        sender
+            .send(ThreadMessage::Completed(Err(
+                "database file not found".to_string()
+            )))
+            .unwrap();
+
+        app.check_thread_status();
+
+        assert_eq!(app.status_message, "Error: database file not found");
+        assert!(!app.is_running);
+    }
 }

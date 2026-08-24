@@ -371,7 +371,7 @@ mods themselves live somewhere similarly excluded rather than in
 fields besides mods might have the same problem — do a full field-by-field
 audit next session, not just a mods fix.
 
-## Stop button (landed 2026-08-21, confirmed broken 2026-08-24 for the in-progress case)
+## Stop button (landed 2026-08-21; false-message bug fixed 2026-08-24)
 
 **What works:** clicking Stop *before* the search phase starts (during
 database build or the prefilter pass) — the `Arc<AtomicBool>` cancel flag is
@@ -379,21 +379,51 @@ checked in `run_sage` (`src/main.rs`) at phase boundaries before
 `input.build()`, after it, and after `Runner::new()`; the run genuinely
 aborts and writes nothing, matching the "No output files were written" message.
 
-**Confirmed bug (live test 2026-08-24):** clicking Stop *after* the search
-phase has started does not stop anything — `Runner::run()` has no cancellation
-check inside it (this was always known and is separately, correctly documented
-below), so the search runs to completion normally, **writing its output files
-as usual**. But `check_thread_status`'s `Completed` handler only looks at
-`self.stop_requested` (still `true` from the click) to decide what message to
-show — so it reports "Search stopped. No output files were written." even
-though the run actually finished and the files exist. The earlier "verified"
-note in this section was only checking the pre-`run()` cancellation path; it
-did not cover a Stop clicked during `run()` followed by natural completion,
-where the message is simply false. Reporter also saw the run bar left in a
-confusing state after this ("turns yellow and doesn't stop, and then run is
-not open") — not yet root-caused; reproduce and check whether `cleanup_thread`
-actually fires and the Run button re-enables. **Do not trust the "No output
-files were written" message today; check the output directory directly.**
+**Bug found in live testing 2026-08-24, fixed same day:** clicking Stop
+*after* the search phase had started did not stop anything —
+`Runner::run()` has no cancellation check inside it (always known, and
+separately documented below as by-design) — so the search ran to completion
+normally, **writing its output files as usual**. But `check_thread_status`'s
+`Completed` handler looked only at `self.stop_requested` (still `true` from
+the click) to decide what message to show, so it reported "Search stopped. No
+output files were written." even though the run had actually finished and the
+files existed. The earlier "verified" note in this section had only checked
+the pre-`run()` cancellation path; it never covered a Stop clicked during
+`run()` followed by natural completion, where the message was simply false.
+
+**Fix (`src/main.rs` `check_thread_status`, `Completed` arm):** the handler now
+matches on the actual `result` from `run_sage` instead of branching on
+`stop_requested` first. `run_sage`'s cancellation checks return the specific
+error string `"cancelled"`; the "Search stopped. No output files were written."
+message now only appears when the result is `Err("cancelled")` *and*
+`stop_requested` is true. Any other `Ok` result shows the real success message
+regardless of whether Stop was clicked, and any other `Err` shows the real
+error. Covered by three unit tests in `src/main.rs` `mod tests`
+(`stop_clicked_but_search_finished_reports_real_success`,
+`stop_clicked_before_completion_reports_no_output_written`,
+`genuine_failure_without_stop_reports_error`) that drive
+`check_thread_status` directly through a real `mpsc` channel — no live GUI
+run needed to verify this specific logic bug, since it lived entirely in
+message handling, not in Sage interaction. **Not yet live-tested in the real
+GUI** (same tooling gap as before — no accessibility/computer-use tool for a
+native macOS app); the maintainer should re-run the click-Stop-mid-search
+reproduction from the 2026-08-24 test to confirm the fix end-to-end.
+
+**"Run bar left in a confusing state" symptom — likely explained, not
+separately fixed.** The reporter also described the run bar as looking stuck
+("turns yellow and doesn't stop, and then run is not open") after a Stop
+click during an active search. Reading `cleanup_thread`: it unconditionally
+resets `is_running`, `thread_handle`, `stop_requested`, etc. as soon as the
+`Completed` message arrives, so the Run button does re-enable once the search
+actually finishes — there is no separate deadlock in the code. The most
+likely explanation is that `is_running` (and the yellow "Stopping" spinner)
+correctly stays true for the *entire remaining duration of the real search*,
+since nothing past the last cancellation checkpoint can shorten it — on a long
+search this can look frozen for minutes, and the false completion message
+made it look like something had gone permanently wrong on top of that. If the
+maintainer's live re-test still sees a stuck state *after* the search
+actually completes (not just during the long wait), that would be a second,
+distinct bug — reopen this section if so.
 
 **What doesn't work by design, not by bug:** a search already inside
 `Runner::run()` — i.e. already scoring spectra — is **not interrupted**. It
@@ -421,7 +451,7 @@ Things that look wrong but are correct. Do not "fix" these.
 
 - **Default output directory is the current working directory.** Users set it explicitly in the GUI. (Smarter timestamped defaults are a *planned* Phase 5 improvement, not a bug to patch ad hoc.)
 - **TMT quantification is untested.** Only LFQ has been validated with real data — TMT code paths are believed correct but need TMT-labeled data to confirm. Not a defect; a known coverage gap (see below).
-- **Stop doesn't interrupt a search already in progress.** Intentional, current limitation — see "Stop button" above. Not a bug to "fix" without first reading why it was deferred. **This is separate from the confirmed bug** in the same section (the false "No output files were written" message after a Stop-then-natural-completion) — that one *is* a bug, not intentional.
+- **Stop doesn't interrupt a search already in progress.** Intentional, current limitation — see "Stop button" above. Not a bug to "fix" without first reading why it was deferred. **This is separate from the false "No output files were written" message** after a Stop-then-natural-completion — that was a real bug, fixed 2026-08-24 (same section).
 
 ---
 
