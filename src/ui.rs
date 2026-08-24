@@ -1653,4 +1653,43 @@ mod tests {
         assert_eq!(builder.prefilter_chunk_size, Some(5000));
         assert_eq!(builder.prefilter_low_memory, Some(false));
     }
+
+    #[test]
+    fn deserialized_mods_are_invisible_until_synced_from_ser() {
+        // Reproduces the 2026-08-24 live-test bug: `static_mods`/`variable_mods`
+        // are `#[serde(skip)]` (their key type has no Deserialize), so a plain
+        // `serde_json::from_str` — exactly what `eframe::get_value` does —
+        // restores the serializable shadow map but leaves the live map, which
+        // the UI actually reads from, empty.
+        let mut db = DatabaseConfig::default();
+        db.static_mods.insert_key("Y", 79.9663); // phospho on Y, not a default
+        db.variable_mods.variable_mods.insert_key("N", 0.98402); // deamidation, not a default
+
+        let json = serde_json::to_string(&db).expect("DatabaseConfig must serialize");
+        let mut restored: DatabaseConfig =
+            serde_json::from_str(&json).expect("a saved config must deserialize");
+
+        assert!(
+            restored.static_mods.static_mods.is_empty(),
+            "documents the bug: the live map comes back empty from plain deserialize"
+        );
+        assert_eq!(
+            restored.static_mods.static_mods_ser.len(),
+            2,
+            "the serializable shadow map, unlike the live one, did round-trip"
+        );
+
+        restored.static_mods.sync_from_ser();
+        restored.variable_mods.variable_mods.sync_from_ser();
+
+        assert_eq!(
+            restored.static_mods.static_mods, db.static_mods.static_mods,
+            "after syncing, the live static mods must match what was saved"
+        );
+        assert_eq!(
+            restored.variable_mods.variable_mods.static_mods,
+            db.variable_mods.variable_mods.static_mods,
+            "after syncing, the live variable mods must match what was saved"
+        );
+    }
 }

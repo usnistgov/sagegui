@@ -377,7 +377,7 @@ roughly ordered:
 
 ---
 
-## Settings persistence (landed 2026-08-21)
+## Settings persistence (landed 2026-08-21; modifications bug root-caused and fixed 2026-08-24, not yet live-tested)
 
 **What:** `SageLauncher` now saves `config`, `precursor_tolerance_type`,
 `fragment_tolerance_type`, `experiment`, and `active_page` through eframe's
@@ -417,15 +417,54 @@ it, never ran on that path). Now deleted in `App::on_exit` too.
 
 **Confirmed gap (live test 2026-08-24):** mzML/FASTA file paths, output
 directory, and other core fields persist correctly across a restart —
-**modifications (static/variable) do not.** Not yet root-caused; check whether
-the Modifications tab's selections actually live inside `Config` (which
-`PersistedState` saves whole) or in separate `SageLauncher` fields
-(`mod_target`, `mod_selected_preset`, `mod_custom_key`, `mod_custom_mass` are
-known to be picker-UI-only state, correctly excluded — but if the chosen
-mods themselves live somewhere similarly excluded rather than in
-`Config.database`, that would explain it). Also unconfirmed which *other*
-fields besides mods might have the same problem — do a full field-by-field
-audit next session, not just a mods fix.
+**modifications (static/variable) do not.**
+
+**Root-caused and fixed 2026-08-24.** Full audit of every field in `Config`
+and everything it contains, grepping for `#[serde(skip)]` and `#[serde(default)]`
+across `src/ui.rs`: exactly one gap, in `StaticModConfig`/`VariableModConfig`
+(`src/ui.rs`). Each keeps a `#[serde(skip)]` live map,
+`static_mods: HashMap<ModificationSpecificity, f32>` — the type the UI
+actually reads and writes — alongside a serializable shadow,
+`static_mods_ser: HashMap<String, f32>` (the live map's key type,
+`ModificationSpecificity`, has no `Deserialize`, so it can't be stored
+directly). `insert_key`/`remove_key` keep the shadow in sync going *into* a
+save. A `sync_from_ser()` method exists, doc-commented "call after
+deserialising," to rebuild the live map going the other way — **but nothing
+ever called it.** `eframe::get_value::<PersistedState>` deserializes fine
+(the shadow map round-trips correctly, so the saved JSON blob genuinely has
+the mods in it), but `SageLauncher::new`'s restore block never ran
+`sync_from_ser()`, so the live map — the one `page_modifications` and
+`Builder::from` actually read — came back empty every time, `#[serde(skip)]`'s
+default. The mods were never lost on disk; they were just never rebuilt into
+the form the UI displays.
+
+**Every other field in `Config`/`DatabaseConfig` was checked for the same
+skip-shadow pattern and doesn't have it** — `fasta_for_launch` is the only
+other `#[serde(skip)]` field, and it's deliberately runtime-only (recomputed
+from `fasta_paths` at launch, correctly never persisted). Everything else is
+plain-typed and round-trips through serde directly with no glue code needed,
+matching what already worked in the maintainer's test. This was a
+single-field bug, not a broader persistence problem — no further audit
+needed beyond this one.
+
+**Fix:** `SageLauncher::new` (`src/main.rs`) now calls
+`app.config.database.static_mods.sync_from_ser()` and
+`app.config.database.variable_mods.variable_mods.sync_from_ser()`
+immediately after restoring `app.config` from storage. Covered by a new
+unit test, `src/ui.rs` `tests::deserialized_mods_are_invisible_until_synced_from_ser`,
+which serializes a `DatabaseConfig` with non-default mods, deserializes it
+back, asserts the live map comes back empty (documenting the bug), then
+calls `sync_from_ser()` and asserts it now matches what was saved.
+
+**Verification status:** `cargo build`/`test`/`clippy`/`fmt` all clean.
+**Not yet live-tested** — nothing in this session can click through the
+native macOS window, save mods, quit, and relaunch to confirm the fix
+end-to-end. Reproduction for the maintainer: add a non-default static or
+variable mod on the Modifications tab, quit the app, relaunch, and confirm
+the mod is still shown (and still gets applied — check `Builder::from`'s
+output indirectly by running a search and confirming the mod affects
+results, or just trust the tab display plus the unit test). Do not mark this
+"done" in PLAN/CHANGELOG until that passes.
 
 ## Stop button (landed 2026-08-21; false-message fixed and real cancellation built 2026-08-24)
 

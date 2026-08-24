@@ -165,6 +165,17 @@ impl SageLauncher {
         if let Some(storage) = cc.storage {
             if let Some(persisted) = eframe::get_value::<PersistedState>(storage, eframe::APP_KEY) {
                 app.config = persisted.config;
+                // `static_mods`/`variable_mods` carry a `#[serde(skip)]` live
+                // map alongside a serialized shadow map (`ModificationSpecificity`
+                // has no Deserialize) — the shadow round-trips correctly, but
+                // the live map the UI actually reads from comes back empty
+                // unless it's rebuilt here.
+                app.config.database.static_mods.sync_from_ser();
+                app.config
+                    .database
+                    .variable_mods
+                    .variable_mods
+                    .sync_from_ser();
                 app.precursor_tolerance_type = persisted.precursor_tolerance_type;
                 app.fragment_tolerance_type = persisted.fragment_tolerance_type;
                 app.experiment = persisted.experiment;
