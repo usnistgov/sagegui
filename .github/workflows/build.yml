@@ -79,12 +79,56 @@ jobs:
       - name: Build Release
         run: cargo build --verbose --release
 
+      - name: Create macOS App Bundle
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          BUNDLE="target/release/Sage Launcher.app"
+          VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d '"' -f2)
+          mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
+          cp target/release/${{ matrix.artifact_name }} "$BUNDLE/Contents/MacOS/"
+          cp assets/AppIcon.icns "$BUNDLE/Contents/Resources/AppIcon.icns"
+          cat > "$BUNDLE/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>${{ matrix.artifact_name }}</string>
+              <key>CFBundleIconFile</key>
+              <string>AppIcon.icns</string>
+              <key>CFBundleIdentifier</key>
+              <string>gov.nist.sagegui</string>
+              <key>CFBundleName</key>
+              <string>Sage Launcher</string>
+              <key>CFBundleDisplayName</key>
+              <string>Sage Launcher</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>$VERSION</string>
+              <key>CFBundleVersion</key>
+              <string>$VERSION</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.13</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          PLIST
+          # Without this Info.plist/bundle structure, Finder/LaunchServices treats
+          # the raw binary as a plain Unix executable and runs it via Terminal.app
+          # instead of launching it directly as a windowed app — the "a terminal
+          # window opens alongside the GUI" bug (found in live testing 2026-08-24).
+
       - name: Create Release Archive
         shell: bash
         run: |
           cd target/release
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a ../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            zip -r ../../${{ matrix.asset_name }}.zip "Sage Launcher.app"
           else
             tar -czf ../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
           fi
@@ -94,7 +138,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: target/release/${{ matrix.artifact_name }}
+          path: ${{ matrix.os == 'macos-latest' && 'target/release/Sage Launcher.app' || format('target/release/{0}', matrix.artifact_name) }}
 
       - name: Release
         uses: softprops/action-gh-release@v2

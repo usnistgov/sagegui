@@ -636,6 +636,113 @@ polish items are off the active backlog, not because they're wrong, just
 not worth more time. Revisit only if the panel turns out to matter for
 something beyond debugging.
 
+## macOS terminal window + app icon (both fixed 2026-08-24)
+
+**macOS terminal window — root cause and fix.** `build.yml` shipped the raw
+`target/release/sagegui` Mach-O binary directly inside a `.tar.gz`, with no
+`.app` bundle structure at all. macOS's Finder/LaunchServices only launches
+an executable directly as a windowed process if it's wrapped in a proper
+`.app` bundle (`Contents/MacOS/<exe>` + a `Contents/Info.plist` declaring
+`CFBundlePackageType=APPL`); an unbundled Unix executable, whether
+double-clicked in Finder or opened via `open <path>`, gets run through
+Terminal.app instead — that's the "terminal window opens alongside the GUI"
+symptom. `windows_subsystem = "windows"` in `main.rs` only ever addressed
+Windows (the comment above it already said so; macOS/Linux are no-ops for
+that attribute) — this was never actually about that line.
+
+**Fix:** a new "Create macOS App Bundle" step in `.github/workflows/build.yml`
+(both macOS matrix legs), between "Build Release" and "Create Release
+Archive". Constructs `target/release/Sage Launcher.app` — `Contents/MacOS/`
+(the binary), `Contents/Resources/AppIcon.icns` (see icon section below), and
+a generated `Contents/Info.plist` (`CFBundleExecutable`, `CFBundleIconFile`,
+`CFBundleIdentifier` = `gov.nist.sagegui`, `CFBundleName`/`CFBundleDisplayName`
+= "Sage Launcher", `CFBundlePackageType` = `APPL`, version read from
+`Cargo.toml` — **not** `github.ref_name`, which is a branch/PR name, not a
+version, on any push that isn't a tag). "Create Release Archive" now zips the
+whole `.app` for macOS (matching Apple convention) instead of taring the bare
+binary; the upload/release steps follow the same `.app`-vs-binary branch.
+
+**Verified locally, not just built.** GitHub Actions macOS runners weren't
+available to this session, so the exact same recipe was run by hand on this
+Mac against the real release binary: built the bundle, ran `plutil -lint` on
+the `Info.plist` (valid), then `open "Sage Launcher.app"` — the same
+mechanism Finder uses — and confirmed via
+`osascript -e 'tell application "Terminal" to count windows'` that the count
+stayed at 0 both before and after launch, while `pgrep` confirmed the process
+was genuinely running. This is as close to a real Finder double-click test as
+this session's tooling allows, and it passed. **Not yet confirmed: an actual
+GitHub Actions build** — the workflow YAML parses and the recipe is proven by
+hand, but the real CI run (different `iconutil`/`zip` versions, a fresh
+runner) hasn't executed yet. Watch the next release's macOS jobs.
+
+**Consequence for README:** the macOS Gatekeeper-bypass instructions
+(`xattr -d com.apple.quarantine sagegui`) targeted the old bare-binary
+distribution. Updated to `xattr -dr com.apple.quarantine "Sage Launcher.app"`
+(note `-r`, recursive — quarantine flags apply per-file inside a bundle, not
+just to the top-level `.app` directory). Also updated the download table
+(macOS assets are now `.zip`, not `.tar.gz`) and Quick Start (macOS: double-
+click the `.app`, not run a bare binary from a terminal).
+
+**App icon — same session, shares assets with the bundle fix above.** There
+was no icon asset in the repo at all — no `.ico`/`.icns` file, no
+`with_icon()` call, nothing — so eframe fell back to its documented default
+("a white `e` on a black background," see `egui::ViewportBuilder` doc
+comment in `egui-0.29.1/src/viewport.rs`), matching the maintainer's exact
+description of the placeholder.
+
+Built from the existing `assets/sagegui_logo-removebg.png` (a browser-window
+mockup with a Ferris-the-Rust-crab-in-a-wizard-hat mascot composited on top)
+rather than commissioning new art — the crab-wizard was already there and is
+distinctive/on-brand (Sage = wizardry pun, Rust = crab mascot). Isolating it:
+a rectangular crop close around the crab+hat still caught slivers of the
+"SAGE" lettering and the window-mockup's rounded border/corner, since those
+are drawn UNDER the crab in the same flattened composition, not on a
+separate layer. Fixed with a flood fill from the crop's four edges: any
+pixel that's achromatic (low saturation) **and** not near-black (value > 60,
+to keep the crab's true-black outline strokes and eyes) gets treated as
+"card background" and erased — starting only from the border inward, so
+enclosed background-colored regions (the hat's white stars, sitting inside
+the blue hat interior, not connected to the outer border) survive untouched.
+A global color threshold (no flood fill) was tried first and wiped the stars
+out along with the background — flood fill from the edges was the fix.
+
+Produced from the resulting transparent-background cutout:
+- `assets/icon-master.png` — 1024×1024, crab-wizard padded to ~95% of the
+  frame on its longer axis, centered. Source of truth for regenerating
+  everything below if the icon ever needs to change.
+- `assets/icon-256.png` — 256×256, embedded via `include_bytes!` in
+  `src/main.rs`'s new `load_icon()`, decoded with the already-present `image`
+  crate dependency, and wired into `eframe::NativeOptions` via
+  `egui::ViewportBuilder::default().with_icon(load_icon())`. This is the
+  **runtime** window/taskbar icon — covers macOS Dock (when not using the
+  bundle's own `.icns`), Windows taskbar/alt-tab, and Linux window managers,
+  per the `IconData` doc comment.
+- `assets/AppIcon.icns` — macOS bundle icon, built with `iconutil` from a
+  `.iconset` containing 16/32/64/128/256/512/1024px renders (LANCZOS-resized
+  from the 1024 master) at the exact filenames Apple's tool expects
+  (`icon_16x16.png`, `icon_16x16@2x.png`, etc.). Wired into the CI bundle fix
+  above via `Info.plist`'s `CFBundleIconFile`.
+- `assets/AppIcon.ico` — Windows multi-resolution icon (16/32/48/64/128/256px),
+  built with Pillow. **Built but not yet wired anywhere** — the runtime
+  `IconData` above already fixes the Windows taskbar/alt-tab icon, but the
+  **.exe file's own icon** (what File Explorer shows before the app even
+  runs) needs a separate `build.rs` step (typically the `winres` or
+  `embed-resource` crate) to embed it into the binary at compile time. Left
+  as a small future item — not blocking, since the reported complaint was
+  specifically about the running app's icon, which is fixed.
+
+**Verified locally.** Launched the debug binary directly (`./target/debug/sagegui`)
+and, separately, the hand-built `.app` bundle via `open`, and `screencapture`'d
+the Dock both times: the crab-wizard renders correctly in both cases (before
+the fix, the same test would have shown the default egui "e"). Source
+resolution caveat: the original composite image is only 562×424 total, so
+the isolated crab-wizard crop was roughly 255×335 native pixels before
+upscaling to the 1024 master — LANCZOS upscaling keeps it clean at normal
+icon display sizes (16–128px, what Dock/taskbar/alt-tab actually show) but
+would show mild softness if inspected at full 1024px (e.g. in a "Get Info"
+panel). Good enough for the immediate fix; a higher-resolution source crab
+illustration would be a nicer upgrade later if one ever exists.
+
 ---
 
 Things that look wrong but are correct. Do not "fix" these.

@@ -637,6 +637,22 @@ fn format_duration(duration: Duration) -> String {
     }
 }
 
+/// The window/taskbar icon (a crab wizard, cropped from `assets/sagegui_logo-removebg.png`
+/// — see `assets/icon-master.png` for the full-size source). Without this,
+/// eframe falls back to its own default: a white "e" on a black background.
+fn load_icon() -> egui::IconData {
+    let bytes = include_bytes!("../assets/icon-256.png");
+    let image = image::load_from_memory(bytes)
+        .expect("bundled icon-256.png must decode")
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    egui::IconData {
+        rgba: image.into_raw(),
+        width,
+        height,
+    }
+}
+
 fn main() -> Result<(), eframe::Error> {
     // Default filter elevates Sage's own crates to `info` (their actual lib
     // names are sage_cli/sage_core/sage_cloudpath — stock Sage's own default
@@ -655,6 +671,7 @@ fn main() -> Result<(), eframe::Error> {
     .expect("logger not already initialized");
 
     let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_icon(load_icon()),
         ..Default::default()
     };
 

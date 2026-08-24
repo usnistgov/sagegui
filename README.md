@@ -44,15 +44,15 @@ Get the latest release from the [Releases page](https://github.com/neely/sagegui
 |----------|----------|
 | Windows (x64) | [sage-launcher-windows-x64.exe.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-windows-x64.exe.zip) |
 | Linux (x64) | [sage-launcher-linux-x64.tar.gz](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-linux-x64.tar.gz) |
-| macOS (Intel) | [sage-launcher-macos-x64.tar.gz](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-x64.tar.gz) |
-| macOS (Apple Silicon) | [sage-launcher-macos-arm64.tar.gz](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-arm64.tar.gz) |
+| macOS (Intel) | [sage-launcher-macos-x64.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-x64.zip) |
+| macOS (Apple Silicon) | [sage-launcher-macos-arm64.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-arm64.zip) |
 
-> **macOS:** If you see an "unidentified developer" warning, right-click and select Open, or run `xattr -d com.apple.quarantine sagegui`
+> **macOS:** the archive contains **Sage Launcher.app** — double-click to run. If you see an "unidentified developer" warning, right-click the app and select Open, or run `xattr -dr com.apple.quarantine "Sage Launcher.app"`
 
 ## Quick start
 
 1. Download and extract the archive for your platform
-2. Run `sagegui.exe` (Windows) or `sagegui` (macOS/Linux)
+2. Run `sagegui.exe` (Windows), double-click **Sage Launcher.app** (macOS), or run `./sagegui` (Linux)
 3. On the **Files & Database** tab, click "Add FASTA..." and add your database(s), then "Pick mzML files"
 4. Adjust search parameters on the Search, Modifications, and Quant tabs if needed
 5. Click **Run** at the bottom of any tab
