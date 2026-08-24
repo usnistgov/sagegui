@@ -290,10 +290,13 @@ roughly ordered:
    Output Location group now lives on the Run / Info tab (above Output Options);
    removed from Files & Database. *(Still relates to the open "smarter output
    directory" item — default is still cwd.)*
-3. **Rework the Run / Info screen — log panel done, Info/Help re-home still
-   open.** The Info/Help block (author, repo, license, citation, versions)
-   still occupies the run screen and hasn't been re-homed — that half is
-   unchanged. **The live console readout is done (2026-08-21):** a "Sage Log"
+3. **Rework the Run / Info screen — log panel done, Info/Help re-home dropped.**
+   The Info/Help block (author, repo, license, citation, versions) still
+   occupies the Run/Info tab (`page_run_info`, `src/ui.rs:1497`) — confirmed
+   2026-08-24 it was never actually moved, despite an earlier belief that it
+   had been. **Resolved, not a bug:** the maintainer confirmed the same day
+   they're fine with it staying there — no other obvious destination — so
+   this is no longer an open item. **The live console readout is done (2026-08-21):** a "Sage Log"
    group above it shows Sage's own `info`-level log output live, in a
    `stick_to_bottom` scroll area, capped at 500 lines (`MAX_LOG_LINES`), no
    fork changes. Mechanism: `GuiLogger` ([src/main.rs](src/main.rs)) wraps the
@@ -385,6 +388,17 @@ roughly ordered:
    applied at startup via `ctx.set_visuals` / `ctx.set_style`; optionally a
    theme toggle. Pure styling — no behavior change. This is a **next-session**
    item, not built yet.
+
+   **Dropped 2026-08-24.** The dark-theme contrast pass (`dark_visuals()`,
+   landed 2026-08-21 — sage-green accent, warm charcoal instead of near-black,
+   widened contrast on normal *and* disabled widget states) addressed the
+   actual complaint. The maintainer confirmed the original "too faint"
+   feedback was their system running in dark mode against egui's low-contrast
+   stock dark palette, not a standing request for a distinct light theme —
+   that's now resolved and no further theme work is planned. Keeping this
+   entry (rather than deleting it) since the reference-screenshot spec above
+   is still a legitimate design direction if a light theme is ever wanted
+   later; it's just not active work.
 
 ---
 
