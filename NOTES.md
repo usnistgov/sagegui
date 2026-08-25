@@ -743,6 +743,42 @@ would show mild softness if inspected at full 1024px (e.g. in a "Get Info"
 panel). Good enough for the immediate fix; a higher-resolution source crab
 illustration would be a nicer upgrade later if one ever exists.
 
+## v0.7.1 shipped and confirmed on all three platforms (2026-08-24)
+
+Tagged and pushed `v0.7.1` the same session all the above landed. The actual
+GitHub Actions release build (not just the local hand-test) confirmed the
+macOS `.app` bundle recipe works exactly as tested: job log shows the
+`Info.plist` written with all the right keys, `AppIcon.icns` copied in, and
+`zip -r` producing the correct bundle structure — matching the local
+hand-verification byte for byte. All four legs (Linux, macOS x64, macOS
+arm64, Windows) passed and uploaded to the release
+(https://github.com/neely/sagegui/releases/tag/v0.7.1).
+
+**Maintainer live-tested the actual Windows release build** (not a debug
+build — the real downloaded artifact) same day: new icon confirmed showing,
+Sage Log panel good, **no terminal window** (Windows already had
+`windows_subsystem = "windows"` from a prior session — this confirms it
+still works, wasn't regressed by the .app-bundle changes which are
+macOS-only). Mac was already confirmed working via the earlier local
+hand-test (see "macOS terminal window" above) — so both platforms
+personally verified, not just CI-green.
+
+**One thing the Windows test caught that CI/local testing couldn't:** the
+run-bar's "Processing" label — hardcoded `egui::Color32::GREEN` — still
+looked wrong on Windows. This had been flagged in the original 2026-08-24
+live test, then dropped from the backlog same-session on a miscommunication
+(the maintainer thought a *different* colored text was meant, said "don't
+think it needs changing," and it got dropped — see the git history around
+commit `2df331f`). Seeing it for real on the shipped Windows build changed
+that: reopened and fixed by switching to a plain `ui.label("Processing")`,
+which inherits the theme's normal text color instead of a hardcoded pure
+green — the same approach as the elapsed-time label sitting right next to
+it, which was already correct. **Landed after the v0.7.1 tag**, so it's in
+`[Unreleased]` in CHANGELOG, not `[0.7.1]` — will ship in the next release.
+Not yet re-verified live (no reason to expect it's wrong — it's now
+identical in approach to an already-correct adjacent label — but hasn't
+actually been seen rendered since the fix).
+
 ---
 
 Things that look wrong but are correct. Do not "fix" these.

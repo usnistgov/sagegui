@@ -246,7 +246,7 @@ impl eframe::App for SageLauncher {
                     if self.stop_requested {
                         ui.colored_label(egui::Color32::YELLOW, "Stopping");
                     } else {
-                        ui.colored_label(egui::Color32::GREEN, "Processing");
+                        ui.label("Processing");
                     }
                     if let Some(start_time) = self.start_time {
                         self.elapsed_time = format_duration(start_time.elapsed());

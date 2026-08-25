@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Run-bar "Processing" label used a hardcoded pure green** — switched to a plain label so it inherits the theme's normal text color, matching the elapsed-time label next to it.
+
 ## [0.7.1] - 2026-08-24
 
 ### Added
