@@ -1,0 +1,62 @@
+{
+  "_sagegui": {
+    "name": "Tryptic \u2014 open",
+    "order": 4,
+    "description": "Open search for unknown-modification discovery. Precursor window is DELTA MASS -100 to +500 Da, which in Sage's raw convention is written [-500, 100] (negated and reversed). Read that carefully: a +500 Da modification is found by the -500 LOWER bound, not by a +500 upper bound. Expect a long run and a much larger search space; consider lowering max_variable_mods if memory is tight."
+  },
+  "database": {
+    "bucket_size": 8192,
+    "enzyme": {
+      "missed_cleavages": 2,
+      "min_len": 7,
+      "max_len": 50,
+      "cleave_at": "KR",
+      "restrict": null,
+      "c_terminal": true,
+      "semi_enzymatic": false
+    },
+    "peptide_min_mass": 500.0,
+    "peptide_max_mass": 5000.0,
+    "ion_kinds": [
+      "b",
+      "y"
+    ],
+    "min_ion_index": 2,
+    "static_mods": {
+      "C": 57.0215
+    },
+    "variable_mods": {
+      "M": [
+        15.9949
+      ]
+    },
+    "max_variable_mods": 3,
+    "decoy_tag": "rev_",
+    "generate_decoys": true
+  },
+  "precursor_tol": {
+    "da": [
+      -500.0,
+      100.0
+    ]
+  },
+  "fragment_tol": {
+    "ppm": [
+      -20.0,
+      20.0
+    ]
+  },
+  "deisotope": true,
+  "max_fragment_charge": 1,
+  "chimera": false,
+  "wide_window": false,
+  "predict_rt": true,
+  "min_peaks": 15,
+  "max_peaks": 150,
+  "min_matched_peaks": 4,
+  "report_psms": 1,
+  "isotope_errors": [
+    0,
+    0
+  ]
+}

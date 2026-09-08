@@ -373,6 +373,9 @@ roughly ordered:
    = no template applied. See PLAN "Experiment templates (JSON-file approach)".
    Secondary priority — if not quick, leave the dropdown in-progress and ship
    v0.7.0 on multi-FASTA alone.
+   **DONE 2026-09-08.** The inert dropdown is gone, replaced by a Templates
+   picker driven by the bundled JSON files. `apply_archetype` was never
+   written, as decided. See "Experiment templates and Sage-JSON import" below.
 7. **Theme is too low-contrast (2026-08-13, next-session request).** The default
    egui dark-grey-on-grey is too faint for readability. Collaborator shared a
    **reference screenshot** (a color/font mock, *not* the live UI) showing the
@@ -402,7 +405,7 @@ roughly ordered:
 
 ---
 
-## Settings persistence (landed 2026-08-21; modifications bug root-caused and fixed 2026-08-24, not yet live-tested)
+## Settings persistence (landed 2026-08-21; modifications bug fixed and live-tested 2026-08-24)
 
 **What:** `SageLauncher` now saves `config`, `precursor_tolerance_type`,
 `fragment_tolerance_type`, `experiment`, and `active_page` through eframe's
@@ -785,7 +788,112 @@ Things that look wrong but are correct. Do not "fix" these.
 
 - **Default output directory is the current working directory.** Users set it explicitly in the GUI. (Smarter timestamped defaults are a *planned* Phase 5 improvement, not a bug to patch ad hoc.)
 - **TMT quantification is untested.** Only LFQ has been validated with real data — TMT code paths are believed correct but need TMT-labeled data to confirm. Not a defect; a known coverage gap (see below).
-- **~~Stop doesn't interrupt a search already in progress.~~ Superseded 2026-08-24.** Real cooperative cancellation was built the same day the maintainer flagged this as unacceptable — see "Stop button" above. What's still true, by design: cancellation isn't an instant hard kill (a rayon batch in flight finishes its cheap remainder; the FASTA digest phase can't be shortened once started). Not yet live-tested — see "Stop button" for the exact reproduction needed before trusting it.
+- **~~Stop doesn't interrupt a search already in progress.~~ Superseded 2026-08-24.** Real cooperative cancellation was built the same day the maintainer flagged this as unacceptable — see "Stop button" above. What's still true, by design: cancellation isn't an instant hard kill (a rayon batch in flight finishes its cheap remainder; the FASTA digest phase can't be shortened once started). Live-tested 2026-08-24: a mid-scoring Stop aborted in 2.2s and wrote no output.
+
+---
+
+## Experiment templates and Sage-JSON import (landed 2026-09-08)
+
+Closes two long-open items: "Save / Load Config" (UI-review #1) and the inert
+experiment archetypes (UI-review #6). Both are one mechanism — load a
+Sage-shaped JSON into `self.config`. Code lives in `src/sage_json.rs`.
+
+### Templates are stored in Sage's schema, not SageGUI's
+
+The decision that makes this simple. A bundled template is a normal Sage
+config JSON. So Michael Lazear's settings drop in verbatim, a user can feed
+any template straight to the Sage CLI, and the template picker and the
+results.json importer share one code path.
+
+Our own metadata rides in a `_sagegui` block (name, description, order).
+Sage sets `deny_unknown_fields` nowhere, so Sage ignores that block. The same
+tolerance is what lets a `results.json`'s extra keys ride along into us.
+
+Templates are embedded with `include_str!`, not read from disk. The release
+artifact is a single binary (and a `.app` bundle on macOS), so a directory
+beside the executable is not dependable. A new bundled template therefore
+needs a rebuild. A user's own templates come in through "Load Sage config…".
+
+### config.json and results.json are different shapes
+
+Confirmed by reading the pinned source. This is the schema-alignment question
+NOTES deferred on 2026-08-13, now answered.
+
+| File | Sage type | `database` field | Deserialize? |
+| ---- | --------- | ---------------- | ------------ |
+| `config.json` | `Input` | `Builder` (all `Option`) | yes |
+| `results.json` | `Search` | `Parameters` (resolved) | **no** |
+
+`Search` derives `Serialize` only, so Sage's own types cannot read a
+`results.json` back. But the JSON key names agree, and
+`ModificationSpecificity` serialises to the same string keys `Builder` uses.
+So one all-`Option` struct with `#[serde(default)]` reads both. That claim is
+pinned by a test that builds a real `Search`, serialises it with Sage's own
+serde, and reads it back — not a hand-typed fixture.
+
+`Search` marks `output_directory` `skip_serializing`, so a real `results.json`
+has no output directory in it at all.
+
+### The `"restrict": null` trap
+
+Sage's `EnzymeBuilder::default()` is `restrict: Some("P")`. Michael's go-to
+config sets `"restrict": null` on purpose — that is trypsin/P, cutting before
+proline, the same as FragPipe's default.
+
+`Option<String>` cannot tell an absent key from an explicit `null`; serde maps
+both to `None`. Reading it that way would leave the proline restriction ON and
+silently change his digest. `EnzymeJson.restrict` is therefore
+`Option<Option<String>>` with a custom `explicit_null` deserializer: absent is
+`None`, null is `Some(None)`, a value is `Some(Some(v))`. A test covers it, and
+was confirmed to fail without the custom deserializer.
+
+### What import never touches, and why it says so
+
+`mzml_paths`, `database.fasta` and `output_directory` are parsed but never
+applied. An imported file describes files on the machine that made it.
+
+They are not dropped in silence. The import reports each one, says whether the
+recorded path still exists here, and names the tab to re-pick it on. A
+`results.json` stores these as percent-encoded `file://` URLs, so they are
+decoded before display — `file:///Users/x/run%2001.mzML.gz` shows as
+`/Users/x/run 01.mzML.gz`.
+
+### Known lossy edge: several masses on one residue
+
+Sage's `variable_mods` allows `"M": [15.9949, 31.9898]`. SageGUI holds one mass
+per residue. The importer keeps the first and warns, naming what it dropped.
+Fixing it properly needs the multi-row modification model already noted under
+"Custom modifications — persistence".
+
+### The bundled set (2026-09-08)
+
+Six templates. All tryptic ones share Michael's enzyme and modification base:
+trypsin/P, 2 missed cleavages, length 7-50, static C +57.0215, variable
+M +15.9949, `max_variable_mods` 3, `min_matched_peaks` 4, `bucket_size` 8192.
+
+| File | Precursor (raw Sage pair) | Fragment | Isotope errors |
+| ---- | ------------------------- | -------- | -------------- |
+| `tryptic-highres.json` | `da [-3.5, 1.25]` = delta -1.25 to +3.5 | ppm 10 | (0,0) |
+| `tryptic-tight.json` | ppm 10 | ppm 20 | (-1,3) |
+| `tryptic-wide.json` | ppm 20 | ppm 20 | (-1,3) |
+| `tryptic-open.json` | `da [-500, 100]` = delta -100 to +500 | ppm 20 | (0,0) |
+| `semi-tryptic-biofluids.json` | ppm 10 | ppm 20 | (-1,3) |
+| `tmt11.json` | ppm 20 | da 0.4 | (0,3) |
+
+Read the precursor column with AGENTS.md's negate-and-swap rule in hand.
+
+The 20 ppm MS2 on tight/wide comes from `usnistgov/sageRecon`, whose Orbitrap
+/ FT-ICR recommendation is the one row there validated against real data. The
+high-resolution template keeps Michael's 10 ppm, since it is his config as
+given. Michael's own `da [-3.5, 1.25]` window is an isotope-error substitute:
+the +3.5 delta side absorbs monoisotopic peak misassignment of up to 3
+carbon-13, which is why that template leaves `isotope_errors` at (0,0).
+
+**Not shipped, by decision:** a phospho template. Sage does not model neutral
+losses, so it is not a strong phospho engine, and bundling a template would
+imply a recommendation we cannot support. Semi-tryptic ships for biofluids
+only, and its values are a starting point, not validated against a real
+biofluid run.
 
 ---
 

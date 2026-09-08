@@ -683,6 +683,19 @@ impl Default for IsobarSelection {
 }
 
 impl IsobarSelection {
+    /// Build a selection from a Sage `Isobaric` value read out of a config or
+    /// results JSON. Returns `None` for `Isobaric::User(..)` — a custom
+    /// reporter-ion list has no radio button here, and silently collapsing it
+    /// to a named plex would change the quantification.
+    pub fn from_isobaric(isobar: &Isobaric) -> Option<Self> {
+        match isobar {
+            Isobaric::User(_) => None,
+            other => Some(Self {
+                selected: other.clone(),
+            }),
+        }
+    }
+
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
         ui.radio_value(&mut self.selected, Isobaric::Tmt6, "TMT 6-plex");
         ui.radio_value(&mut self.selected, Isobaric::Tmt10, "TMT 10-plex");
@@ -888,34 +901,155 @@ impl SageLauncher {
         );
         ui.add_space(10.0);
 
-        ui.horizontal(|ui| {
-            ui.label("Experiment Type:");
-            egui::ComboBox::from_id_salt("experiment_type")
-                .selected_text(format!("{:?}", self.experiment))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.experiment, ExperimentType::Custom, "Custom");
-                    ui.selectable_value(
-                        &mut self.experiment,
-                        ExperimentType::TrypticLfq,
-                        "Tryptic LFQ",
+        self.templates_section(ui);
+        ui.add_space(16.0);
+        self.import_section(ui);
+        ui.add_space(16.0);
+        self.import_result_section(ui);
+    }
+
+    /// Bundled starting configurations. Replaces the old archetype dropdown,
+    /// which only ever stored its own selection and changed nothing else.
+    fn templates_section(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.heading("Templates");
+            ui.label(
+                "Starting configurations for common experiment types. Applying one replaces \
+                 your search parameters.",
+            );
+            ui.weak("Your selected files and output folder are never changed by a template.");
+            ui.add_space(6.0);
+
+            if self.templates.is_empty() {
+                ui.colored_label(
+                    ui.visuals().error_fg_color,
+                    "No bundled templates loaded — this is a build problem, not a settings one.",
+                );
+                return;
+            }
+
+            let selected = self.selected_template.min(self.templates.len() - 1);
+            self.selected_template = selected;
+
+            ui.horizontal(|ui| {
+                egui::ComboBox::from_id_salt("template_picker")
+                    .width(260.0)
+                    .selected_text(self.templates[selected].meta.name.clone())
+                    .show_ui(ui, |ui| {
+                        for (i, template) in self.templates.iter().enumerate() {
+                            ui.selectable_value(
+                                &mut self.selected_template,
+                                i,
+                                &template.meta.name,
+                            );
+                        }
+                    });
+
+                if ui
+                    .button("Apply template")
+                    .on_hover_text(
+                        "Overwrite the current search parameters with this template's values.",
+                    )
+                    .clicked()
+                {
+                    let index = self.selected_template;
+                    let report = self.templates[index].doc.apply(
+                        &mut self.config,
+                        &mut self.precursor_tolerance_type,
+                        &mut self.fragment_tolerance_type,
+                        self.templates[index].file,
                     );
-                    ui.selectable_value(
-                        &mut self.experiment,
-                        ExperimentType::WideOpen,
-                        "Wide Open",
-                    );
-                    ui.selectable_value(&mut self.experiment, ExperimentType::Phospho, "Phospho");
-                    ui.selectable_value(
-                        &mut self.experiment,
-                        ExperimentType::SemiTryptic,
-                        "Semi-Tryptic",
-                    );
-                });
+                    self.last_import = Some(Ok(report));
+                }
+            });
+
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new(&self.templates[self.selected_template].meta.description)
+                    .weak(),
+            );
         });
+    }
 
-        ui.add_space(20.0);
+    /// Load parameters out of a Sage `config.json` or a past run's
+    /// `results.json`. Import-only by design — see NOTES "UI-review feedback #1".
+    fn import_section(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.heading("Load settings from a Sage file");
+            ui.label(
+                "Reuse the parameters of an earlier search: point at a config.json you gave the \
+                 Sage command line, or the results.json written into a past run's output folder.",
+            );
+            ui.add_space(6.0);
 
-        ui.label("Save / Load Config: coming in a future version.");
+            if ui
+                .button("Load Sage config or results.json…")
+                .on_hover_text(
+                    "Reads search parameters only. File paths and the output folder in the \
+                     file are ignored.",
+                )
+                .clicked()
+            {
+                if let Some(path) = FileDialog::new()
+                    .add_filter("Sage JSON", &["json"])
+                    .pick_file()
+                {
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| path.display().to_string());
+                    self.last_import = Some(match std::fs::read_to_string(&path) {
+                        Err(e) => Err(format!("Could not read {name}: {e}")),
+                        Ok(text) => match crate::sage_json::SageJson::from_str(&text) {
+                            Err(e) => Err(format!("{name} is not a valid Sage JSON file: {e}")),
+                            Ok(doc) => Ok(doc.apply(
+                                &mut self.config,
+                                &mut self.precursor_tolerance_type,
+                                &mut self.fragment_tolerance_type,
+                                &name,
+                            )),
+                        },
+                    });
+                }
+            }
+        });
+    }
+
+    /// Outcome of the last apply/import. Warnings are shown in full rather than
+    /// counted — a parameter that silently failed to load is the failure mode
+    /// worth being loud about.
+    fn import_result_section(&mut self, ui: &mut egui::Ui) {
+        match &self.last_import {
+            None => {}
+            Some(Err(message)) => {
+                ui.colored_label(ui.visuals().error_fg_color, message);
+            }
+            Some(Ok(report)) => {
+                ui.label(report.summary());
+                if !report.warnings.is_empty() {
+                    ui.add_space(4.0);
+                    ui.group(|ui| {
+                        for warning in &report.warnings {
+                            ui.colored_label(ui.visuals().warn_fg_color, format!("⚠ {warning}"));
+                        }
+                    });
+                }
+                if !report.needs_reselect.is_empty() {
+                    ui.add_space(4.0);
+                    ui.group(|ui| {
+                        ui.strong("Not imported — pick these again yourself");
+                        ui.weak(
+                            "The file records where its own data lived. Those paths are not \
+                             applied, because they may be from another machine.",
+                        );
+                        ui.add_space(4.0);
+                        for note in &report.needs_reselect {
+                            ui.label(format!("• {note}"));
+                        }
+                    });
+                }
+            }
+        }
     }
 
     pub fn page_files_database(&mut self, ui: &mut egui::Ui) {

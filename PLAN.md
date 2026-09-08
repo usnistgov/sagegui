@@ -8,9 +8,9 @@
 
 ## Status
 
-- **Current phase:** Phase 5 in progress. Licensing resolved (Apache-2.0, LICENSE file added 2026-08-16). Async run-bar progress, prefilter controls, settings persistence, a Stop button, and a live Sage-log panel all landed 2026-08-21 — live-tested for the first time 2026-08-24, which found real bugs, all now fixed and live-tested same day: the Stop button (both the false completion message and, via a `neely/sage` fork patch, real mid-search cancellation — a cancelled run aborted after 2.2s of scoring vs. 60s+ to finish, wrote zero output) and settings persistence (modifications weren't surviving a restart — root cause was a `sync_from_ser()` call that was simply never made; fixed, confirmed). Templates and theme still open — modifications now correctly persisting raises the priority of the templates item (see below), since a stale mod from an unrelated prior search can now silently carry forward.
-- **Last updated:** 2026-08-24
-- **Next action (next session):** 2026-08-24 also reconciled PLAN against README.md's "To be added" list (the maintainer's own running wishlist) — found real gaps: Phase 6's export-format list was missing Perseus/ProteoPlotter, DIAgui, and PDV-import targets (now added, with the upstream feature-request links the maintainer had already found), and a new "iBAQ and other LFQ options" item was added, seeded with a concrete finding from the persistence audit (`LfqSettings.peak_scoring`/`integration` are hardcoded at launch regardless of the stored config; `mobility_pct_tolerance`/`peptide_q_value` have no UI at all). The Sage Log panel's two polish follow-ups were dropped from the backlog by maintainer decision (debugging aid, not a user feature — panel itself stays, just not investing more time). The macOS terminal-window bug and the app icon are now both fixed and locally verified same day (see checklist below for the mechanism and verification detail — real `.app` bundle packaging in CI, a cropped crab-wizard mascot as the icon). (The run-bar "Processing" label color was also flagged in that test, but the maintainer decided it's fine as-is — dropped.) **Not yet tested on Windows at all** — Mac-only so far, and the actual GitHub Actions macOS build hasn't run this recipe yet either (only verified by hand-building the identical bundle locally). Highest-priority open item given the persistence fix: **JSON-file templates** (bundled starting configs + a picker, replacing the inert archetype dropdown — see "Experiment templates" below) plus a `results.json` importer (README-requested; scoped in NOTES "UI-review feedback #1" as import-only, not a full Save/Load). Also open: the new Phase 6 export-format and LFQ-options items above. (The light theme and re-homing the Info/Help block off the Run tab were both dropped 2026-08-24 — maintainer confirmed neither is actually wanted; see NOTES UI-review #3 and #7.)
+- **Current phase:** Phase 5 in progress. Experiment templates and Sage-JSON import both landed 2026-09-08, closing the two oldest open UI items (the inert archetype dropdown, and Save/Load Config). Six bundled templates ship, stored in **Sage's own schema** so they double as valid Sage CLI input; one reader handles both a `config.json` and a past run's `results.json`. Template values come from Michael Lazear directly, plus `usnistgov/sageRecon` for the validated 20 ppm Orbitrap MS2 number. Before that, v0.7.1 shipped and was confirmed on all three platforms.
+- **Last updated:** 2026-09-08
+- **Next action (next session):** **Live-test the Experiment tab.** Nothing in this session's UI was clicked — there is still no native macOS UI automation here, so the picker, the Apply button, the file dialog, and the re-select notes are all unverified visually. Everything under them is covered by 20 passing tests, including one that reads Sage's own serialized `Search` output. Reproduce: open Experiment, apply each of the six templates, confirm the Search/Modifications/Quant tabs change to match, then load a real `results.json` from `~/Documents/proteomicsTesting/` and confirm the re-select notes name the right files. Then: **enzyme presets from sageRecon** (maintainer decision 2026-09-08 to defer them to their own session) — 14 curated enzymes with cleavage rules, including the Asp-N / Lys-N N-terminal case the current UI gives no guidance on. Also still open: session resilience, results-summary panel, smarter output directory, better validation, and all of Phase 6.
 - **Released:** `v0.7.1` (2026-08-24) — Stop button now genuinely cancels an in-progress search (`neely/sage` commit `ed5f06c`), settings persistence fixed for modifications + fully audited, real app icon, macOS `.app` bundle packaging (fixes a terminal window opening alongside the GUI). Previous: `v0.7.0` — Multi-FASTA + on-the-fly concatenation. `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`).
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -210,7 +210,7 @@ Provide a user-friendly graphical interface for Sage that:
 - [x] **Expanded modifications preset library** — Modifications tab redesigned as a two-box (Static/Variable) list-picker with a curated "Common modifications" master list + transfer arrows and a "+ Custom…" escape hatch. Multi-residue presets insert as separate rows; Static/Variable mutually exclusive. *(Landed 2026-08-13. Presets are hardcoded in `src/ui.rs` `MOD_PRESETS`; masses are Unimod monoisotopic deltas.)*
 - [x] **Parameter documentation in the GUI** — Inline `on_hover_text` tooltips on controls (copy sourced from `docs/ui-spec.md` §3 / NOTES).
 - [ ] Parameter presets (default, open search, semi-enzymatic) *(Experiment tab dropdown exists but is **inert** — selecting an archetype does nothing to the other tabs; confirmed 2026-08-13. Needs `apply_archetype`. See NOTES → UI-review feedback #6.)*
-- [x] Save/load configuration files (JSON export/import) — **removed from v0.7.0** pending schema-alignment design (NOTES UI-review #1). Placeholder left on Experiment tab.
+- [x] Load configuration from a Sage JSON file — **done 2026-09-08**, import-only, as scoped in NOTES UI-review #1. Reads both a Sage `config.json` and a past run's `results.json`; reports anything it could not apply, and lists the file paths it deliberately ignored. Export back to Sage schema is not built.
 - [ ] Better error messages and validation
 - [ ] **Delta-mass framing for the Da tolerance window (behavior change — DEFERRED, caveats)** — Optionally let the user enter the precursor Da window in **delta-mass / modification space** (type `+500` for "find IDs carrying a +500 Da mod") instead of Sage's raw `(lower, upper)` relative to the experimental mass, where a `-500` lower bound is what actually finds a +500 Da mod. This is the sign-flip Michael flagged. **Currently NOT done** — the GUI passes the two boxes through verbatim as Sage's `(lower, upper)`, and we added Lower/Upper labels + hover text + an inverted-window warning to explain the raw convention (see NOTES → "Precursor/fragment tolerance window — sign & delta-mass convention"). **Caveats before building this:**
   - **Divergence from Sage.** Every Sage `config.json`, the CLI, and the docs use the raw `(center + lower, center + upper)` convention. A delta-mass GUI would flip signs, so a value shown in SageGUI would not match the number in a Sage config file — confusing for users who cross-reference, and a Save/Load Config round-trip would need to convert both ways without drift.
@@ -245,15 +245,40 @@ concat mechanism. Concrete spec:
 Chosen 2026-08-13 over hardcoded `apply_archetype`. **A template *is* a saved
 config JSON** — reuse the existing Save/Load Config plumbing:
 
-- [ ] Ship bundled example templates in `assets/templates/` (e.g.
-  `tryptic-lfq.json`, `phospho.json`, `wide-open.json`), built from real
-  `results.json` / settings the lab uses.
-- [ ] Replace the inert Experiment dropdown with a **Templates** dropdown that
-  loads a bundled JSON into `self.config` (same code path as Load Config), plus a
-  **"Save current as template"** that writes the current config to a user file.
-- [ ] Keep `Custom` = "no template applied." Removes the need for hardcoded
-  archetype values entirely. If this isn't fast, **leave the dropdown in-progress**
-  and ship v0.7.0 on multi-FASTA alone.
+- [x] Ship bundled example templates in `assets/templates/`. *(2026-09-08:
+  six shipped — `tryptic-highres`, `tryptic-tight`, `tryptic-wide`,
+  `tryptic-open`, `semi-tryptic-biofluids`, `tmt11`. Built from settings
+  Michael Lazear supplied directly, plus sageRecon's validated 20 ppm Orbitrap
+  MS2 number. Stored in Sage's own schema, so each file is also valid Sage CLI
+  input. No phospho template, by decision — Sage models no neutral losses.)*
+- [x] Replace the inert Experiment dropdown with a **Templates** dropdown that
+  loads a bundled JSON into `self.config`. *(2026-09-08.)* **"Save current as
+  template" is NOT built** — it needs an exporter from `Config` back to Sage's
+  schema, which is the reverse direction and was not part of what the
+  maintainer asked for. Still open if wanted.
+- [x] Removed the need for hardcoded archetype values entirely. *(2026-09-08.
+  `apply_archetype` was never written, as intended. The old `ExperimentType`
+  enum is retained in `PersistedState` only, so existing saved settings still
+  load — removing it would make eframe drop the whole saved blob.)*
+
+#### Enzyme presets (from sageRecon)
+
+Deferred to its own session by maintainer decision, 2026-09-08.
+
+- [ ] **Port the 14 enzyme presets from [sageRecon](https://github.com/usnistgov/sageRecon)**
+  into an enzyme dropdown on the Search tab, filling `cleave_at`,
+  the restrict character, `c_terminal` and `semi_enzymatic`. The table is the
+  maintainer's own curated work: Trypsin, Trypsin/P, Arg-C, Asp-N, Asp-N/Ambic,
+  Chymotrypsin, CNBR, Glu-C, Glu-C/DE, Lys-C, Lys-C/P, Lys-N, Pepsin-A,
+  Trypchymo. **Asp-N, Asp-N/Ambic and Lys-N cleave N-terminally**
+  (`c_terminal: false`) — today the GUI exposes that as a bare checkbox with no
+  guidance, which is a live footgun. sageRecon also refuses to assume a default
+  enzyme at all, on the grounds that assuming trypsin "would silently mis-report
+  every digestion number"; worth deciding whether SageGUI should say the same.
+- [ ] While there: sageRecon's **MS2 tolerance by analyzer class** (Orbitrap /
+  FT-ICR 20 ppm — validated on real data; Astral 20 ppm; legacy TOF/QTOF
+  100 ppm; ion trap / quadrupole 1.0 Da) would make good hover text on the
+  fragment-tolerance control.
 
 #### Input: Thermo .raw conversion
 
@@ -384,19 +409,40 @@ Locked decisions and their rationale have moved to **NOTES.md → Design decisio
 
 **Start here:** read AGENTS.md, then this status block, then NOTES.md (locked decisions + dead-ends), then the top of JOURNAL.md.
 
-**State:** Phases 0–4 done, `v0.6.0` released. Phases 5 & 6 are fully planned — nothing is implemented yet.
+**State:** Phases 0-4 done. `v0.7.1` released and confirmed on Windows, macOS
+and Linux. Phase 5 is well advanced: async execution, real progress, the Stop
+button, settings persistence, the app icon, the macOS `.app` bundle, multi-FASTA,
+prefilter controls, experiment templates and Sage-JSON import have all landed.
+Phase 6 is planned but untouched.
 
 **Immediate next actions (in order):**
 
-1. **Async execution** (Phase 5, #1 priority) — move the search onto a background thread; this unblocks all other UX work.
-2. **Locate rollup scripts** — they exist in a separate project (not sagePreview). Find them, read them, record language + structure in NOTES before Phase 6 can be scoped accurately.
-3. **Phase 6 format survey** — 30-min spike: find a sample input file for MSstats, LFQ-analyst, and Scaffold; identify which columns Sage already produces vs. what needs synthesizing; record gap analysis in NOTES under "Output format reference."
+1. **Live-test the Experiment tab** (2026-09-08 work, never clicked). Apply each
+   of the six templates, confirm the other tabs change to match, then import a
+   real `results.json` and check the re-select notes.
+2. **Enzyme presets from sageRecon** — see the Phase 5 section above.
+3. **Locate rollup scripts** — they exist in a separate project (not sagePreview).
+   Find them, read them, record language + structure in NOTES before Phase 6 can
+   be scoped accurately.
+4. **Phase 6 format survey** — find a sample input file for MSstats, LFQ-analyst
+   and Scaffold; identify which columns Sage already produces vs. what needs
+   synthesizing; record the gap analysis in NOTES.
 
 **Watch out for:**
-- Don't re-add `build.rs` version detection, don't add `lib.rs` to sage-cli, don't switch the Sage dep back to a branch — all dead-ends (NOTES.md).
-- ThermoRawFileParser: license is clear (Apache-2.0), but the .NET runtime dependency on Linux/macOS is an open question. Do the cross-platform spike before committing to that design.
-- Rollup scripts may be R, not Python — changes the end-user dependency story even if the call strategy is the same.
-- TMT quant is still untested (no TMT data). LFQ is the only validated path.
+- **The precursor window is written backwards.** Read the STOP section at the top
+  of AGENTS.md before touching any tolerance value. Raw JSON `[lower, upper]` is
+  the delta-mass range negated and swapped.
+- Don't re-add `build.rs` version detection, don't add `lib.rs` to sage-cli, don't
+  switch the Sage dep back to a branch — all dead-ends (NOTES.md).
+- Don't remove `ExperimentType` from `PersistedState`. It is unused by the UI now,
+  but dropping a field makes eframe fail to deserialize the whole saved blob, and
+  the user silently loses every setting.
+- ThermoRawFileParser: license is clear (Apache-2.0), but the .NET runtime
+  dependency on Linux/macOS is an open question. Do the cross-platform spike
+  before committing to that design.
+- Rollup scripts may be R, not Python — changes the end-user dependency story.
+- TMT quant is still untested (no TMT data). LFQ is the only validated path. The
+  bundled `tmt11.json` template says so in its own description.
 - Any behavior change must sync README / CHANGELOG / MAINTENANCE in the same session.
 
-**Key files:** `src/main.rs` (all GUI), `src/version.rs` (Sage version constants), `Cargo.toml` (pinned Sage commit), `.github/workflows/` (build + badges).
+**Key files:** `src/main.rs` (app state, run thread), `src/ui.rs` (all tab rendering), `src/sage_json.rs` (template + config/results import), `assets/templates/` (bundled starting configs), `src/version.rs` (Sage version constants), `Cargo.toml` (pinned Sage commit), `.github/workflows/` (build + badges).

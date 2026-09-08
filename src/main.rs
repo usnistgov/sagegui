@@ -7,6 +7,7 @@
 /// Is this pretty? No ... but is it well tested.... also no ... was an I on a deadline
 /// well ... not really. BUT I learned a lot about Rust and sage and I'm glad I did.
 /// I am more than happy to take PRs and suggestions for improvements!
+mod sage_json;
 mod ui;
 mod version;
 
@@ -124,6 +125,14 @@ pub struct SageLauncher {
     /// Sage's own log output captured during the current/last run. Persists
     /// after completion so the run can be reviewed; cleared on the next Run.
     pub log_lines: Vec<String>,
+    /// Bundled starting configurations, parsed once at startup rather than
+    /// per frame. Not persisted — they are compiled into the binary.
+    pub templates: Vec<sage_json::Template>,
+    /// Index into `templates` that the Experiment picker is showing.
+    pub selected_template: usize,
+    /// Outcome of the most recent template or file import, shown on the
+    /// Experiment tab. `Err` carries a parse/IO failure message.
+    pub last_import: Option<Result<sage_json::ImportReport, String>>,
 }
 
 impl Default for SageLauncher {
@@ -150,6 +159,9 @@ impl Default for SageLauncher {
             cancel_flag: None,
             stop_requested: false,
             log_lines: Vec::new(),
+            templates: Vec::new(),
+            selected_template: 0,
+            last_import: None,
         }
     }
 }
@@ -182,6 +194,7 @@ impl SageLauncher {
                 app.active_page = persisted.active_page;
             }
         }
+        app.templates = sage_json::bundled_templates();
         app
     }
 }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Experiment templates** — the Experiment tab now has a working Templates picker with six bundled starting configurations: tryptic high-resolution (Michael Lazear's go-to settings), tryptic tight, tryptic wide, tryptic open, semi-tryptic for biofluids, and TMT 11-plex. Applying one replaces your search parameters. It never touches your selected files or output folder. This replaces the old Experiment Type dropdown, which stored its selection and changed nothing else.
+- **Load settings from a Sage file** — point SageGUI at a `config.json` you gave the Sage command line, or at the `results.json` written into a past run's output folder, and it loads the search parameters. One reader handles both formats. Anything it could not apply is reported on screen, not dropped silently.
+- **Re-select notes on import** — an imported file records where its own data lived. Those paths are never applied, because they can be from another machine. The import now lists what it left behind, says whether each path still exists here, and points at the tab where you pick it again.
+
 ### Fixed
 - **Run-bar "Processing" label used a hardcoded pure green** — switched to a plain label so it inherits the theme's normal text color, matching the elapsed-time label next to it.
 
@@ -31,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modifications didn't survive an app restart** — `StaticModConfig`/`VariableModConfig` keep a `#[serde(skip)]` live map (their key type has no `Deserialize`) alongside a serializable shadow map; the `sync_from_ser()` method meant to rebuild the live map after loading a saved config was defined but never called. The saved data was always correct — it just never made it back into the map the UI reads. Fixed in `SageLauncher::new`. Live-tested and confirmed (2026-08-24). Followed by a full field-by-field persistence audit (a new test round-trips every field of the saved config through the real restore logic) confirming no other field has a gap of this kind.
 - **LICENSE link in README** — corrected from `LICENSE.md` to `LICENSE`.
 - **`prefilter_low_memory` documented default** — `docs/PARAMETER_REFERENCE.md` previously stated `false`; Sage actually resolves it to `true`. Corrected, and the prefiltering section rewritten to cover the file-count re-read cliff and the per-chunk decoy caveat.
-- **macOS: a terminal window opened alongside the GUI** — the release archive shipped a bare Mach-O binary with no `.app` bundle, so Finder/LaunchServices ran it via Terminal.app instead of launching it directly as a windowed app. CI now packages a proper `Sage Launcher.app` (bundle structure, `Info.plist`, icon) for both macOS builds. Verified locally by hand-building the exact CI recipe and launching it with `open`: zero Terminal windows opened. Not yet confirmed on an actual GitHub Actions run.
+- **macOS: a terminal window opened alongside the GUI** — the release archive shipped a bare Mach-O binary with no `.app` bundle, so Finder/LaunchServices ran it via Terminal.app instead of launching it directly as a windowed app. CI now packages a proper `Sage Launcher.app` (bundle structure, `Info.plist`, icon) for both macOS builds. Verified locally by hand-building the exact CI recipe and launching it with `open`: zero Terminal windows opened, and confirmed on the real GitHub Actions release build for v0.7.1.
 
 ## [0.7.0] - 2026-08-13
 
