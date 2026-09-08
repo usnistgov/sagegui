@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Re-select notes on import** — an imported file records where its own data lived. Those paths are never applied, because they can be from another machine. The import now lists what it left behind, says whether each path still exists here, and points at the tab where you pick it again.
 
 ### Changed
-- **Tolerance windows are now shown as a delta-mass range** — the precursor and fragment controls read "Delta mass from X to Y", which is how the window is normally described: set 500 to find IDs carrying up to a +500 Da modification. Sage's own config files store this pair negated and swapped, so the raw pair is printed under the control for anyone cross-checking a `config.json`. Only the display changed. What is saved and what is sent to Sage are unchanged.
+- **Tolerance windows are now shown as a delta-mass range** — the precursor and fragment controls read "Delta mass from X to Y", which is how the window is normally described: set 500 to find IDs carrying up to a +500 Da modification. Sage's own config files store this pair negated and swapped; the hover text says so, for anyone cross-checking a `config.json`. Only the display changed. What is saved and what is sent to Sage are unchanged.
 
 ### Fixed
 - **Run-bar "Processing" label used a hardcoded pure green** — switched to a plain label so it inherits the theme's normal text color, matching the elapsed-time label next to it.

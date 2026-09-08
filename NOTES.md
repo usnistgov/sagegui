@@ -920,9 +920,19 @@ Applied to ppm as well as Da, and to fragment as well as precursor. A partial
 re-framing would be worse than none, and symmetric windows look identical
 either way, so the visible change is only on asymmetric windows.
 
-The widget prints the stored raw pair underneath in small text, so anyone
-cross-checking a Sage config file does not think one of the two is wrong. That
-was the main caveat recorded against this item before it was built.
+The raw pair was briefly printed under the control, to answer the caveat about
+cross-checking a Sage config file. The maintainer removed it after seeing it
+live (2026-09-08): it reads as confusing noise to a user who does not care what
+Sage stores. The explanation now lives in the hover text only.
+
+**This is guarded in CI.** `every_bundled_template_shows_the_intended_delta_window`
+(`src/ui.rs` tests) runs every bundled template through the real import path and
+asserts the exact delta window the widget renders, via the same
+`displayed_delta()` the widget calls. A second test asserts that a typed delta
+window stores the matching Sage pair and reaches `Tolerance` unchanged. Both
+were confirmed to fail when the flip is sabotaged. CI runs `cargo test` on all
+four platforms, so a wrong flip cannot ship. If that test ever fails, do not
+flip the expected values to make it pass.
 
 ---
 

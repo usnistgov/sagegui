@@ -610,16 +610,28 @@ impl ToleranceConfig {
         (-delta_upper, -delta_lower)
     }
 
+    /// The window as the user sees it on screen: a delta-mass range.
+    ///
+    /// The widget renders exactly this, and the tests assert against exactly
+    /// this. Keep it that way. If a test computed the flip itself, it would be
+    /// checking its own arithmetic rather than what the GUI shows.
+    pub fn displayed_delta(&self) -> (f32, f32) {
+        let (lower, upper) = match *self {
+            ToleranceConfig::Ppm(a, b) | ToleranceConfig::Da(a, b) => (a, b),
+        };
+        Self::to_delta(lower, upper)
+    }
+
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
         // The widget works in DELTA MASS, which is how a person states the
         // window: "find IDs carrying up to +500 Da". Sage's own config files
         // store the opposite orientation. Only the display is flipped. What is
         // stored in `Config`, and what is written to Sage, stays raw.
-        let (raw_lower, raw_upper, unit, speed) = match *self {
-            ToleranceConfig::Ppm(a, b) => (a, b, "ppm", 1.0),
-            ToleranceConfig::Da(a, b) => (a, b, "Da", 0.01),
+        let (unit, speed) = match *self {
+            ToleranceConfig::Ppm(..) => ("ppm", 1.0),
+            ToleranceConfig::Da(..) => ("Da", 0.01),
         };
-        let (mut delta_lower, mut delta_upper) = Self::to_delta(raw_lower, raw_upper);
+        let (mut delta_lower, mut delta_upper) = self.displayed_delta();
 
         ui.horizontal(|ui| {
             ui.label("Delta mass from:");
@@ -643,12 +655,6 @@ impl ToleranceConfig {
                 *b = new_upper;
             }
         }
-
-        // Say plainly that this differs from a Sage config file, so anyone
-        // cross-checking the two does not think one of them is wrong.
-        ui.weak(format!(
-            "Sage stores this as [{new_lower}, {new_upper}]. It negates and swaps the pair."
-        ));
 
         Self::warn_if_inverted(ui, delta_lower, delta_upper);
     }
@@ -1782,6 +1788,87 @@ mod tests {
     #[test]
     fn symmetric_windows_look_identical_in_both_orientations() {
         assert_eq!(ToleranceConfig::to_delta(-20.0, 20.0), (-20.0, 20.0));
+    }
+
+    /// The guard that matters. For every bundled template, run the real
+    /// import path and assert the delta-mass window the widget will render,
+    /// written here the way a person says it out loud.
+    ///
+    /// This is deliberately end to end. The unit tests above prove the
+    /// arithmetic; this proves the whole chain, so it fails if anyone edits a
+    /// template file's numbers, changes the importer, or "fixes" the flip
+    /// direction. CI runs `cargo test`, so no build ships past a break here.
+    ///
+    /// If this test fails, do NOT flip the expected values to make it pass.
+    /// Read the STOP section at the top of AGENTS.md first.
+    #[test]
+    fn every_bundled_template_shows_the_intended_delta_window() {
+        // (file, precursor shown as delta, fragment shown as delta)
+        let expected: &[(&str, (f32, f32), (f32, f32))] = &[
+            // Wide MS1, tight MS2. Stored [-3.5, 1.25]. The +3.5 delta side is
+            // what absorbs monoisotopic peak misassignment.
+            ("tryptic-wide-ms1.json", (-1.25, 3.5), (-10.0, 10.0)),
+            ("tryptic-tight.json", (-20.0, 20.0), (-20.0, 20.0)),
+            // Open search. Stored [-500, 100]. A +500 Da modification is found
+            // by the -500 lower bound, and must READ as +500 to the user.
+            ("tryptic-open.json", (-100.0, 500.0), (-20.0, 20.0)),
+            ("tryptic-biofluid.json", (-20.0, 20.0), (-20.0, 20.0)),
+            ("tmt11.json", (-20.0, 20.0), (-0.4, 0.4)),
+        ];
+
+        let templates = crate::sage_json::bundled_templates();
+        assert_eq!(
+            templates.len(),
+            expected.len(),
+            "a template was added or removed without updating this test"
+        );
+
+        for (file, want_precursor, want_fragment) in expected {
+            let template = templates
+                .iter()
+                .find(|t| t.file == *file)
+                .unwrap_or_else(|| panic!("{file} is not in the bundled set"));
+
+            let mut config = Config::default();
+            let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);
+            template.doc.apply(&mut config, &mut p, &mut f, file);
+
+            assert_eq!(
+                config.precursor_tol.displayed_delta(),
+                *want_precursor,
+                "{file}: precursor window reads wrong. Stored {:?}",
+                config.precursor_tol
+            );
+            assert_eq!(
+                config.fragment_tol.displayed_delta(),
+                *want_fragment,
+                "{file}: fragment window reads wrong. Stored {:?}",
+                config.fragment_tol
+            );
+        }
+    }
+
+    /// What the user types is what gets stored, flipped exactly once. Catches
+    /// a double flip, which would look right on symmetric windows and be
+    /// silently wrong on every asymmetric one.
+    #[test]
+    fn typing_a_delta_window_stores_the_matching_sage_pair() {
+        // "I want to find modifications from -100 to +500 Da."
+        let (stored_lower, stored_upper) = ToleranceConfig::from_delta(-100.0, 500.0);
+        assert_eq!((stored_lower, stored_upper), (-500.0, 100.0));
+
+        let tol = ToleranceConfig::Da(stored_lower, stored_upper);
+        assert_eq!(
+            tol.displayed_delta(),
+            (-100.0, 500.0),
+            "what Sage stores must read back as what the user asked for"
+        );
+
+        // And that stored pair is what Sage itself receives.
+        match Tolerance::from(tol) {
+            Tolerance::Da(lo, hi) => assert_eq!((lo, hi), (-500.0, 100.0)),
+            other => panic!("expected a Da tolerance, got {other:?}"),
+        }
     }
 
     /// An inverted window stays inverted in delta space, so the existing
