@@ -27,8 +27,9 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - TMT (6/10/11/16/18-plex) and LFQ quantification
 - Database prefiltering (chunked FASTA processing) to bound peak memory on semi-enzymatic and non-specific searches
 - Settings remembered between sessions (parameters, file picks, active tab, and modifications)
-- Starting templates on the Experiment tab (tryptic tight/wide/open, high-resolution, semi-tryptic for biofluids, TMT 11-plex)
+- Starting templates on the Experiment tab (tryptic wide MS1/tight MS2, tight, open, biofluid, TMT 11-plex)
 - Load search parameters from any Sage `config.json` or a past run's `results.json`
+- Tolerance windows entered as a delta-mass range, so a +500 Da modification is set as +500
 - Stop button — cancels a run, including one already scoring spectra
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
 

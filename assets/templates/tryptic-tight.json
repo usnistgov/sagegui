@@ -1,8 +1,8 @@
 {
   "_sagegui": {
-    "name": "Tryptic \u2014 tight",
+    "name": "Tryptic - tight",
     "order": 2,
-    "description": "Tight precursor window: 10 ppm MS1, 20 ppm MS2, with isotope_errors -1 to +3 handling monoisotopic peak misassignment instead of a wide Da window. Same enzyme and modification base as the high-res go-to. Start here for well-calibrated Orbitrap DDA. The 20 ppm MS2 is sageRecon's validated Orbitrap/FT-ICR recommendation; only the MS1 window separates this from the wide template."
+    "description": "Classic tight MS1 and MS2. Uses isotope errors instead of a wide MS1 window. Trypsin, fixed C+57, variable Ox M."
   },
   "database": {
     "bucket_size": 8192,
@@ -36,8 +36,8 @@
   },
   "precursor_tol": {
     "ppm": [
-      -10.0,
-      10.0
+      -20.0,
+      20.0
     ]
   },
   "fragment_tol": {
@@ -46,6 +46,10 @@
       20.0
     ]
   },
+  "isotope_errors": [
+    -1,
+    3
+  ],
   "deisotope": true,
   "max_fragment_charge": 1,
   "chimera": false,
@@ -54,9 +58,5 @@
   "min_peaks": 15,
   "max_peaks": 150,
   "min_matched_peaks": 4,
-  "report_psms": 1,
-  "isotope_errors": [
-    -1,
-    3
-  ]
+  "report_psms": 1
 }

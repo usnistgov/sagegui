@@ -251,7 +251,7 @@ impl eframe::App for SageLauncher {
                         flag.store(true, Ordering::Relaxed);
                     }
                     self.stop_requested = true;
-                    self.status_message = "Stopping — finishing the current step…".to_string();
+                    self.status_message = "Stopping. Finishing the current step…".to_string();
                 }
 
                 if self.is_running {

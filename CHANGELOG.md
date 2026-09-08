@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Experiment templates** — the Experiment tab now has a working Templates picker with six bundled starting configurations: tryptic high-resolution (Michael Lazear's go-to settings), tryptic tight, tryptic wide, tryptic open, semi-tryptic for biofluids, and TMT 11-plex. Applying one replaces your search parameters. It never touches your selected files or output folder. This replaces the old Experiment Type dropdown, which stored its selection and changed nothing else.
+- **Experiment templates** — the Experiment tab now has a working Templates picker with five bundled starting configurations: tryptic wide MS1 / tight MS2, tryptic tight, tryptic open, tryptic biofluid, and TMT 11-plex. Applying one replaces your search parameters. It never touches your selected files or output folder. This replaces the old Experiment Type dropdown, which stored its selection and changed nothing else.
 - **Load settings from a Sage file** — point SageGUI at a `config.json` you gave the Sage command line, or at the `results.json` written into a past run's output folder, and it loads the search parameters. One reader handles both formats. Anything it could not apply is reported on screen, not dropped silently.
 - **Re-select notes on import** — an imported file records where its own data lived. Those paths are never applied, because they can be from another machine. The import now lists what it left behind, says whether each path still exists here, and points at the tab where you pick it again.
+
+### Changed
+- **Tolerance windows are now shown as a delta-mass range** — the precursor and fragment controls read "Delta mass from X to Y", which is how the window is normally described: set 500 to find IDs carrying up to a +500 Da modification. Sage's own config files store this pair negated and swapped, so the raw pair is printed under the control for anyone cross-checking a `config.json`. Only the display changed. What is saved and what is sent to Sage are unchanged.
 
 ### Fixed
 - **Run-bar "Processing" label used a hardcoded pure green** — switched to a plain label so it inherits the theme's normal text color, matching the elapsed-time label next to it.

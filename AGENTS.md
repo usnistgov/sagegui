@@ -46,51 +46,6 @@ it does damage.
 
 ---
 
-## STOP — the precursor window is written backwards
-
-Read this before you write, quote, or explain any precursor tolerance value.
-
-Sage applies the window to the **experimental** mass and searches for
-**theoretical** peptide masses inside it:
-
-```
-theoretical mass in [experimental + lower, experimental + upper]
-```
-
-Delta mass is `experimental - theoretical`. So the raw JSON pair and the
-delta-mass range are **negated and swapped**:
-
-```
-raw JSON [lower, upper]   <->   delta mass [-upper, -lower]
-```
-
-Worked examples. Learn these two:
-
-| Raw JSON (what Sage reads) | Delta mass (what a person means) |
-| -------------------------- | -------------------------------- |
-| `"da": [-3.5, 1.25]`       | -1.25 to +3.5 Da                 |
-| `"da": [-500, 100]`        | -100 to +500 Da                  |
-
-A **+500 Da modification** is found by a **-500 lower bound**. The large
-number always goes on the left in the JSON, with a minus sign.
-
-This has been explained more than once and got repeated wrong anyway. It is
-easy to state the rule correctly and then still describe a specific pair
-backwards in prose. So: every time you write a precursor window in a
-sentence, a table, a doc, a commit message, or a template description, do the
-negate-and-swap on paper first. Say which convention you are using. Never
-print a raw pair and call it a delta mass.
-
-Source of truth, if you doubt it: `Tolerance::bounds()` in
-`crates/sage/src/mass.rs` returns `(center + lo, center + hi)`, and
-`Database::query()` in `crates/sage/src/database.rs` calls it on the
-experimental precursor mass, then binary-searches peptides by their
-theoretical `monoisotopic` mass.
-
-See NOTES.md "Precursor/fragment tolerance window" for the UI history.
-
----
-
 ## The other docs (not the startup set)
 
 These exist alongside the dev-context files above. Know they're there and when to update them:
@@ -114,6 +69,8 @@ Rule of thumb: **the four dev-context files (AGENTS, PLAN, NOTES, JOURNAL) are t
 - Match the surrounding code's style, naming, and comment density.
 - **Batched atomic commits.** Group logically-related file changes (a code change + the doc update explaining it) into a single commit. One commit = one coherent decision. Hold related edits together before committing rather than committing each as it's finished.
 - **Write in ASD-STE100.** Simplified Technical English. Short sentences. One idea each. Applies to commit messages and everything written in PLAN, NOTES, and JOURNAL.
+- **No em dashes in UI text.** Template descriptions, tooltips, status lines and labels use full stops and short sentences. Prose in PLAN, NOTES and JOURNAL is not affected by this rule.
+- **UI text is shorter than you think.** A template description names what is unique about that template. It does not explain the background or repeat what every template shares. Put the reasoning in NOTES and leave the UI bare.
 
 ---
 

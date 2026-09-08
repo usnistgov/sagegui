@@ -637,24 +637,20 @@ fn convert_tolerance(tol: Tolerance) -> Option<(ToleranceConfig, ToleranceType)>
 /// user's own templates come in through "Load Sage config…" instead.
 pub const BUNDLED_TEMPLATES: &[(&str, &str)] = &[
     (
-        "tryptic-highres.json",
-        include_str!("../assets/templates/tryptic-highres.json"),
+        "tryptic-wide-ms1.json",
+        include_str!("../assets/templates/tryptic-wide-ms1.json"),
     ),
     (
         "tryptic-tight.json",
         include_str!("../assets/templates/tryptic-tight.json"),
     ),
     (
-        "tryptic-wide.json",
-        include_str!("../assets/templates/tryptic-wide.json"),
-    ),
-    (
         "tryptic-open.json",
         include_str!("../assets/templates/tryptic-open.json"),
     ),
     (
-        "semi-tryptic-biofluids.json",
-        include_str!("../assets/templates/semi-tryptic-biofluids.json"),
+        "tryptic-biofluid.json",
+        include_str!("../assets/templates/tryptic-biofluid.json"),
     ),
     ("tmt11.json", include_str!("../assets/templates/tmt11.json")),
 ];
@@ -755,16 +751,15 @@ mod tests {
         );
     }
 
-    /// Michael Lazear's go-to high-resolution config, verbatim. The precursor
-    /// window is a delta mass of -1.25 to +3.5 Da, which Sage writes as the
-    /// negated-and-swapped raw pair [-3.5, 1.25]. Asserting the raw pair here
-    /// pins the convention: see AGENTS.md.
+    /// The wide-MS1 template's window is a delta mass of -1.25 to +3.5 Da,
+    /// which Sage stores as the negated-and-swapped raw pair [-3.5, 1.25].
+    /// Asserting the raw pair here pins the convention: see AGENTS.md.
     #[test]
-    fn highres_template_keeps_raw_window_orientation() {
+    fn wide_ms1_template_keeps_raw_window_orientation() {
         let t = bundled_templates();
         let highres = t
             .iter()
-            .find(|t| t.file == "tryptic-highres.json")
+            .find(|t| t.file == "tryptic-wide-ms1.json")
             .expect("template present");
         let mut config = Config::default();
         let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);

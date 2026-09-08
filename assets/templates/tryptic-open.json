@@ -1,8 +1,8 @@
 {
   "_sagegui": {
-    "name": "Tryptic \u2014 open",
-    "order": 4,
-    "description": "Open search for unknown-modification discovery. Precursor window is DELTA MASS -100 to +500 Da, which in Sage's raw convention is written [-500, 100] (negated and reversed). Read that carefully: a +500 Da modification is found by the -500 LOWER bound, not by a +500 upper bound. Expect a long run and a much larger search space; consider lowering max_variable_mods if memory is tight."
+    "name": "Tryptic - open",
+    "order": 3,
+    "description": "Open search for unknown modifications. Finds delta masses from -100 to +500 Da. Expect a long run and a much larger search space. Trypsin, fixed C+57, variable Ox M."
   },
   "database": {
     "bucket_size": 8192,
@@ -46,6 +46,10 @@
       20.0
     ]
   },
+  "isotope_errors": [
+    0,
+    0
+  ],
   "deisotope": true,
   "max_fragment_charge": 1,
   "chimera": false,
@@ -54,9 +58,5 @@
   "min_peaks": 15,
   "max_peaks": 150,
   "min_matched_peaks": 4,
-  "report_psms": 1,
-  "isotope_errors": [
-    0,
-    0
-  ]
+  "report_psms": 1
 }

@@ -1,8 +1,8 @@
 {
   "_sagegui": {
     "name": "TMT 11-plex",
-    "order": 6,
-    "description": "Typical TMT search from Michael Lazear. Static TMT (229.16293 -- TMT 6/10/11-plex, NOT TMTpro 304.2) on lysine and the peptide N-terminus, on top of carbamidomethyl C. The 0.4 Da fragment tolerance suits an ion-trap MS2; tighten to ~20 ppm for a high-resolution MS2. Both tolerance windows are symmetric. NOTE: TMT has never been tested end-to-end in SageGUI -- LFQ is the only validated path."
+    "order": 5,
+    "description": "Static TMT on lysine and the peptide N-terminus, plus fixed C+57. The 0.4 Da MS2 suits an ion trap. Tighten it to ppm for a high-resolution MS2. TMT is not yet tested end to end in SageGUI."
   },
   "database": {
     "bucket_size": 64000,

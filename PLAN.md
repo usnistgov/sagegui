@@ -10,7 +10,7 @@
 
 - **Current phase:** Phase 5 in progress. Experiment templates and Sage-JSON import both landed 2026-09-08, closing the two oldest open UI items (the inert archetype dropdown, and Save/Load Config). Six bundled templates ship, stored in **Sage's own schema** so they double as valid Sage CLI input; one reader handles both a `config.json` and a past run's `results.json`. Template values come from Michael Lazear directly, plus `usnistgov/sageRecon` for the validated 20 ppm Orbitrap MS2 number. Before that, v0.7.1 shipped and was confirmed on all three platforms.
 - **Last updated:** 2026-09-08
-- **Next action (next session):** **Live-test the Experiment tab.** Nothing in this session's UI was clicked — there is still no native macOS UI automation here, so the picker, the Apply button, the file dialog, and the re-select notes are all unverified visually. Everything under them is covered by 20 passing tests, including one that reads Sage's own serialized `Search` output. Reproduce: open Experiment, apply each of the six templates, confirm the Search/Modifications/Quant tabs change to match, then load a real `results.json` from `~/Documents/proteomicsTesting/` and confirm the re-select notes name the right files. Then: **enzyme presets from sageRecon** (maintainer decision 2026-09-08 to defer them to their own session) — 14 curated enzymes with cleavage rules, including the Asp-N / Lys-N N-terminal case the current UI gives no guidance on. Also still open: session resilience, results-summary panel, smarter output directory, better validation, and all of Phase 6.
+- **Next action (next session):** **Live-test the Experiment tab.** Nothing in this session's UI was clicked — there is still no native macOS UI automation here, so the picker, the Apply button, the file dialog, and the re-select notes are all unverified visually. Everything under them is covered by 20 passing tests, including one that reads Sage's own serialized `Search` output. Reproduce: open Experiment, apply each of the five templates, confirm the Search/Modifications/Quant tabs change to match, then load a real `results.json` from `~/Documents/proteomicsTesting/` and confirm the re-select notes name the right files. Then: **enzyme presets from sageRecon** (maintainer decision 2026-09-08 to defer them to their own session) — 14 curated enzymes with cleavage rules, including the Asp-N / Lys-N N-terminal case the current UI gives no guidance on. Also still open: session resilience, results-summary panel, smarter output directory, better validation, and all of Phase 6.
 - **Released:** `v0.7.1` (2026-08-24) — Stop button now genuinely cancels an in-progress search (`neely/sage` commit `ed5f06c`), settings persistence fixed for modifications + fully audited, real app icon, macOS `.app` bundle packaging (fixes a terminal window opening alongside the GUI). Previous: `v0.7.0` — Multi-FASTA + on-the-fly concatenation. `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`).
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -212,7 +212,7 @@ Provide a user-friendly graphical interface for Sage that:
 - [ ] Parameter presets (default, open search, semi-enzymatic) *(Experiment tab dropdown exists but is **inert** — selecting an archetype does nothing to the other tabs; confirmed 2026-08-13. Needs `apply_archetype`. See NOTES → UI-review feedback #6.)*
 - [x] Load configuration from a Sage JSON file — **done 2026-09-08**, import-only, as scoped in NOTES UI-review #1. Reads both a Sage `config.json` and a past run's `results.json`; reports anything it could not apply, and lists the file paths it deliberately ignored. Export back to Sage schema is not built.
 - [ ] Better error messages and validation
-- [ ] **Delta-mass framing for the Da tolerance window (behavior change — DEFERRED, caveats)** — Optionally let the user enter the precursor Da window in **delta-mass / modification space** (type `+500` for "find IDs carrying a +500 Da mod") instead of Sage's raw `(lower, upper)` relative to the experimental mass, where a `-500` lower bound is what actually finds a +500 Da mod. This is the sign-flip Michael flagged. **Currently NOT done** — the GUI passes the two boxes through verbatim as Sage's `(lower, upper)`, and we added Lower/Upper labels + hover text + an inverted-window warning to explain the raw convention (see NOTES → "Precursor/fragment tolerance window — sign & delta-mass convention"). **Caveats before building this:**
+- [x] **Delta-mass framing for the tolerance windows — DONE 2026-09-08.** Built in the shape this item specified as preferred: display-only. The widget shows a delta-mass range; `Config` and everything sent to Sage stay in the raw convention. Applied to ppm and Da, precursor and fragment, since a partial re-framing would be worse than none. The stored raw pair is printed under the control so a Sage config file can still be cross-checked. Original caveats and the reasoning are kept below for the record. — Optionally let the user enter the precursor Da window in **delta-mass / modification space** (type `+500` for "find IDs carrying a +500 Da mod") instead of Sage's raw `(lower, upper)` relative to the experimental mass, where a `-500` lower bound is what actually finds a +500 Da mod. This is the sign-flip Michael flagged. **Currently NOT done** — the GUI passes the two boxes through verbatim as Sage's `(lower, upper)`, and we added Lower/Upper labels + hover text + an inverted-window warning to explain the raw convention (see NOTES → "Precursor/fragment tolerance window — sign & delta-mass convention"). **Caveats before building this:**
   - **Divergence from Sage.** Every Sage `config.json`, the CLI, and the docs use the raw `(center + lower, center + upper)` convention. A delta-mass GUI would flip signs, so a value shown in SageGUI would not match the number in a Sage config file — confusing for users who cross-reference, and a Save/Load Config round-trip would need to convert both ways without drift.
   - **Only the Da precursor window has an intuitive delta-mass reading.** ppm and fragment tolerances don't; a partial re-framing (Da-precursor only) risks being *more* confusing than a consistent raw convention.
   - **Two-number asymmetry doesn't collapse to one.** Delta-mass framing is cleanest for a single offset, but the window is still a `(lower, upper)` pair — a delta-mass UI still has to present two bounds, so the win is mainly sign intuition, not simplicity.
@@ -246,11 +246,13 @@ Chosen 2026-08-13 over hardcoded `apply_archetype`. **A template *is* a saved
 config JSON** — reuse the existing Save/Load Config plumbing:
 
 - [x] Ship bundled example templates in `assets/templates/`. *(2026-09-08:
-  six shipped — `tryptic-highres`, `tryptic-tight`, `tryptic-wide`,
-  `tryptic-open`, `semi-tryptic-biofluids`, `tmt11`. Built from settings
-  Michael Lazear supplied directly, plus sageRecon's validated 20 ppm Orbitrap
-  MS2 number. Stored in Sage's own schema, so each file is also valid Sage CLI
-  input. No phospho template, by decision — Sage models no neutral losses.)*
+  five shipped — `tryptic-wide-ms1`, `tryptic-tight`, `tryptic-open`,
+  `tryptic-biofluid`, `tmt11`. Built from settings Michael Lazear supplied
+  directly, plus sageRecon's validated 20 ppm Orbitrap MS2 number. Stored in
+  Sage's own schema, so each file is also valid Sage CLI input. Names and
+  descriptions set by the maintainer 2026-09-08. No phospho template, and no
+  separate "wide" template — Sage models no neutral losses, and "wide" was a
+  misnomer. See NOTES "The bundled set".)*
 - [x] Replace the inert Experiment dropdown with a **Templates** dropdown that
   loads a bundled JSON into `self.config`. *(2026-09-08.)* **"Save current as
   template" is NOT built** — it needs an exporter from `Config` back to Sage's
@@ -418,8 +420,9 @@ Phase 6 is planned but untouched.
 **Immediate next actions (in order):**
 
 1. **Live-test the Experiment tab** (2026-09-08 work, never clicked). Apply each
-   of the six templates, confirm the other tabs change to match, then import a
-   real `results.json` and check the re-select notes.
+   of the five templates, confirm the other tabs change to match, then import a
+   real `results.json` and check the re-select notes. Also check the flipped
+   tolerance display: the open template must read "from -100 to 500".
 2. **Enzyme presets from sageRecon** — see the Phase 5 section above.
 3. **Locate rollup scripts** — they exist in a separate project (not sagePreview).
    Find them, read them, record language + structure in NOTES before Phase 6 can

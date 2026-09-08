@@ -355,7 +355,7 @@ pub const MOD_PRESETS: &[ModPreset] = &[
         label: "Trimethyl (K/R)",
         keys: &[("K", 42.04695), ("R", 42.04695)],
         accession: 37,
-        note: "Distinct from Acetyl (42.010565) — do not conflate.",
+        note: "Distinct from Acetyl (42.010565). Do not conflate.",
     },
 ];
 
@@ -593,60 +593,74 @@ impl Default for ToleranceConfig {
 }
 
 impl ToleranceConfig {
-    pub fn update_section(&mut self, ui: &mut egui::Ui) {
-        // Sage applies the window to the *experimental* precursor mass:
-        //   candidate theoretical mass ∈ [experimental + lower, experimental + upper]
-        // so the lower bound is normally negative and the upper positive. A
-        // negative lower bound searches theoretical peptides *below* the observed
-        // mass, i.e. peptides carrying a *positive* delta mass relative to the ID
-        // (e.g. lower = -500 finds peptides that would carry a +500 Da modification).
-        match self {
-            ToleranceConfig::Ppm(a, b) => {
-                ui.horizontal(|ui| {
-                    ui.label("Lower:");
-                    ui.add(egui::DragValue::new(a).speed(1)).on_hover_text(
-                        "Lower bound in ppm, relative to the experimental mass. \
-                         Normally negative.",
-                    );
-                    ui.label("Upper:");
-                    ui.add(egui::DragValue::new(b).speed(1)).on_hover_text(
-                        "Upper bound in ppm, relative to the experimental mass. \
-                         Normally positive.",
-                    );
-                });
-                Self::warn_if_inverted(ui, *a, *b);
-            }
-            ToleranceConfig::Da(a, b) => {
-                ui.horizontal(|ui| {
-                    ui.label("Lower:");
-                    ui.add(egui::DragValue::new(a).speed(0.01)).on_hover_text(
-                        "Lower bound in Da, relative to the experimental precursor mass \
-                         (normally negative). Sage searches theoretical peptides down to \
-                         `experimental + lower`. A negative value finds lighter peptides — \
-                         i.e. IDs carrying a positive delta mass. Example: Lower = -500 \
-                         searches peptides 500 Da below the observed mass (a +500 Da mod).",
-                    );
-                    ui.label("Upper:");
-                    ui.add(egui::DragValue::new(b).speed(0.01)).on_hover_text(
-                        "Upper bound in Da, relative to the experimental precursor mass \
-                         (normally positive). Sage searches theoretical peptides up to \
-                         `experimental + upper`. Example: -500, 100 searches from 500 Da \
-                         below to 100 Da above the observed precursor mass.",
-                    );
-                });
-                Self::warn_if_inverted(ui, *a, *b);
-            }
-        }
+    /// Convert the stored Sage pair into the delta-mass pair shown to the user.
+    ///
+    /// Sage applies the window to the *experimental* mass and looks for
+    /// *theoretical* peptide masses inside it:
+    ///   `theoretical in [experimental + lower, experimental + upper]`
+    /// Delta mass is `experimental - theoretical`, so the two orientations are
+    /// the negation of each other with the bounds swapped. See AGENTS.md.
+    fn to_delta(raw_lower: f32, raw_upper: f32) -> (f32, f32) {
+        (-raw_upper, -raw_lower)
     }
 
-    /// Non-blocking hint if the window is inverted (lower > upper), which would
-    /// make Sage compute an empty search range.
+    /// Inverse of [`to_delta`]. Same operation, since negate-and-swap is its
+    /// own inverse.
+    fn from_delta(delta_lower: f32, delta_upper: f32) -> (f32, f32) {
+        (-delta_upper, -delta_lower)
+    }
+
+    pub fn update_section(&mut self, ui: &mut egui::Ui) {
+        // The widget works in DELTA MASS, which is how a person states the
+        // window: "find IDs carrying up to +500 Da". Sage's own config files
+        // store the opposite orientation. Only the display is flipped. What is
+        // stored in `Config`, and what is written to Sage, stays raw.
+        let (raw_lower, raw_upper, unit, speed) = match *self {
+            ToleranceConfig::Ppm(a, b) => (a, b, "ppm", 1.0),
+            ToleranceConfig::Da(a, b) => (a, b, "Da", 0.01),
+        };
+        let (mut delta_lower, mut delta_upper) = Self::to_delta(raw_lower, raw_upper);
+
+        ui.horizontal(|ui| {
+            ui.label("Delta mass from:");
+            ui.add(egui::DragValue::new(&mut delta_lower).speed(speed))
+                .on_hover_text(format!(
+                    "Most negative delta mass to search, in {unit}. A modification that \
+                     removes mass gives a negative delta."
+                ));
+            ui.label("to:");
+            ui.add(egui::DragValue::new(&mut delta_upper).speed(speed))
+                .on_hover_text(format!(
+                    "Most positive delta mass to search, in {unit}. Set 500 to find IDs \
+                     carrying a modification of up to +500 {unit}."
+                ));
+        });
+
+        let (new_lower, new_upper) = Self::from_delta(delta_lower, delta_upper);
+        match self {
+            ToleranceConfig::Ppm(a, b) | ToleranceConfig::Da(a, b) => {
+                *a = new_lower;
+                *b = new_upper;
+            }
+        }
+
+        // Say plainly that this differs from a Sage config file, so anyone
+        // cross-checking the two does not think one of them is wrong.
+        ui.weak(format!(
+            "Sage stores this as [{new_lower}, {new_upper}]. It negates and swaps the pair."
+        ));
+
+        Self::warn_if_inverted(ui, delta_lower, delta_upper);
+    }
+
+    /// Non-blocking hint if the window is inverted, which would make Sage
+    /// compute an empty search range. The test is the same in either
+    /// orientation, because negate-and-swap preserves the ordering.
     fn warn_if_inverted(ui: &mut egui::Ui, lower: f32, upper: f32) {
         if lower > upper {
             ui.colored_label(
                 egui::Color32::from_rgb(0xE0, 0x8A, 0x00),
-                "⚠ Lower bound is greater than upper — this is an empty window. \
-                 The lower value should normally be the smaller (often negative) one.",
+                "⚠ The first value is greater than the second. This is an empty window.",
             );
         }
     }
@@ -923,7 +937,7 @@ impl SageLauncher {
             if self.templates.is_empty() {
                 ui.colored_label(
                     ui.visuals().error_fg_color,
-                    "No bundled templates loaded — this is a build problem, not a settings one.",
+                    "No bundled templates loaded. This is a build problem, not a settings one.",
                 );
                 return;
             }
@@ -1037,7 +1051,7 @@ impl SageLauncher {
                 if !report.needs_reselect.is_empty() {
                     ui.add_space(4.0);
                     ui.group(|ui| {
-                        ui.strong("Not imported — pick these again yourself");
+                        ui.strong("Not imported. Pick these again yourself");
                         ui.weak(
                             "The file records where its own data lived. Those paths are not \
                              applied, because they may be from another machine.",
@@ -1175,7 +1189,7 @@ impl SageLauncher {
                 .on_hover_text(
                     "On (Sage's default): score every preliminary hit and keep only the \
                      best few per spectrum per chunk. Lowest memory, most CPU. Off: keep \
-                     every preliminary hit unscored — more memory, less CPU, and closer \
+                     every preliminary hit unscored. More memory, less CPU, and closer \
                      to a non-prefiltered search's FDR behaviour.",
                 );
             });
@@ -1273,7 +1287,7 @@ impl SageLauncher {
             ui.heading("Search Behavior");
             ui.horizontal(|ui| {
                 ui.label("Isotope Errors Min:")
-                    .on_hover_text("C13 isotope-error offsets. Slower than simply widening precursor tolerance to cover the same mass range — prefer a wider Da window when unsure.");
+                    .on_hover_text("C13 isotope-error offsets. Slower than simply widening precursor tolerance to cover the same mass range. Prefer a wider Da window when unsure.");
                 ui.add(egui::DragValue::new(&mut self.config.isotope_errors.0).range(-5..=0));
                 ui.label("Max:");
                 ui.add(egui::DragValue::new(&mut self.config.isotope_errors.1).range(0..=10));
@@ -1617,7 +1631,7 @@ impl SageLauncher {
                 .show(ui, |ui| {
                     ui.set_min_width(ui.available_width());
                     if self.log_lines.is_empty() {
-                        ui.weak("No output yet — run a search to see live log output here.");
+                        ui.weak("No output yet. Run a search to see live log output here.");
                     } else {
                         for line in &self.log_lines {
                             ui.monospace(line);
@@ -1727,6 +1741,58 @@ impl SageLauncher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The GUI shows the precursor window as a delta mass, which is how a
+    /// person states it. Sage stores the opposite orientation. Getting this
+    /// backwards has been the single most repeated mistake in this project,
+    /// so both directions are pinned here. See AGENTS.md.
+    #[test]
+    fn delta_display_negates_and_swaps_the_stored_pair() {
+        // Michael Lazear's wide-MS1 window: stored [-3.5, 1.25], and what the
+        // user means by it is a delta mass of -1.25 to +3.5.
+        assert_eq!(ToleranceConfig::to_delta(-3.5, 1.25), (-1.25, 3.5));
+        // The open search: stored [-500, 100] means delta -100 to +500. A
+        // +500 Da modification really is found by a -500 lower bound.
+        assert_eq!(ToleranceConfig::to_delta(-500.0, 100.0), (-100.0, 500.0));
+    }
+
+    /// Editing a value in the widget must not drift it. The widget converts
+    /// out and back on every frame, so a non-identity round trip would walk
+    /// the user's numbers away from what they typed.
+    #[test]
+    fn delta_round_trip_is_the_identity() {
+        for (lo, hi) in [
+            (-3.5f32, 1.25f32),
+            (-500.0, 100.0),
+            (-10.0, 10.0),
+            (-20.0, 20.0),
+            (0.0, 0.0),
+        ] {
+            let (d_lo, d_hi) = ToleranceConfig::to_delta(lo, hi);
+            assert_eq!(
+                ToleranceConfig::from_delta(d_lo, d_hi),
+                (lo, hi),
+                "round trip drifted for [{lo}, {hi}]"
+            );
+        }
+    }
+
+    /// A symmetric window looks the same in either orientation, which is
+    /// exactly why this bug hides: it only shows up on asymmetric windows.
+    #[test]
+    fn symmetric_windows_look_identical_in_both_orientations() {
+        assert_eq!(ToleranceConfig::to_delta(-20.0, 20.0), (-20.0, 20.0));
+    }
+
+    /// An inverted window stays inverted in delta space, so the existing
+    /// empty-window warning keeps working after the flip.
+    #[test]
+    fn inversion_is_preserved_by_the_flip() {
+        let (lo, hi) = (5.0f32, -5.0f32); // stored inverted
+        assert!(lo > hi);
+        let (d_lo, d_hi) = ToleranceConfig::to_delta(lo, hi);
+        assert!(d_lo > d_hi, "an empty window must still read as empty");
+    }
 
     /// Simulates a config JSON saved by v0.7.0, before the prefilter fields
     /// existed: serializes the real default shape, then strips the three new

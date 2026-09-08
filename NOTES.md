@@ -867,33 +867,64 @@ Fixing it properly needs the multi-row modification model already noted under
 
 ### The bundled set (2026-09-08)
 
-Six templates. All tryptic ones share Michael's enzyme and modification base:
-trypsin/P, 2 missed cleavages, length 7-50, static C +57.0215, variable
-M +15.9949, `max_variable_mods` 3, `min_matched_peaks` 4, `bucket_size` 8192.
+Five templates. All tryptic ones share the same enzyme base, from Michael
+Lazear: trypsin/P (`restrict: null`), 2 missed cleavages, length 7-50, static
+C +57.0215, variable Ox M, `max_variable_mods` 3, `min_matched_peaks` 4,
+`bucket_size` 8192.
 
 | File | Precursor (raw Sage pair) | Fragment | Isotope errors |
 | ---- | ------------------------- | -------- | -------------- |
-| `tryptic-highres.json` | `da [-3.5, 1.25]` = delta -1.25 to +3.5 | ppm 10 | (0,0) |
-| `tryptic-tight.json` | ppm 10 | ppm 20 | (-1,3) |
-| `tryptic-wide.json` | ppm 20 | ppm 20 | (-1,3) |
+| `tryptic-wide-ms1.json` | `da [-3.5, 1.25]` = delta -1.25 to +3.5 | ppm 10 | (0,0) |
+| `tryptic-tight.json` | ppm 20 | ppm 20 | (-1,3) |
 | `tryptic-open.json` | `da [-500, 100]` = delta -100 to +500 | ppm 20 | (0,0) |
-| `semi-tryptic-biofluids.json` | ppm 10 | ppm 20 | (-1,3) |
+| `tryptic-biofluid.json` | ppm 20 | ppm 20 | (-1,3) |
 | `tmt11.json` | ppm 20 | da 0.4 | (0,3) |
 
-Read the precursor column with AGENTS.md's negate-and-swap rule in hand.
+Read the precursor column with the negate-and-swap rule in hand. The files stay
+in Sage's raw convention, because they must remain valid Sage CLI input. The GUI
+displays them flipped. See "Tolerance display is delta mass" below.
 
-The 20 ppm MS2 on tight/wide comes from `usnistgov/sageRecon`, whose Orbitrap
-/ FT-ICR recommendation is the one row there validated against real data. The
-high-resolution template keeps Michael's 10 ppm, since it is his config as
-given. Michael's own `da [-3.5, 1.25]` window is an isotope-error substitute:
-the +3.5 delta side absorbs monoisotopic peak misassignment of up to 3
-carbon-13, which is why that template leaves `isotope_errors` at (0,0).
+**Wide MS1 / tight MS2** is the approach used by Wilmarth, Lazear and others.
+The wide MS1 window absorbs the instrument's monoisotopic peak misassignment
+(up to 3 carbon-13 on the positive delta side), so no isotope-error setting is
+needed. This is why that template alone leaves `isotope_errors` unset.
 
-**Not shipped, by decision:** a phospho template. Sage does not model neutral
-losses, so it is not a strong phospho engine, and bundling a template would
-imply a recommendation we cannot support. Semi-tryptic ships for biofluids
-only, and its values are a starting point, not validated against a real
-biofluid run.
+**Tight** does the same job the other way: narrow ppm windows plus isotope
+errors of -1 to +3. It is 20/20 rather than 10/10 by maintainer decision
+(2026-09-08), matching sageRecon's validated Orbitrap/FT-ICR number.
+
+**Biofluid** is semi-enzymatic with database chunking on, because
+semi-enzymatic digestion roughly doubles the peptide space. Its modifications
+are the set Neely uses for biofluids: fixed C +57, variable Ox M, pyro-Glu on
+peptide N-term Q (`^Q`, -17.026549) and acetyl on the protein N-term (`[`,
++42.010565).
+
+**Not shipped, by decision:** phospho, and a separate "wide" tryptic template.
+Sage models no neutral losses, so it is not a strong phospho engine. The old
+`tryptic-wide` was a misnomer and was removed; wide MS1 and tight are the real
+distinction.
+
+### Tolerance display is delta mass (2026-09-08)
+
+The tolerance widget now shows the window as a **delta-mass range**, not as
+Sage's raw pair. Reads "Delta mass from -1.25 to 3.5", where the stored value
+is `[-3.5, 1.25]`.
+
+This un-defers the PLAN item "Delta-mass framing for the Da tolerance window",
+and takes exactly the shape that item specified as preferred: display-only.
+`Config` and everything written to Sage stay in the raw convention. The flip
+happens at the widget boundary in `ToleranceConfig::update_section`, through
+`to_delta` and `from_delta`, which are the same operation in both directions.
+
+Applied to ppm as well as Da, and to fragment as well as precursor. A partial
+re-framing would be worse than none, and symmetric windows look identical
+either way, so the visible change is only on asymmetric windows.
+
+The widget prints the stored raw pair underneath in small text, so anyone
+cross-checking a Sage config file does not think one of the two is wrong. That
+was the main caveat recorded against this item before it was built.
+
+---
 
 ---
 

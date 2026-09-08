@@ -34,6 +34,18 @@ Consulted `usnistgov/sageRecon` (the maintainer's own NIST tool) on their prompt
 
 **Suggested improvement (Q5):** When the maintainer has to correct the same factual point twice, treat it as a signal that the existing note is in the wrong *place*, not that it needs restating. The memory file was accurate and useless at the moment of writing; moving it to the top of the file the protocol says to read first, phrased as an action to perform rather than a fact to know, is the actual fix.
 
+**Addendum, same session, after maintainer review:** Four rounds of correction followed the first commit, and three are worth recording.
+
+1. **The tolerance display was flipped.** The maintainer pointed out that the GUI showed the raw Sage pair, so the wide-MS1 window read "-3.5 to 1.25" when the real search is a delta mass of -1.25 to +3.5. This un-defers the PLAN item "Delta-mass framing for the Da tolerance window" and builds it in exactly the shape that item had recorded as preferred: display-only, with `Config` and everything sent to Sage left in the raw convention. Applied to ppm as well as Da, and to fragment as well as precursor, since PLAN's own caveat says a partial re-framing would be worse than none. The widget prints the stored raw pair underneath, which answers the other caveat about cross-checking a Sage config file. Four tests pin the conversion, including that it is its own inverse (the widget converts out and back every frame, so a non-identity round trip would walk the user's numbers away from what they typed).
+
+2. **The template set was wrong.** Renamed and rebuilt to the maintainer's spec: "wide MS1 / tight MS2" instead of "high-res go-to", tight moved to 20/20 with isotope errors, the "wide" template removed as a misnomer, biofluid given the real mod set Neely uses. Five templates now, not six.
+
+3. **I broke a file with a blind substitution.** Told to drop em dashes, I ran a mechanical replace over AGENTS.md and `sage_json.rs`. It mangled prose into fragments ("# SageGUI. Agent protocol", "Consult before changing anything that looks wrong. it might be intentional") and damaged a STOP section the maintainer had written themselves. Recovered both files from HEAD and redid the work by hand. The scope was also wrong: only UI text needed the change, not the docs. AGENTS.md now carries the rule scoped to UI text, and the redundant second STOP section I had added was removed in favour of the maintainer's own.
+
+**Least confident about, revised (Q1):** Whether the flipped tolerance display reads correctly in the running app. The conversion is proved by test, but no one has seen the widget render. Proven right or wrong by opening the Search tab with the open template applied: it must read "Delta mass from -100 to 500", with "Sage stores this as [-500, 100]" underneath.
+
+**Suggested improvement, revised (Q5):** Never apply a text-style rule with a blind find-and-replace across files. A rule like "no em dashes" is about how to write the next sentence, not a transformation to run over sentences that already exist. Ask what scope is meant, then edit by hand within it.
+
 ---
 
 ## 2026-08-24 — Trailer cleanup; live Sage-log panel; first live test finds two real bugs
