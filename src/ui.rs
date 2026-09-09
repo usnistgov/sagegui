@@ -178,6 +178,21 @@ impl Default for EnzymeConfig {
 }
 
 impl EnzymeConfig {
+    /// The restriction Sage will actually apply.
+    ///
+    /// `enable_restrict` and `restrict_char` disagree routinely. Importing a
+    /// Sage config with `"restrict": null` clears the flag but leaves the
+    /// character behind (see `sage_json`), so reading the raw field would
+    /// report a restriction that is not in force. Everything that needs to
+    /// know the real rule goes through here.
+    pub fn effective_restrict(&self) -> &str {
+        if self.enable_restrict && self.restrict_char.chars().count() == 1 {
+            &self.restrict_char
+        } else {
+            ""
+        }
+    }
+
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
         ui.heading("Enzyme Settings");
         ui.add(egui::Slider::new(&mut self.missed_cleavages, 0..=5).text("Missed Cleavages"))
@@ -207,21 +222,54 @@ impl EnzymeConfig {
 
 impl From<EnzymeConfig> for EnzymeBuilder {
     fn from(val: EnzymeConfig) -> Self {
-        let restrict = if val.enable_restrict && val.restrict_char.len() == 1 {
-            Some(val.restrict_char.chars().next().unwrap())
-        } else {
-            None
-        };
+        let restrict = val.effective_restrict().to_string();
         EnzymeBuilder {
             missed_cleavages: Some(val.missed_cleavages),
             min_len: Some(val.min_len),
             max_len: Some(val.max_len),
             cleave_at: Some(val.cleave_at),
-            restrict: restrict.map(|c| c.to_string()),
+            restrict: if restrict.is_empty() {
+                None
+            } else {
+                Some(restrict)
+            },
             c_terminal: Some(val.c_terminal),
             semi_enzymatic: Some(val.semi_enzymatic),
         }
     }
+}
+
+/// Residues Sage will accept in an enzyme rule. Read from `VALID_AA` in the
+/// pinned Sage source (`crates/sage/src/enzyme.rs`): the 20 standard residues
+/// plus U and O. Not B, Z, J or X.
+const SAGE_VALID_AA: &str = "ACDEFGHIKLMNPQRSTVWYUO";
+
+/// Reject what Sage's `Enzyme::new` would `assert!` on.
+///
+/// This is a hang guard, not a style check. Sage is compiled in, so the assert
+/// fires on the run thread inside `input.build()`. The GUI cannot see that as a
+/// channel disconnect (see the `catch_unwind` note in `src/main.rs`), and
+/// before that guard existed a single stray character left the run bar spinning
+/// forever with no message.
+///
+/// Two inputs must pass, or valid configurations break: an empty `cleave_at`
+/// means non-specific digestion, and `"$"` means no digestion. Sage allows both
+/// explicitly.
+pub fn validate_enzyme_residues(enzyme: &EnzymeConfig) -> Result<(), String> {
+    let check = |field: &str, value: &str| -> Result<(), String> {
+        match value.chars().find(|c| !SAGE_VALID_AA.contains(*c)) {
+            None => Ok(()),
+            Some(bad) => Err(format!(
+                "Enzyme {field} contains '{bad}', which is not an amino acid Sage accepts. \
+                 Use only {SAGE_VALID_AA}, in capitals."
+            )),
+        }
+    };
+
+    if enzyme.cleave_at != "$" {
+        check("Cleave At", &enzyme.cleave_at)?;
+    }
+    check("Restrict", enzyme.effective_restrict())
 }
 
 // ─── IonKindSelection ────────────────────────────────────────────────────────
@@ -1747,6 +1795,99 @@ impl SageLauncher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Sage `assert!`s on non-residue characters, on the run thread. Before
+    /// the guard, one stray keystroke in Cleave At hung the app with no
+    /// message. Reject exactly what Sage rejects, and nothing more.
+    #[test]
+    fn the_validator_rejects_what_sage_asserts_on() {
+        let mut e = EnzymeConfig::default();
+
+        for bad in ["B", "Z", "J", "X", "kr", "K1", "K R"] {
+            e.cleave_at = bad.to_string();
+            assert!(
+                validate_enzyme_residues(&e).is_err(),
+                "{bad:?} should be rejected before it reaches Sage"
+            );
+        }
+
+        for good in ["KR", "FYWL", "U", "O", "ACDEFGHIKLMNPQRSTVWYUO"] {
+            e.cleave_at = good.to_string();
+            assert!(
+                validate_enzyme_residues(&e).is_ok(),
+                "{good:?} is valid for Sage and must pass"
+            );
+        }
+    }
+
+    /// Two special forms Sage allows explicitly. Rejecting them would break
+    /// valid configurations: empty means non-specific, "$" means no digestion.
+    #[test]
+    fn the_validator_allows_sages_two_special_cases() {
+        let mut e = EnzymeConfig::default();
+        e.cleave_at = String::new();
+        assert!(validate_enzyme_residues(&e).is_ok(), "empty = non-specific");
+        e.cleave_at = "$".to_string();
+        assert!(validate_enzyme_residues(&e).is_ok(), "$ = no digestion");
+    }
+
+    /// A bad restrict character is just as fatal as a bad cleave residue.
+    /// It is only checked when the restriction is actually in force.
+    #[test]
+    fn the_validator_checks_restrict_only_when_it_applies() {
+        let mut e = EnzymeConfig::default();
+        e.restrict_char = "B".to_string();
+
+        e.enable_restrict = true;
+        assert!(
+            validate_enzyme_residues(&e).is_err(),
+            "in force, so checked"
+        );
+
+        e.enable_restrict = false;
+        assert!(
+            validate_enzyme_residues(&e).is_ok(),
+            "not in force, so it never reaches Sage"
+        );
+    }
+
+    /// `effective_restrict` is the single source of truth for whether a
+    /// restriction applies. Importing a Sage config with `"restrict": null`
+    /// leaves a stale character behind with the flag cleared, and reading the
+    /// raw field would report a restriction that is not in force.
+    #[test]
+    fn effective_restrict_ignores_a_stale_character() {
+        let mut e = EnzymeConfig::default();
+        assert_eq!(e.effective_restrict(), "P");
+
+        e.enable_restrict = false;
+        assert_eq!(e.effective_restrict(), "", "cleared flag wins");
+
+        e.enable_restrict = true;
+        e.restrict_char = "KR".to_string();
+        assert_eq!(e.effective_restrict(), "", "Sage takes one character only");
+    }
+
+    /// The conversion Sage actually receives must agree with
+    /// `effective_restrict`, not repeat the rule with its own copy.
+    #[test]
+    fn builder_restrict_agrees_with_effective_restrict() {
+        for (enable, ch, want) in [
+            (true, "P", Some("P".to_string())),
+            (false, "P", None),
+            (true, "", None),
+            (true, "KR", None),
+        ] {
+            let mut e = EnzymeConfig::default();
+            e.enable_restrict = enable;
+            e.restrict_char = ch.to_string();
+            let builder: EnzymeBuilder = e.clone().into();
+            assert_eq!(
+                builder.restrict, want,
+                "enable={enable} char={ch:?} disagreed with effective_restrict"
+            );
+        }
+    }
 
     /// The GUI shows the precursor window as a delta mass, which is how a
     /// person states it. Sage stores the opposite orientation. Getting this

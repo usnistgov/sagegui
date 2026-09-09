@@ -401,6 +401,12 @@ impl SageLauncher {
     }
 
     fn launch_application(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // First, before any work. Sage asserts on a non-residue character in
+        // an enzyme rule, and that assert fires on the run thread where it is
+        // expensive to recover from. Catching it here turns a stopped run into
+        // a plain message on the run bar.
+        validate_enzyme_residues(&self.config.database.enzyme)?;
+
         if self.config.database.fasta_paths.is_empty() {
             return Err("No FASTA files selected".into());
         }
@@ -463,9 +469,26 @@ impl SageLauncher {
         let thread_handle = thread::spawn(move || {
             let _ = sender.send(ThreadMessage::Progress("Starting analysis...".to_string()));
 
-            let result = match run_sage(sage_input, parallel, parquet, &sender, &cancel) {
-                Ok(_) => Ok("Analysis completed successfully".to_string()),
-                Err(e) => Err(e.to_string()),
+            // A panic in here has to be reported, not left to the channel.
+            // `LOG_SENDER` holds a clone of `sender` for the whole run, so
+            // this thread unwinding does NOT drop the last sender and the
+            // receiver never sees `Disconnected`. `check_thread_status` would
+            // then read `Empty` forever: the run bar spins, elapsed time
+            // climbs, and nothing ever reports a failure. Sage panics on some
+            // inputs by design (`Enzyme::new` asserts on non-residue
+            // characters), and on Windows `windows_subsystem = "windows"`
+            // hides the panic message completely.
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                run_sage(sage_input, parallel, parquet, &sender, &cancel)
+            }));
+
+            let result = match outcome {
+                Ok(Ok(_)) => Ok("Analysis completed successfully".to_string()),
+                Ok(Err(e)) => Err(e.to_string()),
+                Err(payload) => Err(format!(
+                    "The search stopped unexpectedly: {}",
+                    panic_message(payload.as_ref())
+                )),
             };
 
             let _ = sender.send(ThreadMessage::Completed(result));
@@ -476,6 +499,21 @@ impl SageLauncher {
         self.is_running = true;
 
         Ok(())
+    }
+}
+
+/// Pull a readable message out of a caught panic payload.
+///
+/// `panic!` and `assert!` both produce either a `&'static str` or a `String`,
+/// which covers everything Sage throws. Anything else is reported as unknown
+/// rather than lost.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown error".to_string()
     }
 }
 
@@ -701,6 +739,84 @@ fn main() -> Result<(), eframe::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `panic_message` is what turns a caught panic into something the run bar
+    /// can show. Exercised against real caught panics, not hand-built payloads.
+    #[test]
+    fn panic_message_reads_both_payload_kinds() {
+        // `panic!` with a literal gives a &'static str payload.
+        let literal = std::panic::catch_unwind(|| panic!("a static message")).unwrap_err();
+        assert_eq!(panic_message(literal.as_ref()), "a static message");
+
+        // A formatted panic, which is what `assert!` produces, gives a String.
+        // This is the shape Sage's `Enzyme::new` throws.
+        let formatted = std::panic::catch_unwind(|| {
+            let bad = 'b';
+            panic!("Enzyme cleavage sequence contains non-amino acid characters: {bad}");
+        })
+        .unwrap_err();
+        assert_eq!(
+            panic_message(formatted.as_ref()),
+            "Enzyme cleavage sequence contains non-amino acid characters: b"
+        );
+
+        // Anything else is reported, not lost.
+        let odd = std::panic::catch_unwind(|| std::panic::panic_any(42u8)).unwrap_err();
+        assert_eq!(panic_message(odd.as_ref()), "unknown error");
+    }
+
+    /// The hang this guards against, reproduced in miniature.
+    ///
+    /// `LOG_SENDER` keeps a clone of the run thread's sender alive for the
+    /// whole run. So when that thread unwinds, the last sender is NOT dropped,
+    /// the receiver never reports `Disconnected`, and `check_thread_status`
+    /// reads `Empty` forever. This asserts the two halves that matter: the
+    /// channel really does stay open across a panic, and the thread reports
+    /// the failure itself rather than relying on the channel to notice.
+    ///
+    /// This mirrors the body of the spawn in `launch_application` rather than
+    /// calling it, because that body runs a real Sage search. Keep the two in
+    /// step.
+    #[test]
+    fn a_panic_on_the_run_thread_is_reported_not_swallowed() {
+        let (sender, receiver) = mpsc::channel::<ThreadMessage>();
+        let retained = sender.clone(); // stands in for LOG_SENDER
+
+        thread::spawn(move || {
+            let outcome =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<(), String> {
+                    panic!("something in Sage asserted")
+                }));
+            let result = match outcome {
+                Ok(Ok(_)) => Ok("Analysis completed successfully".to_string()),
+                Ok(Err(e)) => Err(e),
+                Err(payload) => Err(format!(
+                    "The search stopped unexpectedly: {}",
+                    panic_message(payload.as_ref())
+                )),
+            };
+            let _ = sender.send(ThreadMessage::Completed(result));
+        })
+        .join()
+        .expect("catch_unwind must keep the thread from propagating the panic");
+
+        match receiver.try_recv() {
+            Ok(ThreadMessage::Completed(Err(msg))) => {
+                assert!(msg.contains("stopped unexpectedly"), "{msg}");
+                assert!(msg.contains("something in Sage asserted"), "{msg}");
+            }
+            other => panic!("expected Completed(Err(..)), got {other:?}"),
+        }
+
+        // The condition that made the original bug invisible: with a retained
+        // clone the channel is still open, so `Disconnected` would never have
+        // fired and nothing would ever have cleaned up the run.
+        assert!(
+            matches!(receiver.try_recv(), Err(mpsc::TryRecvError::Empty)),
+            "the retained clone must keep the channel open, which is the whole problem"
+        );
+        drop(retained);
+    }
 
     /// Wires a fresh channel into a default `SageLauncher` and marks it
     /// "running" the way `launch_application` would, without spawning Sage.

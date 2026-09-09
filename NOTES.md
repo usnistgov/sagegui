@@ -938,6 +938,51 @@ flip the expected values to make it pass.
 
 ---
 
+## The run thread could hang instead of failing (fixed 2026-09-08)
+
+Any panic inside a run left the GUI spinning forever. No error, no output, no
+recovery short of restarting.
+
+**Mechanism.** `LOG_SENDER` holds a clone of the run thread's `Sender` for the
+whole run, and only `cleanup_thread` clears it. `cleanup_thread` is reached
+only from the `Completed` or `Disconnected` arms of `check_thread_status`. A
+panicking thread drops its own `Sender`, but the clone in `LOG_SENDER` is still
+alive, so the channel never disconnects and `Disconnected` cannot fire. The
+receiver reads `Empty` forever. On Windows `windows_subsystem = "windows"`
+hides the panic text as well, so nothing at all reaches the user.
+
+This was a general defect, not an enzyme one. Any panic anywhere in the run
+path produced it.
+
+**Fix.** The run body is wrapped in `catch_unwind`, and the thread sends
+`Completed(Err(..))` itself rather than leaving the channel to signal failure.
+`cleanup_thread` stays the single teardown point. `panic_message` pulls the
+text out of the payload; `panic!` and `assert!` produce either `&'static str`
+or `String`, which covers everything Sage throws.
+
+**The easiest trigger, also fixed.** Sage's `Enzyme::new`
+(`crates/sage/src/enzyme.rs`) uses `assert!` against `VALID_AA`, which is the
+20 standard residues plus U and O. Not B, Z, J or X. Sage is compiled in, so
+that assert fires on the run thread. Typing `b` into Cleave At reproduced the
+hang. `validate_enzyme_residues` now runs as the first check in
+`launch_application`, so it returns through the existing error path with no new
+plumbing.
+
+Two inputs must keep passing, or valid configurations break: an empty
+`cleave_at` means non-specific digestion, and `"$"` means no digestion. Sage
+allows both explicitly.
+
+**Test coverage, and its limit.** `panic_message` is tested against real caught
+panics. A second test reproduces the hang condition in miniature: it retains a
+sender clone, panics inside `catch_unwind`, and asserts both that the failure
+is reported and that the channel is still open, which is what made the original
+bug invisible. That test **mirrors** the body of the spawn in
+`launch_application` rather than calling it, because the real body runs a Sage
+search. Keep the two in step. Removing `catch_unwind` from the real code would
+not fail the test.
+
+---
+
 ## Known permanent / standing limitations
 
 - **Coupled to Sage's internal API.** By design (Option A), a Sage update can break compilation. This is the accepted cost of embedding; the mitigation is MAINTENANCE.md, not a code change.

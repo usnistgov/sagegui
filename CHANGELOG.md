@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tolerance windows are now shown as a delta-mass range** — the precursor and fragment controls read "Delta mass from X to Y", which is how the window is normally described: set 500 to find IDs carrying up to a +500 Da modification. Sage's own config files store this pair negated and swapped; the hover text says so, for anyone cross-checking a `config.json`. Only the display changed. What is saved and what is sent to Sage are unchanged.
 
 ### Fixed
+- **A failed search could leave the run bar spinning forever** — if anything in the search panicked, the progress bar kept animating and the elapsed time kept climbing, with no error, no output, and no way to recover except restarting the app. The run thread now reports its own failure instead of relying on the message channel to notice. On Windows the message had been hidden entirely.
+- **An invalid character in "Cleave At" hung the app** — Sage rejects anything that is not one of its accepted amino acids, and it did so in a way the interface could not see. Enzyme residues are now checked before a run starts, and a bad character is reported on the run bar with the list of accepted residues.
 - **Run-bar "Processing" label used a hardcoded pure green** — switched to a plain label so it inherits the theme's normal text color, matching the elapsed-time label next to it.
 
 ## [0.7.1] - 2026-08-24
