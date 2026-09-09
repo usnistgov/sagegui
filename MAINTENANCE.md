@@ -104,7 +104,12 @@ cargo build --release
 
 1. Update `CHANGELOG.md` with the new version
 2. Update README badges if needed (automated via `update-badges.yml`)
-3. Commit all changes
+3. **Bump `version:` and `date-released:` in `CITATION.cff`.** Nothing checks
+   these against `Cargo.toml`, and a stale value makes the citation point at a
+   release nobody ran. Do not automate this in `update-badges.yml`: that
+   workflow triggers on `src/version.rs`, which carries the *Sage* version, not
+   the SageGUI version.
+4. Commit all changes
 
 ### Step 7: Release
 

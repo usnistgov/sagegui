@@ -263,6 +263,31 @@ config JSON** — reuse the existing Save/Load Config plumbing:
   enum is retained in `PersistedState` only, so existing saved settings still
   load — removing it would make eframe drop the whole saved blob.)*
 
+#### Governance and licensing
+
+NIST FAIR governance files landed 2026-09-08 (`CITATION.cff`, `CODEMETA.yaml`,
+`CODEOWNERS`, `fair-software.md`, README Citation section), matching
+`usnistgov/sageRecon` exactly. The licensing question was deliberately left
+open. See NOTES → License and governance for the five conflicting facts and
+what each option would have to change.
+
+- [ ] **Decide the licence question.** Option A (whole tree Apache-2.0) or
+  Option B (NIST statement plus an Apache carve-out). May need NIST OISM or
+  counsel review. Nothing licence-bearing was changed pending this.
+- [ ] **Ship the full Apache-2.0 text in `THIRD_PARTY_LICENSES.md`.** Only the
+  boilerplate stanza is there now. Apache §4(a) wants a copy of the Licence.
+  True under either option, so it can be done first.
+- [ ] **Fix the GUI licence label.** `src/ui.rs` says "License: Apache-2.0",
+  which contradicts `LICENSE` and is wrong for a mixed tree under both options.
+- [ ] **Mint a DOI**, then add a top-level `doi:` to `CITATION.cff`. Neither
+  this repo nor sageRecon has a persistent identifier, which is step 3 of
+  sageRecon's own `fair-software.md` checklist.
+- [ ] **Confirm the CODEMETA `themes` nesting** with the code.nist.gov
+  maintainers. It parses to flat strings today. Fix sageRecon and this repo
+  together, not separately.
+- [ ] **Work the rename checklist** when the repo moves to `usnistgov`. NOTES
+  carries the verified list, including the things that must NOT be renamed.
+
 #### Enzyme presets (from sageRecon)
 
 Deferred to its own session by maintainer decision, 2026-09-08.

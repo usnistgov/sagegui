@@ -947,6 +947,112 @@ flip the expected values to make it pass.
 
 ---
 
+## License and governance
+
+### The license conflict (flagged 2026-09-08, NOT resolved)
+
+The repo asserts three different licence answers. This is recorded, not fixed.
+The maintainer chose to flag it rather than change anything licence-bearing,
+because the right answer may need NIST OISM or counsel review.
+
+| # | Fact | Where |
+| - | ---- | ----- |
+| 1 | `LICENSE` is the NIST Software Licensing Statement. Public-domain style, no SPDX identifier, no copyright line, no year. Byte-identical to sageRecon's `LICENSE.md`. | `LICENSE` |
+| 2 | The crate declares a different licence. | `Cargo.toml` — `license = "Apache-2.0"` |
+| 3 | The GUI tells the user a third thing: one licence for a mixed tree. | `src/ui.rs` — `ui.label("License: Apache-2.0")` |
+| 4 | The NIST statement claims the whole tree, but `src/main.rs` and `src/ui.rs` are derived from jspaezp/sagegui (Apache-2.0). `LICENSE` carries no carve-out. The file headers admit the derivation; the licence file does not. | `LICENSE` vs the headers of `src/main.rs`, `src/ui.rs` |
+| 5 | `THIRD_PARTY_LICENSES.md` reproduces the Apache **boilerplate stanza**, not the full Apache-2.0 text. Apache §4(a) requires a copy of the Licence with every distribution. Arguably a gap. | `THIRD_PARTY_LICENSES.md` |
+
+`Cargo.toml`'s `license` field is compiled into crate metadata. It is not
+cosmetic. Any tool reading the crate reports this project as Apache-2.0.
+
+**Standing fact, independent of the decision:** moving the repo to `usnistgov`,
+renaming it, and detaching the GitHub fork link do **not** remove the
+Apache-2.0 obligations. Those attach to the derived code, not to GitHub's fork
+pointer. The §4(b) notices and the `THIRD_PARTY_LICENSES.md` entry stay.
+
+### What each option would have to change
+
+Written out so the decision, when it comes, is a short job.
+
+**Option A. The whole tree ships as Apache-2.0.**
+Replace the content of `LICENSE`, keeping the NIST statement inside it as an
+authorship notice. Leave `Cargo.toml` alone. Correct the GUI label. Add the
+full Apache-2.0 text to `THIRD_PARTY_LICENSES.md`. Change `CITATION.cff` from
+`license-url:` to `license: Apache-2.0`. Update README §License.
+
+**Option B. NIST statement plus an Apache carve-out.**
+Add a carve-out paragraph to `LICENSE` naming `src/main.rs` and `src/ui.rs`.
+Change `Cargo.toml` to `license-file = "LICENSE"` and drop the `license` key,
+because SPDX cannot express this. Point the GUI label at the LICENSE file
+instead of naming a licence. Add the full Apache-2.0 text to
+`THIRD_PARTY_LICENSES.md`. Keep `CITATION.cff`'s `license-url:`.
+
+**True under both:** item 5 should be closed either way, and the GUI's
+"License: Apache-2.0" label is wrong today under both options.
+
+### The rename checklist (repo moves to usnistgov and is renamed)
+
+Verified by grep 2026-09-08. The repo moves to the `usnistgov` org and is
+renamed, so that J. Sebastian Paez keeps the name "sagegui". Work this list in
+one pass.
+
+**Must change.**
+
+| File | What |
+| ---- | ---- |
+| `README.md` | Build-status and Release badge URLs, the Releases link, the four download URLs, the `git clone` URL and `cd`, the binary name in Quick start and Building from source, and the Citation section URL |
+| `CITATION.cff` | `repository-code`, `url`, `license-url` |
+| `src/ui.rs` | `ui.label("Repository: https://github.com/neely/sagegui")` in the Info block |
+| `Cargo.toml` | `name = "sagegui"`. This renames the binary and cascades into the workflow |
+| `.github/workflows/build.yml` | The four `artifact_name:` entries must equal the new binary name, and `CFBundleIdentifier` `gov.nist.sagegui` |
+| `CHANGELOG.md` | Release link references |
+| `MAINTENANCE.md` | Binary paths, tree diagram, repository URL |
+| `NOTES.md` | The release URL and the Related-projects row |
+| `PLAN.md` | The `codesign` example path |
+
+**Must NOT change.** Recorded so a later pass does not "tidy" them.
+
+| Thing | Why not |
+| ----- | ------- |
+| `eframe::run_native("Sage Launcher", ...)` in `src/main.rs` | eframe derives the settings-storage directory from this string, not from the crate name. On macOS it is `~/Library/Application Support/Sage-Launcher/app.ron`. Change the string and every existing user silently loses all saved settings |
+| The `_sagegui` metadata key in `src/sage_json.rs` and all five `assets/templates/*.json` | A private key inside a Sage-schema JSON document. Renaming it breaks every bundled template and every template a user has saved |
+| `assets/sagegui_logo*.png` filenames | Asset names. Churn with no benefit |
+| `sagegui_concat_{}.fasta` temp-file name in `src/main.rs` | Cosmetic and invisible to the user |
+| `src/version.rs` and the Sage pins in `Cargo.toml` | These name `neely/sage`, the fork of **Sage**. A different repository. Do not sweep them |
+| The "Derived from jspaezp/sagegui" headers | These name the upstream project, not this one. They stay exactly as they are |
+| Historical prose in `CHANGELOG.md`, `PLAN.md`, `JOURNAL.md` | Append-only record of what was true at the time |
+
+At move time, confirm `neely` is a `usnistgov` member with write access, or
+`CODEOWNERS` is inert.
+
+### CITATION.cff maintenance
+
+`version:` and `date-released:` duplicate `Cargo.toml` and the release date.
+Nothing checks that they agree. Bump them when cutting a release; the step is
+in MAINTENANCE.md.
+
+Do **not** wire this into `.github/workflows/update-badges.yml`. That workflow
+triggers on changes to `src/version.rs`, which carries the **Sage** version,
+not the SageGUI version. It is the wrong trigger.
+
+### CODEMETA.yaml parses to flat strings
+
+`CODEMETA.yaml` copies sageRecon's `themes` indentation. It is valid YAML but
+not the intended structure: the indented lines fold into the preceding scalar,
+so the file parses as
+
+```
+themes: ['Bioscience - Biomolecular characterization - Proteomics']
+```
+
+one flat string, not a nested list. Copied deliberately. The code.nist.gov
+ingester cannot be tested from here, two repos from one maintainer should
+present the same shape to the portal, and a fix belongs upstream in sageRecon
+and should land in both at once.
+
+---
+
 ## Dead-ends (do not re-explore)
 
 - **Adding `lib.rs` to sage-cli ourselves** → unnecessary. Official Sage v0.15.0-beta.2 already ships `crates/sage-cli/src/lib.rs` exporting `input`, `output`, `runner`, `telemetry`. The original plan assumed we'd have to create it; we don't.
