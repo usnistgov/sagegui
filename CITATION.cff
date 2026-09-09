@@ -1,0 +1,60 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "SageGUI: a graphical interface for the Sage proteomics search engine"
+abstract: >-
+  A desktop graphical interface for the Sage proteomics search engine. It
+  configures and runs a Sage search without the command line: mzML and FASTA
+  selection, enzyme and tolerance settings, modifications, and TMT or LFQ
+  quantification. Sage is compiled in, so a search runs in the same process as
+  the interface. Bundled templates and a reader for Sage config.json and
+  results.json files reproduce a known search configuration.
+type: software
+version: 0.7.1
+date-released: "2026-08-24"
+authors:
+  - family-names: Neely
+    given-names: Benjamin A.
+    affiliation: "National Institute of Standards and Technology"
+    email: benjamin.neely@nist.gov
+# A DOI goes here when one is minted. Add a top-level `doi:` key at this
+# level; nothing else has to change. An empty or placeholder value fails
+# CFF validation, so the key is left out until a real DOI exists.
+repository-code: "https://github.com/neely/sagegui"
+url: "https://github.com/neely/sagegui"
+# `license-url:` and not `license:`. The NIST Software Licensing Statement has
+# no SPDX identifier, and `license:` only accepts SPDX values.
+license-url: "https://github.com/neely/sagegui/blob/main/LICENSE"
+keywords:
+  - proteomics
+  - mass spectrometry
+  - database search
+  - graphical user interface
+  - peptide identification
+references:
+  - type: article
+    title: >-
+      Sage: An Open-Source Tool for Fast Proteomics Searching and Quantification
+      at Scale
+    authors:
+      - family-names: Lazear
+        given-names: Michael R.
+    journal: "Journal of Proteome Research"
+    year: 2023
+    volume: 22
+    issue: 11
+    start: 3652
+    end: 3659
+    doi: "10.1021/acs.jproteome.3c00486"
+    notes: "The search engine this interface runs. Please cite it as well."
+  - type: software
+    title: "sagegui"
+    authors:
+      - family-names: Paez
+        given-names: J. Sebastian
+    repository-code: "https://github.com/jspaezp/sagegui"
+    notes: >-
+      The original interface this project is derived from, Apache-2.0. Listed
+      here rather than under `authors:` because `authors:` names the authors of
+      this release, which is what a generated citation string reports.
+      Derived-work attribution is carried in the file headers of src/main.rs
+      and src/ui.rs, in THIRD_PARTY_LICENSES.md, and in the README.

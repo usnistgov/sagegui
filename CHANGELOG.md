@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Citation metadata** — a `CITATION.cff` file, so GitHub's "Cite this repository" control produces a reference for SageGUI in BibTeX or APA. The README gains a Citation section with the same reference. Cite the version you ran: the pinned Sage engine and the bundled templates move between releases.
+- **NIST governance files** — `CODEOWNERS`, `CODEMETA.yaml` (indexing for the NIST Open Source Portal), and `fair-software.md` (NIST FAIR practices), matching the layout of [sageRecon](https://github.com/usnistgov/sageRecon).
 - **Experiment templates** — the Experiment tab now has a working Templates picker with five bundled starting configurations: tryptic wide MS1 / tight MS2, tryptic tight, tryptic open, tryptic biofluid, and TMT 11-plex. Applying one replaces your search parameters. It never touches your selected files or output folder. This replaces the old Experiment Type dropdown, which stored its selection and changed nothing else.
 - **Load settings from a Sage file** — point SageGUI at a `config.json` you gave the Sage command line, or at the `results.json` written into a past run's output folder, and it loads the search parameters. One reader handles both formats. Anything it could not apply is reported on screen, not dropped silently.
 - **Re-select notes on import** — an imported file records where its own data lived. Those paths are never applied, because they can be from another machine. The import now lists what it left behind, says whether each path still exists here, and points at the tab where you pick it again.

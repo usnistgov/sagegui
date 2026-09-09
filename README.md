@@ -79,6 +79,28 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 - [Sage](https://github.com/lazear/sage) — the search engine
 - [sagePreview](https://github.com/neely/sagePreview) — PTM discovery and reconnaissance using Sage
 
+## Citation
+
+If you use SageGUI in published work, please cite the software:
+
+> Neely, B.A. (2026). *SageGUI: a graphical interface for the Sage proteomics
+> search engine* (Version 0.7.1) [Computer software]. National Institute of
+> Standards and Technology. https://github.com/neely/sagegui
+
+Cite the version you ran, not the repository in general. The pinned Sage
+engine version and the bundled templates both move between releases, so two
+versions of SageGUI do not necessarily run the same search. The Run / Info tab
+prints the SageGUI version and the Sage engine version it was built against.
+
+A `CITATION.cff` file is included, so GitHub's "Cite this repository" control
+produces the same reference in BibTeX or APA.
+
+Please also cite Sage, which performs the searches:
+
+> Lazear, M.R. "Sage: An Open-Source Tool for Fast Proteomics Searching and
+> Quantification at Scale." *Journal of Proteome Research* 2023, 22(11),
+> 3652–3659. doi:10.1021/acs.jproteome.3c00486
+
 ## Attribution
 
 This project is an officially supported NIST fork of Sebastian Paez’s
@@ -102,6 +124,9 @@ NIST-authored portions of this project are distributed under the NIST Software
 Licensing Statement — see [LICENSE](LICENSE). Third-party components
 (Sage and the original sagegui) retain their original licenses; see
 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details.
+
+Project FAIR and governance practices are described in
+[fair-software.md](fair-software.md).
 
 ## Contact
 
