@@ -1,3 +1,33 @@
+## 2026-09-10 — v0.8.1: the app was deleting its own error messages
+
+**Did:** Fixed two bugs found by the maintainer running v0.8.0 on Windows with eight files, then cut v0.8.1.
+
+**The report:** click Run, the button flashes and returns to normal, no error, no output, no explanation.
+
+**The first bug was mine, from the previous session.** v0.8.0 added a rule to clear a pre-flight refusal once its cause is fixed. It identified those refusals by matching the message text, `status_message.starts_with("Error: ")`. But `check_thread_status` formats a finished run's failure with the same prefix, and `cleanup_thread` clears `is_running` before that message is read. So every real run failure was erased on the following frame. The run bar's own comment claimed "a real run's result stays until the next run"; the code did the opposite.
+
+Sharper: v0.8.0 also added `catch_unwind` so a panic reports instead of hanging silently. That report was then deleted by this rule. Two changes in the same release, cancelling each other out. The net effect was worse than either bug alone, because the app became impossible to diagnose from.
+
+Fixed with a `status_is_preflight_error` flag that records why the message was set, and by moving the rule out of the UI closure into `clear_stale_preflight_error`. Being inline in a closure is precisely why no test could reach it. Three tests now cover it, and the main one was confirmed to fail when the old rule is put back.
+
+**The second bug was the actual cause**, visible the moment messages survived: a FASTA path pointing at a file that was not there. `preflight` checked that the file lists were non-empty, never that the files still exist. Settings persist between sessions by design, so a path picked days ago comes back looking healthy in the UI while the file has moved. `missing_file` now stats every selected FASTA and spectrum file before launching and names the offending path. Cloud URLs are skipped, since Sage accepts them and they are not on this filesystem.
+
+**How the diagnosis actually went, which is the part worth remembering.** I sent the maintainer down a stderr-redirection path on Windows three times. It cannot work: the binary is built with `windows_subsystem = "windows"` and has no console to write to. They were also hand-copying every command between a Mac and a Windows box, so each round cost real effort. The right first move was the in-app Sage Log panel, and the right second move was pushing the fix so CI could build them a Windows binary to download from the browser. Both were available immediately.
+
+**What did you assume without stating it? (Q2):** That stderr redirection behaves the same on Windows as on macOS. It does not for a GUI-subsystem binary, and this project sets that subsystem deliberately to stop a console window appearing. I have known that flag was there since the v0.7.1 work and still suggested the command twice.
+
+**What's the biggest thing you might be missing? (Q3):** The same class of staleness elsewhere. Persistence makes every stored reference to the outside world go quietly stale, and file paths were only the first instance to bite. The output directory is stored the same way and is not checked. Neither is the FASTA that gets concatenated at launch. More broadly, the defaults audit from the last debrief is still undone, and a third disagreement with Sage has since surfaced (`missed_cleavages` defaults to 1 in `EnzymeParameters`, 2 in ours).
+
+**What could have gone better? (Q4):** Everything about the diagnosis. Beyond the stderr detour, I kept asking permission to push in long messages rather than making the single-line ask early, which left the maintainer working around a broken build for longer than necessary. When someone reports that an app tells them nothing, the fastest fix is to make it tell them something, not to find another channel to read.
+
+**Least confident about (Q1):** Whether the eight-file run now succeeds end to end, or whether the missing FASTA was masking a second problem behind it. The maintainer reported "it works" after re-selecting the file, but that was with the CI build and I have not seen a completed eight-file search. Proven right or wrong by running all eight through v0.8.1 and confirming output files land.
+
+**Future plans:** The Sage-versus-SageGUI defaults audit, as an invariant rather than field-by-field checks. Then the Combine Charge States hover note for MSstats users.
+
+**Suggested improvement (Q5):** Never infer program state from user-facing text. Two unrelated conditions produced the same string, the code could not tell them apart, and the result was an app that deleted its own error messages. Carry the state explicitly. The same instinct applies to the earlier test that encoded my reading of Sage rather than asserting against Sage itself: derive from the source of truth, do not pattern-match on its output.
+
+---
+
 ## 2026-09-09 — v0.8.0 released; a shipped Intel binary that was not Intel; downstream tools
 
 **Did:** Long session, three distinct pieces of work plus a release.

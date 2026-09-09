@@ -1225,6 +1225,24 @@ the code could not tell them apart. Carry the state, not the prose.
 Three tests cover it, and the main one was confirmed to fail when the old rule
 is reinstated.
 
+**What was actually failing, once the message was visible again:** a FASTA
+path pointing at a file that was not there. The run was failing correctly the
+whole time.
+
+**So a second fix, in the same release.** `preflight` checked only that the
+file lists were non-empty, never that the files still exist. Settings persist
+between sessions by design, so a path picked days ago comes back looking
+healthy in the UI while the file has moved, been renamed, or sits on a drive
+that is not mounted. `missing_file` now stats every selected FASTA and
+spectrum file and refuses before launching, naming the offending path, because
+"a file is missing" is not actionable when eight are selected. Cloud URLs
+(`s3://`, `gs://`, `az://`) are skipped, since Sage accepts them and they are
+not on this filesystem.
+
+This is a direct consequence of settings persistence. It is worth expecting
+more of the same class: persistence makes any stored reference to the outside
+world go stale silently.
+
 ---
 
 ## Known permanent / standing limitations

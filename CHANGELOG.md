@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-10
+
 ### Fixed
+- **Missing files are now caught before the run starts** — SageGUI remembers your file selections between sessions, so a FASTA or mzML picked days ago comes back looking fine in the list even if it has since been moved, renamed, or lives on a drive that is not connected. The run used to start and fail partway through. It now refuses up front and names the file that is missing.
 - **A failed run showed no error at all** — the Run button flashed and went back to normal, with nothing to say what went wrong. The rule that clears a settings error once you fix it was matching on the message text, and a finished run's failure has the same shape, so the only record of why a run failed was erased one frame after it appeared. Introduced in 0.8.0. A run's result is now never cleared automatically.
 
 ### Changed

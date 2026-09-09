@@ -437,6 +437,18 @@ impl SageLauncher {
         if self.config.mzml_paths.is_empty() {
             return Err("mzML file is not selected".to_string());
         }
+
+        // A selected file can stop existing between sessions. Settings persist,
+        // so a path chosen days ago comes back looking healthy in the list even
+        // if the file was moved, renamed, or lives on a drive that is not
+        // mounted. Without this check the run starts and fails later, which is
+        // how a missing FASTA was reported from Windows on 2026-09-10.
+        //
+        // Named per file, because "a file is missing" is not actionable when
+        // eight of them are selected.
+        missing_file(&self.config.database.fasta_paths, "FASTA")?;
+        missing_file(&self.config.mzml_paths, "Spectrum file")?;
+
         Ok(())
     }
 
@@ -548,6 +560,27 @@ impl SageLauncher {
 
         Ok(())
     }
+}
+
+/// Refuse if any selected path no longer exists, naming the first one.
+///
+/// Only local paths are checked. Sage accepts cloud URLs (`s3://`, `gs://`,
+/// `az://`), which are not on this filesystem and must not be reported as
+/// missing.
+fn missing_file(paths: &[std::path::PathBuf], kind: &str) -> Result<(), String> {
+    for path in paths {
+        let text = path.to_string_lossy();
+        if text.contains("://") {
+            continue;
+        }
+        if !path.exists() {
+            return Err(format!(
+                "{kind} not found: {text}. It may have been moved or renamed \
+                 since it was selected. Pick it again on Files & Database."
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Pull a readable message out of a caught panic payload.
@@ -788,6 +821,21 @@ fn main() -> Result<(), eframe::Error> {
 mod tests {
     use super::*;
 
+    /// Give an app real files on disk, so `preflight` passes because the
+    /// selections are genuinely valid and not because nothing is checked.
+    /// Returns the directory, which the caller removes.
+    fn launchable(app: &mut SageLauncher, name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sagegui-test-{name}"));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let fasta = dir.join("db.fasta");
+        let mzml = dir.join("run.mzML");
+        std::fs::write(&fasta, b">sp|TEST|test\nPEPTIDE\n").expect("write fasta");
+        std::fs::write(&mzml, b"<mzML/>").expect("write mzml");
+        app.config.database.fasta_paths = vec![fasta];
+        app.config.mzml_paths = vec![mzml];
+        dir
+    }
+
     /// The regression this guards against, reported from Windows on 2026-09-10:
     /// the Run button flashed and no error appeared, because a finished run's
     /// failure message was being erased one frame after it was written.
@@ -801,8 +849,7 @@ mod tests {
     fn a_finished_runs_failure_is_never_cleared() {
         let (mut app, sender) = running_launcher(false);
         // Make pre-flight pass, which is what unlocked the old bug.
-        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
-        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        let dir = launchable(&mut app, "finished-run-failure");
         assert!(app.preflight().is_ok());
 
         sender
@@ -819,6 +866,7 @@ mod tests {
             app.status_message, "Error: out of memory",
             "a finished run's failure was erased, which is the reported bug"
         );
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     /// The behaviour the clearing rule is actually for: a refusal to start
@@ -826,8 +874,7 @@ mod tests {
     #[test]
     fn a_preflight_refusal_clears_once_the_cause_is_fixed() {
         let mut app = SageLauncher::default();
-        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
-        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        let dir = launchable(&mut app, "preflight-refusal");
         app.config.database.enzyme.cleave_at = "B".to_string();
 
         let problem = app.preflight().expect_err("B is not a Sage residue");
@@ -844,20 +891,21 @@ mod tests {
         app.clear_stale_preflight_error();
         assert!(app.status_message.is_empty(), "fixed, so the refusal goes");
         assert!(!app.status_is_preflight_error);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     /// A run in progress must keep its message, even a pre-flight-shaped one.
     #[test]
     fn nothing_is_cleared_while_a_run_is_active() {
         let (mut app, _sender) = running_launcher(false);
-        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
-        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        let dir = launchable(&mut app, "run-active");
         app.status_message = "Error: something".to_string();
         app.status_is_preflight_error = true;
         assert!(app.is_running);
 
         app.clear_stale_preflight_error();
         assert_eq!(app.status_message, "Error: something");
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     /// A pre-flight failure describes the settings as they are now, so it has
@@ -867,8 +915,7 @@ mod tests {
     #[test]
     fn a_preflight_error_clears_once_the_cause_is_fixed() {
         let mut app = SageLauncher::default();
-        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
-        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        let dir = launchable(&mut app, "preflight-error-clears");
         assert!(app.preflight().is_ok(), "baseline should be launchable");
 
         app.config.database.enzyme.cleave_at = "B".to_string();
@@ -880,20 +927,57 @@ mod tests {
             "fixing the residue must clear the condition, which is what the \
              run bar keys its message off"
         );
+        let _ = std::fs::remove_dir_all(dir);
     }
 
-    /// The other two pre-flight conditions, so the same clearing logic covers
-    /// them and not just the enzyme.
+    /// Every reason pre-flight can refuse, including the one added after a
+    /// missing FASTA was reported from Windows on 2026-09-10.
+    ///
+    /// Settings persist between sessions, so a path picked days ago comes back
+    /// looking healthy even when the file has moved. Checking only that the
+    /// list is non-empty let the run start and fail later.
     #[test]
     fn preflight_reports_missing_files() {
         let mut app = SageLauncher::default();
         assert!(app.preflight().unwrap_err().contains("FASTA"));
 
-        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
-        assert!(app.preflight().unwrap_err().contains("mzML"));
+        // A path that is present in the list but absent on disk.
+        app.config.database.fasta_paths = vec!["/definitely/not/here.fasta".into()];
+        assert!(
+            app.preflight().unwrap_err().contains("mzML"),
+            "empty list first"
+        );
 
-        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        app.config.mzml_paths = vec!["/definitely/not/here.mzML".into()];
+        let err = app.preflight().unwrap_err();
+        assert!(err.contains("FASTA not found"), "{err}");
+        assert!(
+            err.contains("/definitely/not/here.fasta"),
+            "the message must name the file, since several may be selected: {err}"
+        );
+
+        // Real files pass.
+        let dir = launchable(&mut app, "preflight-missing-files");
         assert!(app.preflight().is_ok());
+
+        // A missing spectrum file is reported the same way.
+        app.config
+            .mzml_paths
+            .push("/definitely/not/here.mzML".into());
+        let err = app.preflight().unwrap_err();
+        assert!(err.contains("Spectrum file not found"), "{err}");
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Sage accepts cloud URLs, which are not on this filesystem. Reporting
+    /// them as missing would refuse a valid configuration.
+    #[test]
+    fn cloud_urls_are_not_treated_as_missing_files() {
+        assert!(missing_file(&["s3://bucket/run.mzML".into()], "Spectrum file").is_ok());
+        assert!(missing_file(&["gs://bucket/db.fasta".into()], "FASTA").is_ok());
+        assert!(missing_file(&["az://c/run.mzML".into()], "Spectrum file").is_ok());
+        assert!(missing_file(&["/definitely/not/here.mzML".into()], "Spectrum file").is_err());
     }
 
     /// `panic_message` is what turns a caught panic into something the run bar
