@@ -10,7 +10,10 @@
       "missed_cleavages": 2,
       "min_len": 7,
       "max_len": 50,
-      "cleave_at": "KR"
+      "cleave_at": "KR",
+      "restrict": null,
+      "c_terminal": true,
+      "semi_enzymatic": false
     },
     "ion_kinds": [
       "b",
@@ -29,7 +32,12 @@
     },
     "max_variable_mods": 3,
     "decoy_tag": "rev_",
-    "generate_decoys": true
+    "generate_decoys": true,
+    "prefilter": false,
+    "prefilter_chunk_size": 0,
+    "prefilter_low_memory": true,
+    "peptide_min_mass": 500.0,
+    "peptide_max_mass": 5000.0
   },
   "precursor_tol": {
     "ppm": [
@@ -56,5 +64,7 @@
   "max_fragment_charge": 2,
   "min_matched_peaks": 4,
   "report_psms": 1,
-  "predict_rt": true
+  "predict_rt": true,
+  "chimera": false,
+  "wide_window": false
 }

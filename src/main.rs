@@ -237,6 +237,18 @@ impl eframe::App for SageLauncher {
                     }
                 }
 
+                // A pre-flight failure describes the current settings, so it
+                // stops being true the moment the user fixes them. Drop it
+                // then, rather than leaving a red line about a problem that is
+                // already gone. Only pre-flight messages are cleared this way;
+                // a real run's result stays until the next run.
+                if !self.is_running
+                    && self.status_message.starts_with("Error: ")
+                    && self.preflight().is_ok()
+                {
+                    self.status_message.clear();
+                }
+
                 let stop_btn = ui
                     .add_enabled(
                         self.is_running && !self.stop_requested,
@@ -400,19 +412,29 @@ impl SageLauncher {
         }
     }
 
-    fn launch_application(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // First, before any work. Sage asserts on a non-residue character in
-        // an enzyme rule, and that assert fires on the run thread where it is
-        // expensive to recover from. Catching it here turns a stopped run into
-        // a plain message on the run bar.
+    /// Everything that must be true before a run can start.
+    ///
+    /// Separated out so the run bar can re-check it every frame and clear a
+    /// stale error once the user has fixed the cause. Otherwise the message
+    /// from a failed Run sits there after the problem is gone, which reads as
+    /// though the app is still complaining about something.
+    fn preflight(&self) -> Result<(), String> {
+        // Sage asserts on a non-residue character in an enzyme rule, and that
+        // assert fires on the run thread where it is expensive to recover
+        // from. Catching it here turns a stopped run into a plain message.
         validate_enzyme_residues(&self.config.database.enzyme)?;
 
         if self.config.database.fasta_paths.is_empty() {
-            return Err("No FASTA files selected".into());
+            return Err("No FASTA files selected".to_string());
         }
         if self.config.mzml_paths.is_empty() {
-            return Err("mzML file is not selected".into());
+            return Err("mzML file is not selected".to_string());
         }
+        Ok(())
+    }
+
+    fn launch_application(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.preflight()?;
 
         // Concatenate all selected FASTAs into a single temp file.
         let fasta_path = if self.config.database.fasta_paths.len() == 1 {
@@ -739,6 +761,42 @@ fn main() -> Result<(), eframe::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A pre-flight failure describes the settings as they are now, so it has
+    /// to stop being shown once the user fixes them. Found in live testing on
+    /// 2026-09-09: the red error stayed on the run bar after Cleave At was
+    /// corrected.
+    #[test]
+    fn a_preflight_error_clears_once_the_cause_is_fixed() {
+        let mut app = SageLauncher::default();
+        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
+        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        assert!(app.preflight().is_ok(), "baseline should be launchable");
+
+        app.config.database.enzyme.cleave_at = "B".to_string();
+        assert!(app.preflight().is_err(), "B is not a Sage residue");
+
+        app.config.database.enzyme.cleave_at = "KR".to_string();
+        assert!(
+            app.preflight().is_ok(),
+            "fixing the residue must clear the condition, which is what the \
+             run bar keys its message off"
+        );
+    }
+
+    /// The other two pre-flight conditions, so the same clearing logic covers
+    /// them and not just the enzyme.
+    #[test]
+    fn preflight_reports_missing_files() {
+        let mut app = SageLauncher::default();
+        assert!(app.preflight().unwrap_err().contains("FASTA"));
+
+        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
+        assert!(app.preflight().unwrap_err().contains("mzML"));
+
+        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        assert!(app.preflight().is_ok());
+    }
 
     /// `panic_message` is what turns a caught panic into something the run bar
     /// can show. Exercised against real caught panics, not hand-built payloads.

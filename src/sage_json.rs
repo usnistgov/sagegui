@@ -27,7 +27,7 @@
 //! this session at someone else's files. The user's file selections survive
 //! every import.
 
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use std::collections::HashMap;
 
 use sage_core::ion_series::Kind;
@@ -115,26 +115,17 @@ pub struct EnzymeJson {
     pub min_len: Option<usize>,
     pub max_len: Option<usize>,
     pub cleave_at: Option<String>,
-    /// Three-state on purpose. `restrict` absent means "not specified, leave
-    /// alone"; `"restrict": null` means "explicitly no restriction" (trypsin/P)
-    /// — Sage's own default is `Some("P")`, so collapsing null into absent
-    /// would silently re-enable the no-cut-before-proline rule and change the
-    /// digest. `Option<Option<T>>` alone does not distinguish these; serde maps
-    /// an explicit null onto the outer `None` unless deserialisation is forced.
-    #[serde(default, deserialize_with = "explicit_null")]
-    pub restrict: Option<Option<String>>,
+    /// Absent, `null` and `""` all mean the same thing: no restriction.
+    ///
+    /// This mirrors Sage, which resolves the field with
+    /// `en.restrict.unwrap_or_else(|| "".into())`. Sage's `Some("P")` default
+    /// applies only when the whole `enzyme` key is missing, not when the key
+    /// is present and this field is not. An earlier version of this reader
+    /// treated absent as "leave the current value alone", which made SageGUI
+    /// digest a file differently from the Sage CLI reading the same file.
+    pub restrict: Option<String>,
     pub c_terminal: Option<bool>,
     pub semi_enzymatic: Option<bool>,
-}
-
-/// Distinguishes an absent field (`None`) from an explicit JSON `null`
-/// (`Some(None)`). Serde's blanket `Option` impl cannot express that on its own.
-fn explicit_null<'de, D, T>(de: D) -> Result<Option<Option<T>>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    Deserialize::deserialize(de).map(Some)
 }
 
 /// Sage's `variable_mods` values are `Vec<f32>`, but a hand-written config may
@@ -375,14 +366,13 @@ impl SageJson {
             if let Some(v) = enzyme.semi_enzymatic {
                 e.semi_enzymatic = v;
             }
-            // Three-state: absent leaves it alone, null disables the
-            // restriction, a value sets and enables it.
-            match &enzyme.restrict {
-                None => {}
-                Some(None) => e.enable_restrict = false,
-                Some(Some(c)) => {
+            // Resolved exactly as Sage does: absent, null and empty all mean
+            // no restriction. Only a real value restricts.
+            match enzyme.restrict.as_deref().unwrap_or("") {
+                "" => e.enable_restrict = false,
+                c => {
                     e.enable_restrict = true;
-                    e.restrict_char = c.clone();
+                    e.restrict_char = c.to_string();
                 }
             }
         }
@@ -686,6 +676,7 @@ pub fn bundled_templates() -> Vec<Template> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::ui::Config;
 
     fn apply(text: &str) -> (Config, ToleranceType, ToleranceType, ImportReport) {
@@ -727,28 +718,64 @@ mod tests {
         }
     }
 
-    /// `"restrict": null` must switch the proline restriction OFF. Sage's own
-    /// default is `Some("P")`, so treating null as "unspecified" would silently
-    /// change the digest — this is the case that motivates `explicit_null`.
+    /// What Sage itself does with `restrict`, asserted against Sage's own
+    /// types rather than against our reading of its source.
+    ///
+    /// This is the reference the importer has to match. Absent, `null` and
+    /// `""` are all "no restriction"; only a real value restricts. Sage's
+    /// `Some("P")` default applies only when the entire `enzyme` key is
+    /// missing, which is a different case.
+    ///
+    /// If a Sage upgrade changes this, this test fails first and the importer
+    /// follows it. Do not adjust the importer without re-running this.
     #[test]
-    fn explicit_null_restrict_disables_restriction() {
-        let (config, ..) = apply(r#"{"database":{"enzyme":{"restrict":null}}}"#);
-        assert!(!config.database.enzyme.enable_restrict);
+    fn sage_treats_absent_null_and_empty_restrict_the_same() {
+        use sage_core::database::EnzymeBuilder;
+        use sage_core::enzyme::EnzymeParameters;
+        let p_index = (b'P' - b'A') as usize;
+
+        let skips_before_p = |json: &str| {
+            let builder: EnzymeBuilder = serde_json::from_str(json).expect("valid enzyme block");
+            let params: EnzymeParameters = builder.into();
+            params.enzyme.expect("an enzyme").skip_suffix[p_index]
+        };
+
+        assert!(!skips_before_p(r#"{"cleave_at":"KR"}"#), "absent");
+        assert!(
+            !skips_before_p(r#"{"cleave_at":"KR","restrict":null}"#),
+            "null"
+        );
+        assert!(
+            !skips_before_p(r#"{"cleave_at":"KR","restrict":""}"#),
+            "empty"
+        );
+        assert!(
+            skips_before_p(r#"{"cleave_at":"KR","restrict":"P"}"#),
+            "explicit P"
+        );
     }
 
-    /// An absent `restrict` key must leave the current setting alone.
+    /// The importer must agree with the reference above. Getting this wrong
+    /// makes SageGUI digest a file differently from the Sage CLI reading the
+    /// same file, which is a wrong result with nothing on screen to show it.
     #[test]
-    fn absent_restrict_leaves_restriction_alone() {
-        let before = Config::default();
-        let (config, ..) = apply(r#"{"database":{"enzyme":{"cleave_at":"KR"}}}"#);
-        assert_eq!(
-            config.database.enzyme.enable_restrict,
-            before.database.enzyme.enable_restrict
-        );
-        assert_eq!(
-            config.database.enzyme.restrict_char,
-            before.database.enzyme.restrict_char
-        );
+    fn the_importer_matches_sage_on_restrict() {
+        for (label, json) in [
+            ("absent", r#"{"database":{"enzyme":{"cleave_at":"KR"}}}"#),
+            ("null", r#"{"database":{"enzyme":{"restrict":null}}}"#),
+            ("empty", r#"{"database":{"enzyme":{"restrict":""}}}"#),
+        ] {
+            let (config, ..) = apply(json);
+            assert!(
+                !config.database.enzyme.enable_restrict,
+                "{label} restrict should leave no restriction in force"
+            );
+            assert_eq!(config.database.enzyme.effective_restrict(), "", "{label}");
+        }
+
+        let (config, ..) = apply(r#"{"database":{"enzyme":{"restrict":"P"}}}"#);
+        assert!(config.database.enzyme.enable_restrict);
+        assert_eq!(config.database.enzyme.effective_restrict(), "P");
     }
 
     /// The wide-MS1 template's window is a delta mass of -1.25 to +3.5 Da,

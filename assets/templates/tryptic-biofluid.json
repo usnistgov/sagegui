@@ -40,7 +40,8 @@
     "decoy_tag": "rev_",
     "generate_decoys": true,
     "prefilter": true,
-    "prefilter_low_memory": true
+    "prefilter_low_memory": true,
+    "prefilter_chunk_size": 0
   },
   "precursor_tol": {
     "ppm": [
@@ -66,5 +67,8 @@
   "min_peaks": 15,
   "max_peaks": 150,
   "min_matched_peaks": 4,
-  "report_psms": 1
+  "report_psms": 1,
+  "quant": {
+    "lfq": true
+  }
 }

@@ -834,18 +834,33 @@ serde, and reads it back — not a hand-typed fixture.
 `Search` marks `output_directory` `skip_serializing`, so a real `results.json`
 has no output directory in it at all.
 
-### The `"restrict": null` trap
+### The `restrict` semantics (corrected 2026-09-09)
 
-Sage's `EnzymeBuilder::default()` is `restrict: Some("P")`. Michael's go-to
-config sets `"restrict": null` on purpose — that is trypsin/P, cutting before
-proline, the same as FragPipe's default.
+**The original reading here was wrong, and produced a wrong digest.** It is
+recorded rather than deleted, because the wrong version is the intuitive one.
 
-`Option<String>` cannot tell an absent key from an explicit `null`; serde maps
-both to `None`. Reading it that way would leave the proline restriction ON and
-silently change his digest. `EnzymeJson.restrict` is therefore
-`Option<Option<String>>` with a custom `explicit_null` deserializer: absent is
-`None`, null is `Some(None)`, a value is `Some(Some(v))`. A test covers it, and
-was confirmed to fail without the custom deserializer.
+Sage resolves the field with `en.restrict.unwrap_or_else(|| "".into())`
+(`From<EnzymeBuilder> for EnzymeParameters`, `crates/sage/src/database.rs`).
+So inside a **present** `enzyme` block, absent, `null` and `""` all mean the
+same thing: **no restriction**. `EnzymeBuilder::default()`'s `Some("P")`
+applies only when the entire `enzyme` key is missing, which is a different
+case.
+
+The first version of this reader treated absent as "leave the current value
+alone", on the belief that Sage would default it to `"P"`. That made SageGUI
+digest a file differently from the Sage CLI reading the same file: Michael's
+TMT config omits `restrict`, so Sage runs it as trypsin/P, while SageGUI ran
+it as trypsin. Nothing on screen showed the difference.
+
+`EnzymeJson.restrict` is now a plain `Option<String>`, resolved the way Sage
+resolves it. The `explicit_null` deserializer is gone; it distinguished
+something Sage does not.
+
+`sage_treats_absent_null_and_empty_restrict_the_same` pins the reference by
+deserializing an `EnzymeBuilder` and inspecting the resulting `Enzyme`'s
+`skip_suffix`, so it is asserting Sage's behaviour rather than our reading of
+its source. If a Sage upgrade changes this, that test fails first and the
+importer follows it.
 
 ### What import never touches, and why it says so
 
@@ -975,6 +990,35 @@ digestion number". A GUI must render something on first launch, and changing
 `EnzymeConfig::default()` would change behaviour for every existing user.
 Maintainer decision 2026-09-08: keep trypsin, and rely on the picker naming it
 out loud, which addresses the same problem.
+
+### A template is a complete state, not a patch (2026-09-09)
+
+Found in live testing. Applying the biofluid template switched database
+chunking on, and applying a different template afterwards left it on. The
+enzyme and the quantification method inherited the same way.
+
+**Cause.** The importer leaves an absent key alone, which is right for
+importing a partial config but wrong for a template. Any key a template did
+not mention was silently inherited from whatever was applied before it.
+
+**Rule.** Every bundled template states every field it cares about, even when
+the value equals the default. Four gaps existed: `prefilter` and its two
+companions, `isotope_errors` on the wide-MS1 template, `chimera` /
+`wide_window` / the peptide mass range on the TMT template, and `quant` on the
+four tryptic templates. That last one was the worst: applying a tryptic
+template after the TMT one left TMT quantification selected.
+
+`applying_a_template_is_independent_of_what_came_before` enforces it over
+every ordered pair of templates, comparing the whole serialized `Config`. It
+reproduces the reported bug when a key is removed again. **If it fails, add
+the missing key to the template. Do not change the importer** — the importer's
+leave-absent-alone behaviour is correct for its other job.
+
+Two of those gaps also meant the template disagreed with Sage. An absent
+`isotope_errors` resolves to `(0,0)` in Sage, while SageGUI's config default is
+`(-1,3)`; an absent `restrict` means no restriction. So the same omission that
+caused inheritance also made a template mean two different things depending on
+whether it was read by SageGUI or by the Sage CLI.
 
 ### Tolerance display is delta mass (2026-09-08)
 

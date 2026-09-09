@@ -2029,12 +2029,16 @@ mod tests {
     /// proline rule and reads as plain trypsin.
     #[test]
     fn every_bundled_template_names_a_known_enzyme() {
+        // All five are trypsin/p. Michael Lazear's high-resolution config sets
+        // `"restrict": null`; his TMT config omits the key, and Sage reads an
+        // absent restrict inside a present enzyme block as no restriction
+        // too. Both mean trypsin/P. Every template now says so explicitly.
         let expected: &[(&str, &str)] = &[
             ("tryptic-wide-ms1.json", "trypsin/p"),
             ("tryptic-tight.json", "trypsin/p"),
             ("tryptic-open.json", "trypsin/p"),
             ("tryptic-biofluid.json", "trypsin/p"),
-            ("tmt11.json", "trypsin"),
+            ("tmt11.json", "trypsin/p"),
         ];
 
         let templates = crate::sage_json::bundled_templates();
@@ -2067,6 +2071,49 @@ mod tests {
 
             // A template that reached Sage with a bad residue would hang a run.
             assert!(validate_enzyme_residues(enzyme).is_ok(), "{file}");
+        }
+    }
+
+    /// Applying a template must land in the same place no matter what was
+    /// applied before it. A template is a complete starting state, not a
+    /// patch.
+    ///
+    /// This is the test that would have caught the bug found in live testing
+    /// on 2026-09-09: the biofluid template switched database chunking on,
+    /// and applying another template afterwards left it on, because the other
+    /// templates did not mention those keys and the importer leaves an absent
+    /// key alone. The same omission made the enzyme inherit too.
+    ///
+    /// If this fails, the fix is to add the missing key to the template that
+    /// omits it, not to change the importer.
+    #[test]
+    fn applying_a_template_is_independent_of_what_came_before() {
+        let templates = crate::sage_json::bundled_templates();
+
+        let apply_all = |files: &[&str]| -> serde_json::Value {
+            let mut config = Config::default();
+            let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);
+            for file in files {
+                let t = templates
+                    .iter()
+                    .find(|t| t.file == *file)
+                    .expect("template");
+                t.doc.apply(&mut config, &mut p, &mut f, file);
+            }
+            serde_json::to_value(&config).expect("Config serializes")
+        };
+
+        for first in &templates {
+            for second in &templates {
+                assert_eq!(
+                    apply_all(&[first.file, second.file]),
+                    apply_all(&[second.file]),
+                    "applying {} then {} differs from applying {} alone",
+                    first.file,
+                    second.file,
+                    second.file
+                );
+            }
         }
     }
 
