@@ -17,7 +17,7 @@ jobs:
         id: sage_version
         run: |
           VERSION=$(grep 'pub const SAGE_VERSION' src/version.rs | sed 's/.*"\(.*\)".*/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Extracted Sage version: $VERSION"
 
       - name: Update README Badge
@@ -34,9 +34,9 @@ jobs:
         id: changes
         run: |
           if git diff --quiet README.md; then
-            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Commit and Push

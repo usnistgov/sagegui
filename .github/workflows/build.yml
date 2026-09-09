@@ -1,6 +1,21 @@
 # Derived from jspaezp/sagegui (Apache 2.0, J. Sebastian Paez).
 # Modified by Benjamin A. Neely (NIST) on 2026-07-13: added rustfmt/clippy/test
 # steps, multi-platform matrix, release artifact packaging, and generate_release_notes.
+# Modified by Benjamin A. Neely (NIST) on 2026-09-09: split the macOS matrix
+# legs onto native per-architecture runners, added --target to every build and
+# test command, switched macOS conditionals to runner.os, and replaced the
+# archived toolchain action and hand-rolled cache with dtolnay/rust-toolchain
+# and Swatinem/rust-cache.
+#
+# Both macOS legs used to run on one shared runner (macos-latest, Apple
+# Silicon). `cargo build --release` carried no --target, so both legs built
+# for the runner's own architecture. Proof: v0.7.1's published
+# sage-launcher-macos-x64.zip and sage-launcher-macos-arm64.zip were
+# BYTE-IDENTICAL, and both contained an arm64 binary. Intel users got an
+# unrunnable download. Fix: a native runner per architecture, plus --target
+# on every cargo command that builds or tests. Do not merge these two legs
+# back onto one runner.
+
 name: Build and Release
 
 on:
@@ -32,7 +47,8 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact_name: sagegui
             asset_name: sage-launcher-linux-x64
-          - os: macos-latest
+          # macos-13 is RETIRED. macos-15-intel is the Intel runner.
+          - os: macos-15-intel
             target: x86_64-apple-darwin
             artifact_name: sagegui
             asset_name: sage-launcher-macos-x64
@@ -44,28 +60,36 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Linux ran OUT OF DISK on sageRecon's CI (run 33683133213):
+      # "No space left on device" while linking rustc's rmeta output.
+      # `cargo test` builds the whole tree in debug, then `cargo build
+      # --release` builds it again, and Sage pulls in arrow, parquet, and
+      # object_store. sagegui depends on the same Sage crates. The
+      # preinstalled toolchains removed below are not used by this build.
+      - name: Free Disk Space
+        if: runner.os == 'Linux'
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
           components: rustfmt, clippy
 
       - name: Install Linux Dependencies
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 
-      - name: Cache Dependencies
-        uses: actions/cache@v4
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}
 
       - name: Check Format
         run: cargo fmt -- --check
@@ -74,19 +98,19 @@ jobs:
         run: cargo clippy -- -D warnings
 
       - name: Run Tests
-        run: cargo test --verbose
+        run: cargo test --verbose --target ${{ matrix.target }}
 
       - name: Build Release
-        run: cargo build --verbose --release
+        run: cargo build --verbose --release --target ${{ matrix.target }}
 
       - name: Create macOS App Bundle
-        if: matrix.os == 'macos-latest'
+        if: runner.os == 'macOS'
         shell: bash
         run: |
-          BUNDLE="target/release/Sage Launcher.app"
+          BUNDLE="target/${{ matrix.target }}/release/Sage Launcher.app"
           VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d '"' -f2)
           mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
-          cp target/release/${{ matrix.artifact_name }} "$BUNDLE/Contents/MacOS/"
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} "$BUNDLE/Contents/MacOS/"
           cp assets/AppIcon.icns "$BUNDLE/Contents/Resources/AppIcon.icns"
           cat > "$BUNDLE/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -124,21 +148,21 @@ jobs:
       - name: Create Release Archive
         shell: bash
         run: |
-          cd target/release
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            7z a ../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            zip -r ../../${{ matrix.asset_name }}.zip "Sage Launcher.app"
+          cd target/${{ matrix.target }}/release
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            zip -r ../../../${{ matrix.asset_name }}.zip "Sage Launcher.app"
           else
-            tar -czf ../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+            tar -czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
           fi
-          cd ../..
+          cd ../../..
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: ${{ matrix.os == 'macos-latest' && 'target/release/Sage Launcher.app' || format('target/release/{0}', matrix.artifact_name) }}
+          path: ${{ runner.os == 'macOS' && format('target/{0}/release/Sage Launcher.app', matrix.target) || format('target/{0}/release/{1}', matrix.target, matrix.artifact_name) }}
 
       - name: Release
         uses: softprops/action-gh-release@v2

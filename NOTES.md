@@ -1099,6 +1099,59 @@ not fail the test.
 
 ---
 
+## The macOS Intel build shipped an Apple Silicon binary (fixed 2026-09-09)
+
+Found by reading `usnistgov/sageRecon`'s build workflow, whose header names
+this as a defect inherited from this repo. Confirmed here, not assumed: the
+published v0.7.1 assets `sage-launcher-macos-x64.zip` and
+`sage-launcher-macos-arm64.zip` are byte-identical (11,541,435 bytes) and
+`lipo -archs` reports `arm64` for both.
+
+**Cause.** Both macOS matrix legs used `os: macos-latest`, which is Apple
+Silicon. `matrix.target` was declared and handed to the toolchain action, then
+never used, because `cargo build --release` carried no `--target`. So each leg
+built for the runner's own architecture and the x86_64 entry was mislabelled.
+Shipping since v0.7.1, which is when the macOS `.app` bundle work began.
+
+**Fix.** A native runner per architecture, and `--target` on every cargo
+command that builds or tests. Binary paths therefore move from
+`target/release/` to `target/<triple>/release/`, which is three levels deep,
+so the archive step's `cd ../..` became `cd ../../..`.
+
+**`macos-13` is retired. The Intel runner is `macos-15-intel`.** That is
+recorded in sageRecon with a dated correction, and copying it here saved a
+failed run.
+
+**The trap when fixing this.** Every macOS step was gated on
+`matrix.os == 'macos-latest'`. Moving the Intel leg to another runner would
+have made those steps silently skip: no `.app` bundle, and the archive step
+falling through to the Linux branch. That would have reintroduced the
+Terminal-window bug fixed in v0.7.1, on Intel only. All conditionals now test
+`runner.os`, and no `matrix.os` conditional remains. Mixing the two is what
+created the original bug class.
+
+**Also ported from sageRecon**, all in the same change:
+`dtolnay/rust-toolchain` replacing the archived `actions-rs/toolchain`;
+`Swatinem/rust-cache` replacing a hand-rolled cache step; a Linux Free Disk
+Space step, which sageRecon added after a real `No space left on device`
+failure caused by the same debug-then-release double build over Sage's
+arrow/parquet/object_store tree; and an `actionlint` workflow that lints the
+workflow files and shellchecks their embedded scripts.
+
+**Adding actionlint required fixing three pre-existing findings.** `actionlint`
+run over the whole repo exited 1 on three unquoted `$GITHUB_OUTPUT`
+expansions in `update-badges.yml` (SC2086). Without that fix the new lint job
+would have failed on its first run, on a file this change did not otherwise
+touch. `actionlint` 1.7.12 is installed locally, the same version the workflow
+pins, so this is checkable before pushing rather than in CI.
+
+**What is not proven.** sageRecon's own workflow appears never to have run in
+`usnistgov`, so `macos-15-intel` is unverified in practice. This repo's CI is
+the first real test. Verify by downloading the `sage-launcher-macos-x64`
+artifact from a run and checking `lipo -archs` reports `x86_64`.
+
+---
+
 ## Known permanent / standing limitations
 
 - **Coupled to Sage's internal API.** By design (Option A), a Sage update can break compilation. This is the accepted cost of embedding; the mitigation is MAINTENANCE.md, not a code change.
