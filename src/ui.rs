@@ -310,9 +310,13 @@ impl EnzymeConfig {
         ui.add_space(6.0);
 
         ui.add(egui::Slider::new(&mut self.missed_cleavages, 0..=5).text("Missed Cleavages"))
-            .on_hover_text("Max enzyme cut sites a peptide may skip.");
-        ui.add(egui::Slider::new(&mut self.min_len, 1..=20).text("Min Length"));
-        ui.add(egui::Slider::new(&mut self.max_len, 6..=100).text("Max Length"));
+            .on_hover_text("Max enzyme cut sites a peptide may skip. Default 2.");
+        ui.add(egui::Slider::new(&mut self.min_len, 1..=20).text("Min Length"))
+            .on_hover_text(
+                "Shortest peptide to consider. Default 5. Every bundled template uses 7.",
+            );
+        ui.add(egui::Slider::new(&mut self.max_len, 6..=100).text("Max Length"))
+            .on_hover_text("Longest peptide to consider. Default 50.");
     }
 }
 
@@ -1210,6 +1214,7 @@ impl SageLauncher {
                  your search parameters.",
             );
             ui.weak("Your selected files and output folder are never changed by a template.");
+            ui.weak("Applying one again restores every setting it covers, if you have changed one by hand.");
             ui.add_space(6.0);
 
             if self.templates.is_empty() {
@@ -1484,13 +1489,14 @@ impl SageLauncher {
                     )
                     .on_hover_text(
                         "Speed only, no effect on results. 8192 for high-res (Orbitrap), \
-                         up to 65536 for low-res (ion trap).",
+                         up to 65536 for low-res (ion trap). Default 32768.",
                     );
 
                     ui.add(
                         egui::DragValue::new(&mut self.config.database.min_ion_index)
                             .prefix("min_ion_index: "),
-                    );
+                    )
+                    .on_hover_text("Lowest fragment ion index to generate. Default 2.");
 
                     // decoy_tag (Option<String>)
                     let mut tag = self.config.database.decoy_tag.clone().unwrap_or_default();
@@ -1543,11 +1549,13 @@ impl SageLauncher {
             ui.add(
                 egui::Slider::new(&mut self.config.database.peptide_min_mass, 300.0..=1000.0)
                     .text("Peptide Min Mass"),
-            );
+            )
+            .on_hover_text("Lightest peptide to fragment, in Da. Default 500.");
             ui.add(
                 egui::Slider::new(&mut self.config.database.peptide_max_mass, 3000.0..=7000.0)
                     .text("Peptide Max Mass"),
-            );
+            )
+            .on_hover_text("Heaviest peptide to fragment, in Da. Default 5000.");
         });
 
         ui.add_space(10.0);
@@ -1622,21 +1630,29 @@ impl SageLauncher {
                 .on_hover_text("Force the charge range to be searched instead of trusting the file's charge annotation (useful for DIA/diaPASEF).");
                 ui.add(
                     egui::Slider::new(&mut self.config.min_peaks, 5..=50).text("Min Peaks"),
-                );
+                )
+                .on_hover_text("Fewest peaks a spectrum may have to be searched. Default 15.");
                 ui.add(
                     egui::Slider::new(&mut self.config.max_peaks, 50..=500).text("Max Peaks"),
-                );
+                )
+                .on_hover_text("Most intense peaks kept per spectrum. Default 150.");
                 ui.add(
                     egui::Slider::new(&mut self.config.min_matched_peaks, 3..=20)
                         .text("Min Matched Peaks"),
+                )
+                .on_hover_text(
+                    "Fewest matched fragments for a PSM to be reported. Default 6. \
+                     Every bundled template uses 4.",
                 );
                 ui.add(
                     egui::Slider::new(&mut self.config.max_fragment_charge, 1..=5)
                         .text("Max Fragment Charge"),
-                );
+                )
+                .on_hover_text("Highest fragment charge to consider. Default 1.");
                 ui.add(
                     egui::Slider::new(&mut self.config.report_psms, 1..=10).text("Report PSMs"),
-                );
+                )
+                .on_hover_text("PSMs reported per spectrum. Default 1.");
                 ui.checkbox(&mut self.config.predict_rt, "Predict RT");
             });
     }
@@ -1854,7 +1870,10 @@ impl SageLauncher {
             egui::Slider::new(&mut self.config.database.max_variable_mods, 1..=10)
                 .text("Max Variable Mods"),
         )
-        .on_hover_text("Caps how many variable mods can co-occur on one peptide (Sage default 2).");
+        .on_hover_text(
+            "Caps how many variable mods can co-occur on one peptide. Default 2. \
+             Every bundled template uses 3.",
+        );
 
         ui.add_space(10.0);
         ui.separator();
@@ -2071,6 +2090,50 @@ mod tests {
 
             // A template that reached Sage with a bad residue would hang a run.
             assert!(validate_enzyme_residues(enzyme).is_ok(), "{file}");
+        }
+    }
+
+    /// The hover text on the numeric controls quotes each default value, so a
+    /// user who nudges a slider can see what it was. Those numbers are typed
+    /// into strings and cannot be checked by the compiler, so pin them here.
+    ///
+    /// If this fails, a default changed. Update the hover text in
+    /// `EnzymeConfig::update_section`, `page_search` and `page_files_database`
+    /// to match, then update this test. Do not just change the numbers here.
+    #[test]
+    fn defaults_quoted_in_hover_text_are_still_correct() {
+        let enzyme = EnzymeConfig::default();
+        assert_eq!(enzyme.missed_cleavages, 2, "Missed Cleavages tooltip");
+        assert_eq!(enzyme.min_len, 5, "Min Length tooltip");
+        assert_eq!(enzyme.max_len, 50, "Max Length tooltip");
+
+        let db = DatabaseConfig::default();
+        assert_eq!(db.peptide_min_mass, 500.0, "Peptide Min Mass tooltip");
+        assert_eq!(db.peptide_max_mass, 5000.0, "Peptide Max Mass tooltip");
+        assert_eq!(db.bucket_size, 32768, "Bucket Size tooltip");
+        assert_eq!(db.min_ion_index, 2, "min_ion_index tooltip");
+        assert_eq!(db.max_variable_mods, 2, "Max Variable Mods tooltip");
+
+        let config = Config::default();
+        assert_eq!(config.min_peaks, 15, "Min Peaks tooltip");
+        assert_eq!(config.max_peaks, 150, "Max Peaks tooltip");
+        assert_eq!(config.min_matched_peaks, 6, "Min Matched Peaks tooltip");
+        assert_eq!(config.max_fragment_charge, 1, "Max Fragment Charge tooltip");
+        assert_eq!(config.report_psms, 1, "Report PSMs tooltip");
+
+        // Three tooltips also say "every bundled template uses N". Check that
+        // claim rather than leaving it to rot.
+        for t in crate::sage_json::bundled_templates() {
+            let mut c = Config::default();
+            let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);
+            t.doc.apply(&mut c, &mut p, &mut f, t.file);
+            assert_eq!(c.database.enzyme.min_len, 7, "{} min_len", t.file);
+            assert_eq!(c.min_matched_peaks, 4, "{} min_matched_peaks", t.file);
+            assert_eq!(
+                c.database.max_variable_mods, 3,
+                "{} max_variable_mods",
+                t.file
+            );
         }
     }
 

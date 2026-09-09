@@ -30,6 +30,21 @@ Also produced the rename checklist for the imminent move to `usnistgov`. The val
 
 **Suggested improvement (Q5):** When a subagent reports a bug in code you own, verify the mechanism in the source before writing it into a plan, and verify it again before writing it into a commit message. This session's hang was real and turned out to be broader than reported; had it been wrong, it would have been repeated as fact in a plan, a commit, and NOTES, which is three places a future session would trust it from.
 
+**Addendum 2026-09-09, after the maintainer ran the GUI checklist.** Sixteen checks, three real bugs, and one of my own tests was wrong.
+
+1. **Templates inherited from each other.** Applying the biofluid template switched database chunking on, and applying another template afterwards left it on. The importer leaves an absent key alone, which is right for a partial config and wrong for a template. Four gaps, and the maintainer had not even hit the worst: only the TMT template carried a `quant` block, so applying a tryptic template after it kept TMT quantification selected. Every template now states every field it cares about, and `applying_a_template_is_independent_of_what_came_before` enforces it over all 25 ordered pairs. That invariant then found the `isotope_errors` gap on its own, which I had not spotted.
+
+2. **The restrict semantics were wrong, and my test encoded the error.** The maintainer saw the TMT template read `trypsin/p` where my test asserted `trypsin`. Reading Sage's source and then probing its actual types showed that inside a present `enzyme` block, absent, `null` and `""` all mean no restriction: `en.restrict.unwrap_or_else(|| "".into())`. `EnzymeBuilder::default()`'s `Some("P")` applies only when the whole `enzyme` key is missing. So the three-state `explicit_null` deserializer distinguished something Sage does not, and loading Michael Lazear's TMT config ran trypsin where the Sage CLI runs trypsin/P. A different digest with nothing on screen showing it. The reader now resolves it as Sage does, and the reference test asserts Sage's behaviour through its own types (`Enzyme::skip_suffix`) rather than my reading of its source.
+
+3. **A pre-flight error stayed on the run bar after the cause was fixed.** Pre-flight checks are extracted so the run bar re-checks them and drops a stale message. Only pre-flight messages clear that way.
+
+The maintainer also asked whether adding reset-to-defaults on the sliders would break anything. It would not break, but "default" is ambiguous in this codebase in a way worth recording: SageGUI's defaults and the bundled templates disagree on Min Length (5 vs 7), Min Matched Peaks (6 vs 4) and Max Variable Mods (2 vs 3). A reset button pressed after applying a template would therefore move the search away from the template's values, silently. Shipped the cheap form instead: every numeric control's hover text names its default, and the Experiment tab says that re-applying a template restores everything it covers, which is now an exact and tested reset. `defaults_quoted_in_hover_text_are_still_correct` pins the numbers, because they are typed into strings the compiler cannot check.
+
+**Revised answer to Q1 (least confident).** The earlier entry said the enzyme picker's behaviour on configs set from outside the picker was unproven. The maintainer's walkthrough proved it, and it was wrong in exactly that spot. The remaining soft spot is different: the four fixes above are tested but were themselves never clicked, except by the maintainer's second pass which confirmed all of them. What is still untested end to end is a real non-tryptic `results.json` import.
+
+**Revised Q5.** Two lessons, both about the same failure. First: a test that encodes my own reading of a dependency is not a test of the dependency. `sage_treats_absent_null_and_empty_restrict_the_same` now asserts through Sage's own types, and would have caught this on the day it was written. Second: an invariant is worth more than an example. One order-independence property found two bugs, including one nobody had reported, where five per-template example assertions had found none.
+
+
 ---
 
 ## 2026-09-08 — Experiment templates and Sage-JSON import; the precursor window, corrected again
