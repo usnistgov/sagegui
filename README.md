@@ -36,7 +36,7 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 
 ## To be added
 
-- Export options: pepXML/mzIdentML, Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), MSstats (add feature to [MSstatsConvert](https://github.com/Vitek-Lab/MSstatsConvert), [feature requested](https://github.com/Vitek-Lab/MSstatsConvert/issues/143)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), add import to PDV for viewing ([feature requested](https://github.com/wenbostar/PDV/issues/110#issue-5145322431)), Scaffold (?)
+- Export options: pepXML/mzIdentML, Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), Scaffold (?). PDV and MSstats are covered under Downstream tools instead: both read Sage output directly, so no exporter is needed here.
 - iBAQ and other LFQ options
 
 ## Download
@@ -77,7 +77,21 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 ## Related
 
 - [Sage](https://github.com/lazear/sage) — the search engine
-- [sagePreview](https://github.com/neely/sagePreview) — PTM discovery and reconnaissance using Sage
+- [sageRecon](https://github.com/usnistgov/sageRecon) — reconnaissance for unfamiliar data: detects modifications and recommends mass tolerances before a production search
+
+## Downstream tools
+
+Tools that read what SageGUI produces. This list grows as support lands.
+
+- [PDV](https://github.com/wenbostar/PDV) — spectrum and PSM viewer. Sage support arrived in
+  [v2.7.0](https://github.com/wenbostar/PDV/releases/tag/v2.7.0): open `results.sage.tsv` in the
+  Database Searching dialog together with the mzML or mgf files the search used. Gzipped spectrum
+  files work, and decoys and hits above 1% q-value can be filtered on import.
+- [MSstats](https://github.com/Vitek-Lab/MSstatsConvert) — statistical analysis. A Sage converter is
+  [in development](https://github.com/Vitek-Lab/MSstatsConvert/issues/143) and will read `lfq.tsv`,
+  which carries the MS1 areas MSstats wants. **If you plan to use it, turn off Combine Charge States
+  on the Quant tab.** With it on, which is the default, Sage writes a charge of -1 and
+  `PrecursorCharge` is meaningless downstream.
 
 ## Citation
 

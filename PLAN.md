@@ -8,9 +8,9 @@
 
 ## Status
 
-- **Current phase:** Phase 5 in progress. 2026-09-08 landed three things. NIST FAIR governance files now match `usnistgov/sageRecon` exactly (`CITATION.cff`, `CODEMETA.yaml`, `CODEOWNERS`, `fair-software.md`, README Citation section); the licence question was deliberately left open and is fully documented instead. A latent hang was found and fixed: any panic on the run thread left the run bar spinning forever, because `LOG_SENDER` keeps a sender clone alive so the channel never disconnects. Enzyme presets landed, 14 curated proteases ported from sageRecon, with the cut side rebuilt as a labelled pair so the N-terminal proteases are visible. 41 tests pass on all four CI platforms.
-- **Last updated:** 2026-09-08
-- **Next action (next session):** **Live-test the Search and Experiment tabs.** Three features have now shipped without anyone clicking them: templates, the delta-mass tolerance display, and the enzyme picker. The checks are short. Apply each of the five templates and confirm the other tabs follow. Confirm the open template's precursor window reads "Delta mass from -100 to 500". On the Search tab pick `asp-n` and confirm the cut side flips to "Before the residue" while missed cleavages and the length range stay put; then type `B` into Cleave At, press Run, and confirm an error appears instead of a spinning run bar (that reproduces the hang that was just fixed). Then load a real `results.json` from `~/Documents/proteomicsTesting/` and confirm the re-select notes name the right files. After that: the licence decision (NOTES → License and governance), and the remaining Phase 5 items (session resilience, results-summary panel, smarter output directory, better validation).
+- **Current phase:** Phase 5 largely done. `v0.8.0` released and verified 2026-09-09. That release added experiment templates, Sage config/results import, enzyme presets and the delta-mass tolerance display, plus the NIST FAIR governance files. Four silent-failure bugs were fixed in it: the macOS Intel download was an Apple Silicon binary since v0.7.1; any panic on the run thread hung the run bar forever; the proline restriction was read differently from Sage; and templates inherited settings from whichever template was applied before them. The maintainer walked the GUI end to end on 2026-09-09 and found three of those. CI now builds each macOS architecture on its own runner and lints its own workflows.
+- **Last updated:** 2026-09-09
+- **Next action (next session):** Two Phase 6 export targets closed themselves upstream (PDV shipped Sage support, MSstats is being built), so the remaining export work is pepXML/mzIdentML, Perseus, DIAgui and the *-Analyst suite. Before any of that, the cheaper items: **a hover note on Combine Charge States** (SageGUI's default of true makes MSstats' `PrecursorCharge` meaningless, see NOTES → Downstream tools), then session resilience, the results-summary panel, and a smarter default output directory. The **licence decision** is still open and NOTES has it scoped to a short job. The **rename checklist** fires whenever the repo moves to `usnistgov`.
 - **Released:** `v0.8.0` (2026-09-09) — experiment templates, Sage config/results import, enzyme presets, delta-mass tolerance display, NIST FAIR governance files, and two silent bugs fixed (any run-thread panic hung the run bar forever; the proline restriction was read differently from Sage). Previous: `v0.7.1` — real Stop-button cancellation, settings persistence fixed, app icon, macOS `.app` bundle. `v0.7.0` — Multi-FASTA + on-the-fly concatenation. `v0.6.0` — Sage v0.15.0-beta.2.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -325,12 +325,12 @@ Deferred to its own session by maintainer decision, 2026-09-08.
 - [ ] Write report option
 - [ ] Bruker configuration (for timsTOF data)
 
-#### sagePreview integration
+#### sageRecon integration
 
-- [ ] **Port rollup scripts** — The peptide→protein rollup and LFQ aggregation scripts currently live in a separate project (not sagePreview). Action item: locate, read, and refactor them into a form SageGUI can call. (See Phase 6 for the GUI surface.)
-- [ ] **Digestion Efficiency Report** — Port from sagePreview: missed cleavages, semi-tryptic peptides, N/C ragged ratio.
-- [ ] **Delta Mass Explorer** — Port from sagePreview: modification distribution from open search.
-- [ ] **Link to sagePreview** — "Analyze with sagePreview" button for deeper analysis.
+- [ ] **Port rollup scripts** — The peptide→protein rollup and LFQ aggregation scripts currently live in a separate project (not sageRecon). Action item: locate, read, and refactor them into a form SageGUI can call. (See Phase 6 for the GUI surface.)
+- [ ] **Digestion Efficiency Report** — Port from [sageRecon](https://github.com/usnistgov/sageRecon): missed cleavages, semi-tryptic peptides, N/C ragged ratio.
+- [ ] **Delta Mass Explorer** — Port from sageRecon: modification distribution from open search.
+- [ ] **Link to sageRecon** — "Analyze with sageRecon" button for deeper analysis. The repo moved to `usnistgov/sageRecon` and was renamed from sagePreview.
 
 ---
 
@@ -352,11 +352,11 @@ both in sync going forward, per AGENTS.md.)*
 Each of these requires understanding the target format and confirming Sage's output contains the required fields. Research is an action item per format before implementing.
 
 - [ ] **pepXML / mzIdentML export** — the two standard interchange formats several downstream tools (Scaffold among them) ingest. Investigate whether spoofing pepXML from Sage results is complete enough to be useful; mzIdentML is the more modern/complete standard but more complex to produce correctly.
-- [ ] **MSstats-compatible export** — Understand MSstats input format (feature-level TSV with specific column names); produce it from Sage results. Likely feasible with our existing data. **Preferred path:** contribute a Sage-input feature directly to [MSstatsConvert](https://github.com/Vitek-Lab/MSstatsConvert) rather than (or in addition to) exporting our own spoofed file — [feature already requested upstream](https://github.com/Vitek-Lab/MSstatsConvert/issues/143).
+- [ ] **MSstats** — **being built upstream, not by us.** The preferred path worked: [MSstatsConvert #143](https://github.com/Vitek-Lab/MSstatsConvert/issues/143) is in active development by @swaraj-neu, reading `lfq.tsv` rather than `results.sage.tsv` (Sage's `ms2_intensity` is a discriminant feature, not a quant channel). Planned defaults: `spectrum_q` at 0.01, `rank == 1`, drop `label == -1`, `ProteinName` from `proteins`, keep inline modification tags. **Open action for us:** SageGUI defaults `combine_charge_states` to true, which makes Sage write charge -1 and `PrecursorCharge` meaningless for MSstats. Documented in README → Downstream tools; consider a hover note on the Quant tab checkbox.
 - [ ] **Perseus-format export** — for [Perseus](https://maxquant.net/perseus/) and [ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter). Format/column requirements not yet researched.
 - [ ] **DIAgui-compatible export** — for [DIAgui](https://github.com/mgerault/DIAgui). Format/column requirements not yet researched.
 - [ ] **FragPipe Analyst / LFQ-Analyst / *-Analyst export** — [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst), FragPipe-Analyst, and the other tools under the [*-Analyst suite](https://analyst-suites.org/) likely share a common input shape. Identify required format; map Sage output columns.
-- [ ] **PDV import** — add SageGUI/Sage output as a supported import format in [PDV](https://github.com/wenbostar/PDV) (a spectrum/PSM viewer), rather than building our own viewer. [Feature already requested upstream](https://github.com/wenbostar/PDV/issues/110).
+- [x] **PDV import** — **done upstream, not by us.** [PDV v2.7.0](https://github.com/wenbostar/PDV/releases/tag/v2.7.0) (2026-08-14) reads `results.sage.tsv` with its mzML/mgf files, handles gzipped spectra, and can filter decoys and hits above 1% q-value on import. Nothing to build here. Listed under README → Downstream tools.
 - [ ] **Scaffold-compatible export (?)** — Scaffold ingests pepXML or mzIdentML (see above), so this may fall out of that work rather than needing a dedicated exporter. Still marked uncertain (README: "Scaffold (?)") — confirm Scaffold's actual import requirements before committing effort here.
 
 **Note on scope:** Format export is "spoof where we have the data, document gaps where we don't." We won't invent data that Sage doesn't produce. Where an upstream tool already has an open feature request for Sage support (MSstatsConvert #143, PDV #110), **contributing there may be less total work and more durable than a parallel SageGUI-side exporter** — worth a real "build vs. contribute upstream" decision per format before implementing, not just defaulting to building our own.
@@ -455,7 +455,7 @@ Phase 6 is planned but untouched.
    real `results.json` and check the re-select notes. Also check the flipped
    tolerance display: the open template must read "from -100 to 500".
 2. **Enzyme presets from sageRecon** — see the Phase 5 section above.
-3. **Locate rollup scripts** — they exist in a separate project (not sagePreview).
+3. **Locate rollup scripts** — they exist in a separate project (not sageRecon).
    Find them, read them, record language + structure in NOTES before Phase 6 can
    be scoped accurately.
 4. **Phase 6 format survey** — find a sample input file for MSstats, LFQ-analyst

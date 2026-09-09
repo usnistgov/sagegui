@@ -1152,11 +1152,53 @@ artifact from a run and checking `lipo -archs` reports `x86_64`.
 
 ---
 
+## Downstream tools that read Sage output (2026-09-09)
+
+Two of the Phase 6 export targets were solved upstream instead of here, which
+was the stated preference in the Phase 6 scope note: "contributing there may
+be less total work and more durable than a parallel SageGUI-side exporter."
+That is what happened. Do not build exporters for either.
+
+**PDV, done.** [v2.7.0](https://github.com/wenbostar/PDV/releases/tag/v2.7.0),
+released 2026-08-14, reads `results.sage.tsv` directly. It takes mgf, mgf.gz,
+mzML and mzML.gz, matches each PSM to its own file through the `filename`
+column, parses Sage's inline modification grammar (`C[+57.0215]`, N-term and
+C-term forms), handles both `scannr` dialects, and can filter decoys and hits
+above 1% `spectrum_q` at import. Verified by reading the release notes, not
+assumed from the issue being closed.
+
+**MSstats, in progress.** [MSstatsConvert
+#143](https://github.com/Vitek-Lab/MSstatsConvert/issues/143) is being built
+by @swaraj-neu. Decisions already settled in that thread, worth knowing
+because they constrain what SageGUI should produce:
+
+- It reads **`lfq.tsv`, not `results.sage.tsv`**. Sage's `ms2_intensity` is
+  the sum of matched b/y ion intensities and feeds the discriminant model, so
+  it is a PSM quality feature, not a quant channel. `DOCS.md` describes it
+  differently; the code decides.
+- Planned defaults: filter `spectrum_q` at 0.01, keep `rank == 1`, drop
+  `label == -1`, `ProteinName` from `proteins`, keep inline modification tags
+  in `PeptideSequence`. `protein_q` is deliberately not a default, because
+  shared peptides hold it at 1.0.
+
+**The gotcha this creates for SageGUI.** `LfqSettings::default()` sets
+`combine_charge_states = true`, and SageGUI inherits it. With it on, Sage
+writes charge `-1` throughout `lfq.tsv`, so `PrecursorCharge` is meaningless
+to MSstats. Turning it off is correct for MSstats but slow: the maintainer
+reported a multi-file run with it off "taking too long", because all charge
+states are compared separately. So this is a real tradeoff, not a setting to
+flip by default.
+
+Recorded in README → Downstream tools. An open PLAN item asks whether the
+Quant tab's Combine Charge States checkbox should say this in its hover text.
+
+---
+
 ## Known permanent / standing limitations
 
 - **Coupled to Sage's internal API.** By design (Option A), a Sage update can break compilation. This is the accepted cost of embedding; the mitigation is MAINTENANCE.md, not a code change.
 - **One search at a time.** Not a batch/queue system — that's an explicit non-goal (see PLAN). Batch processing is a possible far-future phase.
-- **Not a results viewer beyond a basic summary.** Deep analysis is left to downstream tools / sagePreview.
+- **Not a results viewer beyond a basic summary.** Deep analysis is left to downstream tools: sageRecon before a search, PDV and MSstats after one.
 - **macOS binaries are unsigned.** Triggers Gatekeeper "unidentified developer" warnings. Workaround documented in README (`xattr -d com.apple.quarantine`). Real fix (Apple Developer Program + code signing) is deferred — see PLAN "Future / Distribution".
 
 ---
@@ -1523,7 +1565,7 @@ Caveat: an old Sage changelog notes a historical bug where variable protein-term
 ### Test baseline (Phase 2)
 
 The validated reference run — use to sanity-check regressions:
-- **Data:** `B.naive_01steady-state.mzML.gz` + `UniProt-Human-UP000005640_canonical-2023_05.fasta` (from sagePreview testing).
+- **Data:** `B.naive_01steady-state.mzML.gz` + `UniProt-Human-UP000005640_canonical-2023_05.fasta` (from sageRecon testing, when it was still called sagePreview). Both are in `~/Documents/proteomicsTesting/`.
 - **Params:** precursor ±10 ppm, fragment ±10 ppm, trypsin (KR not P) 2 missed cleavages, static C+57.021, variable M+15.995, LFQ on.
 - **Result:** 60,672 PSMs; LFQ worked; outputs `results.sage.tsv`, `lfq.tsv`, `results.json`.
 - **Post-restructure regression check (2026-08-13):** re-ran this exact baseline through the new 6-tab GUI (debug build, commit `6712bb1`) → **60,672 PSMs again** (identical). Confirms the sidebar restructure + `From<Config> for Input` remap + serde shadow-field workarounds preserved search behavior. Use this count as the known-good comparison for future UI changes. *(Output landed in `target/debug/` because the output-location default is cwd — see UI-review pin about moving that control.)*
@@ -1553,15 +1595,21 @@ The validated reference run — use to sanity-check regressions:
 
 | Project | Purpose | Location |
 |---------|---------|----------|
-| sagePreview | Reconnaissance tool using Sage (PTM discovery) | `C:\Users\ban\Documents\GitHub\sagePreview` · `github.com/neely/sagePreview` |
+| sageRecon | Reconnaissance tool using Sage: detects modifications and recommends mass tolerances before a production search. Renamed from sagePreview and moved to the NIST org. | `github.com/usnistgov/sageRecon` |
 | sage (official) | The search engine | `github.com/lazear/sage` |
 | sage (our fork) | Modified/pinned Sage | `github.com/neely/sage` |
 | sagegui (Sebastian's) | Original GUI | `github.com/jspaezp/sagegui` |
 | sagegui (ours) | This project | `github.com/neely/sagegui` |
 
-### External reference material (from sagePreview)
+### External reference material (from sageRecon)
 
-Located at `C:\Users\ban\Documents\GitHub\sagePreview\reference-notes\`:
+The project was renamed sagePreview to sageRecon and moved to
+`github.com/usnistgov/sageRecon`. These paths are from the Windows machine and
+predate that move. On the Mac the checkout is
+`/Users/ben/Documents/GitHub/sageRecon`, where this material now lives under
+`_dev/reference-notes/`.
+
+Historic location, `C:\Users\ban\Documents\GitHub\sagePreview\reference-notes\`:
 
 | File | Content |
 |------|---------|
@@ -1575,4 +1623,7 @@ Located at `C:\Users\ban\Documents\GitHub\sagePreview\reference-notes\`:
 | `MS1-intensity.md` | MS1 signal fate approaches |
 | `digestion-efficiency-metrics.md` | Missed cleavages, semi-tryptic metrics |
 
-Official Sage source also mirrored at `C:\Users\ban\Documents\GitHub\sagePreview\reference\sage\`.
+Official Sage source was also mirrored there. On this Mac the pinned Sage
+source is the cargo checkout instead:
+`~/.cargo/git/checkouts/sage-*/<rev>/`, which is the copy that actually
+compiles into the binary and therefore the one to read.

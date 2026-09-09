@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **README documents downstream tools** — a new section lists tools that read SageGUI output: [PDV](https://github.com/wenbostar/PDV) v2.7.0 opens `results.sage.tsv` directly, and an [MSstats converter](https://github.com/Vitek-Lab/MSstatsConvert/issues/143) reading `lfq.tsv` is in development. Neither needs an exporter on our side. The section notes that Combine Charge States must be off for MSstats, since Sage writes a charge of -1 when charges are combined.
+- **sagePreview is now sageRecon** — the related project was renamed and moved to [usnistgov/sageRecon](https://github.com/usnistgov/sageRecon). Links updated.
+
 ## [0.8.0] - 2026-09-09
 
 ### Added

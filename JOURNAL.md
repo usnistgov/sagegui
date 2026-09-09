@@ -1,3 +1,35 @@
+## 2026-09-09 — v0.8.0 released; a shipped Intel binary that was not Intel; downstream tools
+
+**Did:** Long session, three distinct pieces of work plus a release.
+
+**NIST governance (Part 1 of the plan).** Ported `CITATION.cff`, `CODEMETA.yaml`, `CODEOWNERS` and `fair-software.md` from `usnistgov/sageRecon`, matching it exactly rather than exceeding it, and added a README Citation section. Verified the headline claim rather than asserting it: `git diff --stat` over `LICENSE`, `THIRD_PARTY_LICENSES.md`, `Cargo.toml` and `src/` across both commits is empty. The licence conflict was flagged and left alone, as instructed, with all five conflicting facts and both resolution options written into NOTES so the decision is short when it comes.
+
+**A latent hang, found while planning the enzyme work.** A subagent claimed an invalid residue "hangs" rather than crashes. Checking rather than repeating showed it was right and broader: `LOG_SENDER` holds a clone of the run thread's sender for the whole run, so a panicking thread never drops the last sender, `Disconnected` cannot fire, and `check_thread_status` reads `Empty` forever. Any panic in the run path did this, and `windows_subsystem = "windows"` hid the message entirely on Windows. Fixed with `catch_unwind` plus a residue validator.
+
+**Enzyme presets (Part 2).** Fourteen proteases from sageRecon. The design call that mattered was deriving the enzyme name every frame rather than storing it, because a new field on `EnzymeConfig` would fail an existing saved blob's deserialize and eframe would drop every setting the user had.
+
+**The maintainer then walked the whole GUI, sixteen checks, and found three bugs.** Templates inherited from each other, because the importer leaves an absent key alone, which is right for a partial config and wrong for a template; four keys were missing, and the worst was `quant`, so a tryptic template applied after the TMT one kept TMT quantification. A pre-flight error stayed on the run bar after its cause was fixed. And the enzyme picker read `trypsin/p` where my own test asserted `trypsin` — which turned out to be my test being wrong, not the app.
+
+**That third one was the most valuable thing in the session.** Sage resolves `restrict` with `unwrap_or_else(|| "".into())`, so inside a present `enzyme` block, absent, `null` and `""` all mean no restriction; `EnzymeBuilder::default()`'s `Some("P")` applies only when the whole `enzyme` key is missing. My three-state `explicit_null` deserializer distinguished something Sage does not, and loading Michael Lazear's TMT config ran trypsin where the Sage CLI runs trypsin/P. A different digest with nothing on screen to show it. The reference test now asserts Sage's behaviour through its own types by inspecting `Enzyme::skip_suffix`, rather than my reading of its source.
+
+**Released v0.8.0**, then immediately unreleased it. The maintainer asked me to check sageRecon's build settings while CI ran. Its workflow header names a defect inherited from this repo: both macOS legs run on one Apple Silicon runner with no `--target`. Confirmed by downloading the published v0.7.1 assets, which are byte-identical at 11,541,435 bytes with `lipo -archs` reporting `arm64` for both. **Intel Mac users have had an unrunnable download since v0.7.1.** The maintainer chose to delete the tag and re-cut rather than ship it again, so v0.8.0 was withdrawn, the workflow fixed, CI proved it, and the tag went back on. The published Intel asset is now genuinely `x86_64`, checked against the release rather than the CI artifact.
+
+**Closing items.** Pruned two remote branches after confirming both were duplicates of fixes already in `main` against a file layout that no longer exists, keeping unpushed archive tags. Updated sagePreview to `usnistgov/sageRecon` throughout. Added a README Downstream tools section: PDV v2.7.0 ships Sage support, and an MSstats converter is in development reading `lfq.tsv`. Both were Phase 6 export targets, and both resolved upstream, which is exactly what the Phase 6 scope note hoped for.
+
+**What did you assume without stating it? (Q2):** That deleting the two `fix/*` branches was safe because the *bugs* are fixed in `main`, even though `git cherry` reports both commits as `+` (not applied). The patch-ids differ because `ui.rs` was extracted and redesigned since. I verified the corrected behaviour is present in the current code and kept archive tags, but I did not prove the branches contain nothing else, only that their diffs are two-line fixes whose intent is satisfied.
+
+**What's the biggest thing you might be missing? (Q3):** How many other places SageGUI's defaults silently disagree with Sage's. Two turned up today by accident: `restrict` (absent means no restriction, not "P") and `isotope_errors` (absent means `(0,0)`, while our config default is `(-1,3)`). Both were found through a template bug, not by looking. `EnzymeParameters` also defaults `missed_cleavages` to 1 where ours is 2. Nobody has audited `Builder::make_parameters` and `From<EnzymeBuilder>` field by field against our `Config::default()`, and that is the obvious next audit.
+
+**What could have gone better? (Q4):** I ran a blind find-and-replace to strip em dashes and mangled prose across AGENTS.md, including a section the maintainer had written themselves, then had to restore from HEAD and redo it by hand. The scope was wrong too: only UI text needed it. Separately, I nearly deleted commit `c70e12c` as "hollow" before checking what was in it; it carried the maintainer's own STOP section.
+
+**Least confident about (Q1):** Whether `macos-15-intel` stays available. The whole Intel build now depends on that runner label, `macos-13` was retired out from under this project once already, and GitHub gives no long notice. Proven right or wrong by the next release build failing to find the runner. Worth watching, and worth a note if it starts warning.
+
+**Future plans:** A hover note on Combine Charge States, since our default of true makes MSstats' `PrecursorCharge` meaningless. Then the Sage-versus-SageGUI default audit from Q3. The licence decision and the rename checklist are both scoped and waiting.
+
+**Suggested improvement (Q5):** Prefer an invariant to a set of examples. `applying_a_template_is_independent_of_what_came_before` compares whole configs across every ordered pair of templates; it found two bugs, one of which nobody had reported, where five per-template example assertions had found none. The same reasoning applies to the Q3 audit: rather than checking defaults one at a time, assert that applying an empty Sage config leaves `Config` equal to what Sage itself would resolve.
+
+---
+
 ## 2026-09-08 (later) — NIST governance parity; a latent hang; enzyme presets
 
 **Did:** Two planned pieces of work, plus one unplanned bug that the planning turned up.
