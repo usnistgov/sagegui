@@ -9,8 +9,8 @@ abstract: >-
   the interface. Bundled templates and a reader for Sage config.json and
   results.json files reproduce a known search configuration.
 type: software
-version: 0.7.1
-date-released: "2026-08-24"
+version: 0.8.0
+date-released: "2026-09-09"
 authors:
   - family-names: Neely
     given-names: Benjamin A.

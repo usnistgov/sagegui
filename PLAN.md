@@ -11,7 +11,7 @@
 - **Current phase:** Phase 5 in progress. 2026-09-08 landed three things. NIST FAIR governance files now match `usnistgov/sageRecon` exactly (`CITATION.cff`, `CODEMETA.yaml`, `CODEOWNERS`, `fair-software.md`, README Citation section); the licence question was deliberately left open and is fully documented instead. A latent hang was found and fixed: any panic on the run thread left the run bar spinning forever, because `LOG_SENDER` keeps a sender clone alive so the channel never disconnects. Enzyme presets landed, 14 curated proteases ported from sageRecon, with the cut side rebuilt as a labelled pair so the N-terminal proteases are visible. 41 tests pass on all four CI platforms.
 - **Last updated:** 2026-09-08
 - **Next action (next session):** **Live-test the Search and Experiment tabs.** Three features have now shipped without anyone clicking them: templates, the delta-mass tolerance display, and the enzyme picker. The checks are short. Apply each of the five templates and confirm the other tabs follow. Confirm the open template's precursor window reads "Delta mass from -100 to 500". On the Search tab pick `asp-n` and confirm the cut side flips to "Before the residue" while missed cleavages and the length range stay put; then type `B` into Cleave At, press Run, and confirm an error appears instead of a spinning run bar (that reproduces the hang that was just fixed). Then load a real `results.json` from `~/Documents/proteomicsTesting/` and confirm the re-select notes name the right files. After that: the licence decision (NOTES → License and governance), and the remaining Phase 5 items (session resilience, results-summary panel, smarter output directory, better validation).
-- **Released:** `v0.7.1` (2026-08-24) — Stop button now genuinely cancels an in-progress search (`neely/sage` commit `ed5f06c`), settings persistence fixed for modifications + fully audited, real app icon, macOS `.app` bundle packaging (fixes a terminal window opening alongside the GUI). Previous: `v0.7.0` — Multi-FASTA + on-the-fly concatenation. `v0.6.0` — Sage v0.15.0-beta.2 (commit `d74024df`).
+- **Released:** `v0.8.0` (2026-09-09) — experiment templates, Sage config/results import, enzyme presets, delta-mass tolerance display, NIST FAIR governance files, and two silent bugs fixed (any run-thread panic hung the run bar forever; the proline restriction was read differently from Sage). Previous: `v0.7.1` — real Stop-button cancellation, settings persistence fixed, app icon, macOS `.app` bundle. `v0.7.0` — Multi-FASTA + on-the-fly concatenation. `v0.6.0` — Sage v0.15.0-beta.2.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
 
@@ -442,7 +442,7 @@ Locked decisions and their rationale have moved to **NOTES.md → Design decisio
 
 **Start here:** read AGENTS.md, then this status block, then NOTES.md (locked decisions + dead-ends), then the top of JOURNAL.md.
 
-**State:** Phases 0-4 done. `v0.7.1` released and confirmed on Windows, macOS
+**State:** Phases 0-4 done. `v0.8.0` released 2026-09-09. `v0.7.1` was confirmed on Windows, macOS
 and Linux. Phase 5 is well advanced: async execution, real progress, the Stop
 button, settings persistence, the app icon, the macOS `.app` bundle, multi-FASTA,
 prefilter controls, experiment templates and Sage-JSON import have all landed.

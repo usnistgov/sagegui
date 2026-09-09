@@ -84,7 +84,7 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 If you use SageGUI in published work, please cite the software:
 
 > Neely, B.A. (2026). *SageGUI: a graphical interface for the Sage proteomics
-> search engine* (Version 0.7.1) [Computer software]. National Institute of
+> search engine* (Version 0.8.0) [Computer software]. National Institute of
 > Standards and Technology. https://github.com/neely/sagegui
 
 Cite the version you ran, not the repository in general. The pinned Sage

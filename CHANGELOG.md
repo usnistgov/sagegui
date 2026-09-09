@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-09
+
 ### Added
 - **Default values in the tooltips** — hovering a numeric control now tells you its default, so nudging a slider and forgetting where it was is recoverable. Where every bundled template uses a different value from the default (Min Length, Min Matched Peaks, Max Variable Mods), the tooltip says both. The Experiment tab also notes that applying a template again restores every setting it covers.
 - **Enzyme presets** — the Search tab has an Enzyme picker with 14 curated proteases: trypsin, trypsin/P, Arg-C, Asp-N, Asp-N/ambic, chymotrypsin, CNBr, Lys-C, Lys-C/P, Lys-N, pepsin-A, Trypchymo, Glu-C and Glu-C/DE. Ported from [sageRecon](https://github.com/usnistgov/sageRecon), whose source is Mascot's published enzyme list. A preset sets the cut rule only: missed cleavages, the length range and semi-enzymatic digestion are left alone. The picker names the current enzyme even if you set it by hand or by loading a template, and reads "Custom" when the rule is not one of the presets.
