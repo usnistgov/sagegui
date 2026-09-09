@@ -133,6 +133,12 @@ pub struct SageLauncher {
     /// Outcome of the most recent template or file import, shown on the
     /// Experiment tab. `Err` carries a parse/IO failure message.
     pub last_import: Option<Result<sage_json::ImportReport, String>>,
+    /// True only when `status_message` is a pre-flight refusal, meaning the run
+    /// never started. Those describe the current settings, so they stop being
+    /// true once the settings are fixed and may be cleared. A finished run's
+    /// message must NEVER be cleared this way: it is the only record of why the
+    /// run failed.
+    status_is_preflight_error: bool,
 }
 
 impl Default for SageLauncher {
@@ -162,6 +168,7 @@ impl Default for SageLauncher {
             templates: Vec::new(),
             selected_template: 0,
             last_import: None,
+            status_is_preflight_error: false,
         }
     }
 }
@@ -231,23 +238,22 @@ impl eframe::App for SageLauncher {
             ui.horizontal(|ui| {
                 let run_btn = ui.add_enabled(!self.is_running, egui::Button::new("Run"));
                 if run_btn.clicked() {
-                    match self.launch_application() {
-                        Ok(_) => self.status_message = "Analysis started".to_string(),
-                        Err(e) => self.status_message = format!("Error: {}", e),
+                    // Pre-flight is checked here, separately from the launch, so
+                    // a refusal to start can be told apart from a failure after
+                    // starting. Only the first kind may clear itself.
+                    if let Err(problem) = self.preflight() {
+                        self.status_message = format!("Error: {}", problem);
+                        self.status_is_preflight_error = true;
+                    } else {
+                        self.status_is_preflight_error = false;
+                        match self.launch_application() {
+                            Ok(_) => self.status_message = "Analysis started".to_string(),
+                            Err(e) => self.status_message = format!("Error: {}", e),
+                        }
                     }
                 }
 
-                // A pre-flight failure describes the current settings, so it
-                // stops being true the moment the user fixes them. Drop it
-                // then, rather than leaving a red line about a problem that is
-                // already gone. Only pre-flight messages are cleared this way;
-                // a real run's result stays until the next run.
-                if !self.is_running
-                    && self.status_message.starts_with("Error: ")
-                    && self.preflight().is_ok()
-                {
-                    self.status_message.clear();
-                }
+                self.clear_stale_preflight_error();
 
                 let stop_btn = ui
                     .add_enabled(
@@ -373,6 +379,7 @@ impl SageLauncher {
                     // `result`, not the flag: only the "cancelled" error text
                     // (from `run_sage`'s own cancellation checks) means the run
                     // genuinely aborted and wrote nothing.
+                    self.status_is_preflight_error = false;
                     self.status_message = match result {
                         Ok(msg) => msg,
                         Err(err) if self.stop_requested && err == "cancelled" => {
@@ -431,6 +438,25 @@ impl SageLauncher {
             return Err("mzML file is not selected".to_string());
         }
         Ok(())
+    }
+
+    /// Drop a pre-flight refusal once its cause is fixed.
+    ///
+    /// Gated on `status_is_preflight_error`, NOT on the message text. An
+    /// earlier version matched the `"Error: "` prefix, which
+    /// `check_thread_status` also uses for a finished run's failure. Because
+    /// `cleanup_thread` clears `is_running` before that message is read, every
+    /// real run failure was erased on the following frame: the user saw the Run
+    /// button flash and got no explanation at all. Reported from Windows on
+    /// 2026-09-10 against v0.8.0.
+    ///
+    /// A finished run's message is the only record of why it failed. It must
+    /// never be cleared here.
+    fn clear_stale_preflight_error(&mut self) {
+        if self.status_is_preflight_error && !self.is_running && self.preflight().is_ok() {
+            self.status_message.clear();
+            self.status_is_preflight_error = false;
+        }
     }
 
     fn launch_application(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -761,6 +787,78 @@ fn main() -> Result<(), eframe::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The regression this guards against, reported from Windows on 2026-09-10:
+    /// the Run button flashed and no error appeared, because a finished run's
+    /// failure message was being erased one frame after it was written.
+    ///
+    /// `check_thread_status` formats a run failure as "Error: ...", the same
+    /// shape a pre-flight refusal used, and `cleanup_thread` clears
+    /// `is_running` first. The old text-matching rule therefore deleted the
+    /// only record of why a run failed, which made the app impossible to
+    /// diagnose from.
+    #[test]
+    fn a_finished_runs_failure_is_never_cleared() {
+        let (mut app, sender) = running_launcher(false);
+        // Make pre-flight pass, which is what unlocked the old bug.
+        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
+        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        assert!(app.preflight().is_ok());
+
+        sender
+            .send(ThreadMessage::Completed(Err("out of memory".to_string())))
+            .expect("send");
+        app.check_thread_status();
+        assert_eq!(app.status_message, "Error: out of memory");
+
+        // Whatever happens on later frames, this message must survive.
+        for _ in 0..5 {
+            app.clear_stale_preflight_error();
+        }
+        assert_eq!(
+            app.status_message, "Error: out of memory",
+            "a finished run's failure was erased, which is the reported bug"
+        );
+    }
+
+    /// The behaviour the clearing rule is actually for: a refusal to start
+    /// describes the current settings, so it goes when they are fixed.
+    #[test]
+    fn a_preflight_refusal_clears_once_the_cause_is_fixed() {
+        let mut app = SageLauncher::default();
+        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
+        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        app.config.database.enzyme.cleave_at = "B".to_string();
+
+        let problem = app.preflight().expect_err("B is not a Sage residue");
+        app.status_message = format!("Error: {problem}");
+        app.status_is_preflight_error = true;
+
+        app.clear_stale_preflight_error();
+        assert!(
+            !app.status_message.is_empty(),
+            "still broken, so still shown"
+        );
+
+        app.config.database.enzyme.cleave_at = "KR".to_string();
+        app.clear_stale_preflight_error();
+        assert!(app.status_message.is_empty(), "fixed, so the refusal goes");
+        assert!(!app.status_is_preflight_error);
+    }
+
+    /// A run in progress must keep its message, even a pre-flight-shaped one.
+    #[test]
+    fn nothing_is_cleared_while_a_run_is_active() {
+        let (mut app, _sender) = running_launcher(false);
+        app.config.database.fasta_paths = vec!["/tmp/db.fasta".into()];
+        app.config.mzml_paths = vec!["/tmp/run.mzML".into()];
+        app.status_message = "Error: something".to_string();
+        app.status_is_preflight_error = true;
+        assert!(app.is_running);
+
+        app.clear_stale_preflight_error();
+        assert_eq!(app.status_message, "Error: something");
+    }
 
     /// A pre-flight failure describes the settings as they are now, so it has
     /// to stop being shown once the user fixes them. Found in live testing on

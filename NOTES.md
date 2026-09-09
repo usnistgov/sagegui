@@ -1194,6 +1194,39 @@ Quant tab's Combine Charge States checkbox should say this in its hover text.
 
 ---
 
+## A failed run reported nothing (fixed 2026-09-10)
+
+Reported from Windows against v0.8.0: eight files, click Run, the button
+flashes and returns to normal, no error, no output, no explanation.
+
+**Cause, and it was self-inflicted.** v0.8.0 added a rule to clear a
+pre-flight refusal once its cause is fixed. That rule matched on the message
+text, `status_message.starts_with("Error: ")`. But `check_thread_status`
+formats a finished run's failure the same way, and `cleanup_thread` clears
+`is_running` before that message is read. So every real run failure was
+erased on the following frame. The bug did not cause the failure; it deleted
+the evidence, which is worse, because it made the app impossible to diagnose
+from.
+
+Sharper still: v0.8.0 also added `catch_unwind` so a panic reports instead of
+hanging. That report was then wiped by this rule. The two changes shipped in
+the same release and cancelled each other out.
+
+**Fix.** A `status_is_preflight_error` flag records why the message was set.
+Only a refusal to start may clear itself; a finished run's message never does.
+The rule moved out of the UI closure into
+`SageLauncher::clear_stale_preflight_error`, because being inline in a closure
+is why no test could reach it.
+
+**Lesson worth keeping.** Matching on user-facing text to infer program state
+is the actual defect. Two unrelated conditions produced the same string, and
+the code could not tell them apart. Carry the state, not the prose.
+
+Three tests cover it, and the main one was confirmed to fail when the old rule
+is reinstated.
+
+---
+
 ## Known permanent / standing limitations
 
 - **Coupled to Sage's internal API.** By design (Option A), a Sage update can break compilation. This is the accepted cost of embedding; the mitigation is MAINTENANCE.md, not a code change.
