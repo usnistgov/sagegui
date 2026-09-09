@@ -904,6 +904,78 @@ Sage models no neutral losses, so it is not a strong phospho engine. The old
 `tryptic-wide` was a misnomer and was removed; wide MS1 and tight are the real
 distinction.
 
+### Enzyme presets (landed 2026-09-08)
+
+Fourteen curated proteases on the Search tab, ported from
+`usnistgov/sageRecon` (`recon-tool/src/enzyme.rs`). Its source is Mascot's
+published enzyme list.
+
+**Two deviations from Mascot, both inherited deliberately.** Ambiguity codes
+are dropped (`BD` to `D`, `EZ` to `E`, `BDEZ` to `DE`), because Sage's
+`VALID_AA` is the 20 standard residues plus U and O, and Sage `assert!`s on
+B, Z, J and X. Multi-rule enzymes (CNBr+Trypsin, LysC+AspN, Formic_acid,
+TrypsinMSIPI) are excluded, because Sage carries a single
+(cleave_at, restrict, c_terminal) triple and cannot express them.
+
+**Buffer-dependent proteases ship as explicit pairs** rather than one name:
+`glu-c` (phosphate buffer, E only) and `glu-c/de` (ammonium bicarbonate, D
+and E); `asp-n` and `asp-n/ambic`. One name must never silently pick a
+reaction condition.
+
+**A preset sets identity only, and that is a lock.** `apply_preset` writes
+`cleave_at`, the restriction, and the cut side. It never touches
+`missed_cleavages`, `min_len`, `max_len` or `semi_enzymatic`. Those are
+tuning, and changing them under the user would be a silent change to the
+search. The UI carries this as a separator: identity above it, tuning below.
+
+**The name is derived, not stored.** `matching_preset()` scans the table every
+frame. Two reasons. First, adding a field to `EnzymeConfig` is a persistence
+hazard: `EnzymeConfig` and `PersistedState` derive `Deserialize` with no
+`#[serde(default)]`, so a field missing from a saved blob fails the whole
+deserialize and eframe drops every setting the user had. Second, three code
+paths write the enzyme without a picker (template apply, config or results
+import, and the free-text fields), and a stored name would have to be cleared
+by each of them. A derived name cannot go stale. This also means the feature
+touched neither `PersistedState` nor the persistence round-trip test.
+
+**Matching is lenient, validation is strict.** `matching_preset` ignores case
+and residue order, because Sage builds a character class, so "RK" and "KR" are
+one enzyme, and a user who typed lower case should still see the name.
+`validate_enzyme_residues` is case-sensitive, because Sage's own residue list
+is upper case and it aborts on anything else. Lenient for display, strict for
+the crash guard.
+
+Matching goes through `effective_restrict()`, never the raw field. Importing a
+Sage config with `"restrict": null` clears `enable_restrict` but leaves
+`restrict_char` at "P", and reading the raw field would report trypsin where
+the real rule is trypsin/P. That is a different digest.
+
+**The picker applies on selection. The template picker does not.** This
+divergence is deliberate, so do not "fix" it. The template picker holds a
+pending choice until Apply, because a template rewrites the whole config and is
+expensive to undo. The enzyme combo's own text IS the current enzyme, derived
+from the fields below it, so a pending index sitting beside a derived name that
+disagreed with it is the confusing state. A preset writes three fields.
+
+**Cut side is a radio pair, not a checkbox.** A checkbox names only its true
+case, so "cuts before the residue" was invisible unless already selected.
+`asp-n`, `asp-n/ambic` and `lys-n` are the three presets that need it, and a
+test pins that list. The field is still a `bool`, so there is no persistence
+impact.
+
+**sageRecon's `CLEAVE_AT[/RESTRICT][/n]` syntax was not ported.** It exists
+because a CLI has one string to work with. Three labelled widgets are strictly
+more discoverable, and they are the escape hatch. The two genuinely
+non-obvious forms, empty for non-specific and `$` for no digestion, are in the
+Cleave At hover text instead.
+
+**Not adopted: sageRecon's refusal to assume an enzyme.** It has no default,
+on the grounds that assuming trypsin "would silently mis-report every
+digestion number". A GUI must render something on first launch, and changing
+`EnzymeConfig::default()` would change behaviour for every existing user.
+Maintainer decision 2026-09-08: keep trypsin, and rely on the picker naming it
+out loud, which addresses the same problem.
+
 ### Tolerance display is delta mass (2026-09-08)
 
 The tolerance widget now shows the window as a **delta-mass range**, not as

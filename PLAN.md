@@ -292,7 +292,7 @@ what each option would have to change.
 
 Deferred to its own session by maintainer decision, 2026-09-08.
 
-- [ ] **Port the 14 enzyme presets from [sageRecon](https://github.com/usnistgov/sageRecon)**
+- [x] **Port the 14 enzyme presets from [sageRecon](https://github.com/usnistgov/sageRecon)**
   into an enzyme dropdown on the Search tab, filling `cleave_at`,
   the restrict character, `c_terminal` and `semi_enzymatic`. The table is the
   maintainer's own curated work: Trypsin, Trypsin/P, Arg-C, Asp-N, Asp-N/Ambic,
@@ -302,6 +302,11 @@ Deferred to its own session by maintainer decision, 2026-09-08.
   guidance, which is a live footgun. sageRecon also refuses to assume a default
   enzyme at all, on the grounds that assuming trypsin "would silently mis-report
   every digestion number"; worth deciding whether SageGUI should say the same.
+  *(Landed 2026-09-08. Maintainer decided to keep trypsin as the default: a GUI
+  must render something on first launch, and the picker now names the enzyme
+  out loud, which is the actual fix for the silent-assumption problem. The
+  cut-side control became a labelled radio pair, so the N-terminal proteases
+  are visible. See NOTES → Enzyme presets.)*
 - [ ] While there: sageRecon's **MS2 tolerance by analyzer class** (Orbitrap /
   FT-ICR 20 ppm — validated on real data; Astral 20 ppm; legacy TOF/QTOF
   100 ppm; ion trap / quadrupole 1.0 Da) would make good hover text on the

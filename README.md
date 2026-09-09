@@ -24,6 +24,7 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - Six tabs: Experiment, Files & Database, Search, Modifications, Quant, Run/Info
 - Run bar pinned at the bottom so you can launch from any tab
 - Modifications picker with a curated preset list (Static and Variable boxes, Mascot-style)
+- Enzyme presets: 14 curated proteases, including the Asp-N and Lys-N cases that cut before their residue
 - TMT (6/10/11/16/18-plex) and LFQ quantification
 - Database prefiltering (chunked FASTA processing) to bound peak memory on semi-enzymatic and non-specific searches
 - Settings remembered between sessions (parameters, file picks, active tab, and modifications)
@@ -37,7 +38,6 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 
 - Export options: pepXML/mzIdentML, Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), MSstats (add feature to [MSstatsConvert](https://github.com/Vitek-Lab/MSstatsConvert), [feature requested](https://github.com/Vitek-Lab/MSstatsConvert/issues/143)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), add import to PDV for viewing ([feature requested](https://github.com/wenbostar/PDV/issues/110#issue-5145322431)), Scaffold (?)
 - iBAQ and other LFQ options
-- Enzyme presets (trypsin, Lys-C, Glu-C, Asp-N, chymotrypsin and more), from [sageRecon](https://github.com/usnistgov/sageRecon)
 
 ## Download
 

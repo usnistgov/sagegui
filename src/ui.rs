@@ -193,30 +193,126 @@ impl EnzymeConfig {
         }
     }
 
+    /// Which preset the current cut rule is, if any.
+    ///
+    /// Derived every frame rather than stored. Three code paths write the
+    /// enzyme without going through the picker (template apply, config or
+    /// results import, and the free-text fields), and each would have to
+    /// remember to clear a stored name. A derived name cannot go stale.
+    ///
+    /// Matching is deliberately lenient about case and residue order, because
+    /// Sage builds a character class, so "RK" and "KR" are one enzyme. The
+    /// validator next door is strict about case, because Sage's own residue
+    /// list is upper case and would abort on anything else.
+    pub fn matching_preset(&self) -> Option<usize> {
+        let residues = |s: &str| {
+            let mut v: Vec<char> = s.to_ascii_uppercase().chars().collect();
+            v.sort_unstable();
+            v.dedup();
+            v
+        };
+        let cleave = residues(&self.cleave_at);
+        let restrict = residues(self.effective_restrict());
+        ENZYME_PRESETS.iter().position(|p| {
+            p.c_terminal == self.c_terminal
+                && residues(p.cleave_at) == cleave
+                && residues(p.restrict) == restrict
+        })
+    }
+
+    /// Set the cut rule from a preset.
+    ///
+    /// Touches three fields and nothing else. Missed cleavages, the length
+    /// range and semi-enzymatic digestion are tuning, not identity, and a
+    /// preset must never silently change them out from under the user.
+    pub fn apply_preset(&mut self, preset: &EnzymePreset) {
+        self.cleave_at = preset.cleave_at.to_string();
+        self.enable_restrict = !preset.restrict.is_empty();
+        if !preset.restrict.is_empty() {
+            self.restrict_char = preset.restrict.to_string();
+        }
+        self.c_terminal = preset.c_terminal;
+    }
+
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
         ui.heading("Enzyme Settings");
+
+        // The picker applies on selection, with no Apply button. This differs
+        // from the template picker on purpose: there, the combo holds a
+        // pending choice until Apply, because a template rewrites the whole
+        // config. Here the combo's own text IS the current enzyme, derived
+        // from the fields below. A pending index sitting next to a derived
+        // name that disagreed with it would be the confusing state.
+        let matched = self.matching_preset();
+        ui.horizontal(|ui| {
+            ui.label("Enzyme:");
+            egui::ComboBox::from_id_salt("enzyme_picker")
+                .width(200.0)
+                .selected_text(match matched {
+                    Some(i) => ENZYME_PRESETS[i].name,
+                    None => "Custom",
+                })
+                .show_ui(ui, |ui| {
+                    for (i, preset) in ENZYME_PRESETS.iter().enumerate() {
+                        if ui
+                            .selectable_label(matched == Some(i), preset.name)
+                            .on_hover_text(preset.note)
+                            .clicked()
+                        {
+                            self.apply_preset(preset);
+                        }
+                    }
+                });
+        });
+        match matched {
+            Some(i) => ui.weak(ENZYME_PRESETS[i].note),
+            None => ui.weak("Custom cut rule. Not one of the presets."),
+        };
+        ui.weak("A preset sets the cut rule only. Lengths and missed cleavages stay as they are.");
+
+        ui.add_space(6.0);
+        ui.separator();
+        ui.add_space(6.0);
+
+        // Above the separator: identity, which a preset writes.
+        // Below it: tuning, which a preset never touches.
+        ui.horizontal(|ui| {
+            ui.label("Cleave At:");
+            ui.add(egui::TextEdit::singleline(&mut self.cleave_at).desired_width(60.0))
+                .on_hover_text(
+                    "Residues the enzyme cuts at, in capitals. Leave empty for a \
+                     non-specific search, which cuts everywhere. Use $ for no digestion.",
+                );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Restrict:");
+            ui.checkbox(&mut self.enable_restrict, "Do not cut before")
+                .on_hover_text("Suppress a cut when this residue follows the cut site.");
+            if self.enable_restrict {
+                ui.add(egui::TextEdit::singleline(&mut self.restrict_char).desired_width(30.0));
+            }
+        });
+        if let Err(problem) = validate_enzyme_residues(self) {
+            ui.colored_label(ui.visuals().error_fg_color, problem);
+        }
+        ui.horizontal(|ui| {
+            ui.label("Cut side:");
+            // A radio pair, not a checkbox. A checkbox names only the true
+            // case, so "cuts before the residue" was invisible unless already
+            // selected. Asp-N and Lys-N are the reason this matters.
+            ui.radio_value(&mut self.c_terminal, true, "After the residue");
+            ui.radio_value(&mut self.c_terminal, false, "Before the residue")
+                .on_hover_text("Asp-N and Lys-N cut before their residue.");
+        });
+        ui.checkbox(&mut self.semi_enzymatic, "Semi-Enzymatic")
+            .on_hover_text("Allow one non-enzymatic terminus. Doubles+ search space.");
+
+        ui.add_space(6.0);
+
         ui.add(egui::Slider::new(&mut self.missed_cleavages, 0..=5).text("Missed Cleavages"))
             .on_hover_text("Max enzyme cut sites a peptide may skip.");
         ui.add(egui::Slider::new(&mut self.min_len, 1..=20).text("Min Length"));
         ui.add(egui::Slider::new(&mut self.max_len, 6..=100).text("Max Length"));
-        ui.horizontal(|ui| {
-            ui.label("Cleave At:");
-            ui.add(egui::TextEdit::singleline(&mut self.cleave_at).desired_width(10.0));
-        });
-        ui.horizontal(|ui| {
-            ui.label("Restrict:");
-            ui.checkbox(&mut self.enable_restrict, "Enable Restrict");
-            if self.enable_restrict {
-                ui.label("Restrict Char:");
-                ui.add(egui::TextEdit::singleline(&mut self.restrict_char).desired_width(10.0));
-                if self.restrict_char.len() > 1 {
-                    ui.label("Warning: Only one character is allowed! Skipping restriction.");
-                }
-            }
-        });
-        ui.checkbox(&mut self.c_terminal, "C-Terminal");
-        ui.checkbox(&mut self.semi_enzymatic, "Semi-Enzymatic")
-            .on_hover_text("Allow one non-enzymatic terminus. Doubles+ search space.");
     }
 }
 
@@ -238,6 +334,134 @@ impl From<EnzymeConfig> for EnzymeBuilder {
         }
     }
 }
+
+/// One curated protease.
+///
+/// Ported from `usnistgov/sageRecon` (`recon-tool/src/enzyme.rs`), whose
+/// source is Mascot's published enzyme list. Two deviations, both deliberate
+/// and documented upstream: ambiguity codes are dropped (Mascot `BD` to `D`,
+/// `EZ` to `E`, `BDEZ` to `DE`) because Sage asserts on B, Z, J and X; and
+/// multi-rule enzymes are excluded because Sage carries one
+/// (cleave_at, restrict, c_terminal) triple. Two buffer-dependent proteases
+/// ship as explicit pairs, so one name never silently picks a reaction
+/// condition.
+///
+/// A preset sets the cut rule only. See NOTES for why.
+pub struct EnzymePreset {
+    /// Display name, matching sageRecon's `--enzyme` values.
+    pub name: &'static str,
+    /// Sage `cleave_at`.
+    pub cleave_at: &'static str,
+    /// Sage `restrict`. Empty means no restriction.
+    pub restrict: &'static str,
+    /// Sage `c_terminal`. False means the enzyme cuts before the residue.
+    pub c_terminal: bool,
+    /// One short line shown under the picker.
+    pub note: &'static str,
+}
+
+/// The curated protease list. Edit here to add or remove one.
+/// Order matches sageRecon's own table.
+pub const ENZYME_PRESETS: &[EnzymePreset] = &[
+    EnzymePreset {
+        name: "trypsin",
+        cleave_at: "KR",
+        restrict: "P",
+        c_terminal: true,
+        note: "Cuts after K and R. Not before P.",
+    },
+    EnzymePreset {
+        name: "trypsin/p",
+        cleave_at: "KR",
+        restrict: "",
+        c_terminal: true,
+        note: "Cuts after K and R, including before P.",
+    },
+    EnzymePreset {
+        name: "arg-c",
+        cleave_at: "R",
+        restrict: "P",
+        c_terminal: true,
+        note: "Cuts after R. Not before P.",
+    },
+    EnzymePreset {
+        name: "asp-n",
+        cleave_at: "D",
+        restrict: "",
+        c_terminal: false,
+        note: "Cuts before D.",
+    },
+    EnzymePreset {
+        name: "asp-n/ambic",
+        cleave_at: "DE",
+        restrict: "",
+        c_terminal: false,
+        note: "Cuts before D and E. Ammonium bicarbonate buffer.",
+    },
+    EnzymePreset {
+        name: "chymotrypsin",
+        cleave_at: "FYWL",
+        restrict: "P",
+        c_terminal: true,
+        note: "Cuts after F, Y, W and L. Not before P.",
+    },
+    EnzymePreset {
+        name: "cnbr",
+        cleave_at: "M",
+        restrict: "",
+        c_terminal: true,
+        note: "Cyanogen bromide. Cuts after M.",
+    },
+    EnzymePreset {
+        name: "lys-c",
+        cleave_at: "K",
+        restrict: "P",
+        c_terminal: true,
+        note: "Cuts after K. Not before P.",
+    },
+    EnzymePreset {
+        name: "lys-c/p",
+        cleave_at: "K",
+        restrict: "",
+        c_terminal: true,
+        note: "Cuts after K, including before P.",
+    },
+    EnzymePreset {
+        name: "lys-n",
+        cleave_at: "K",
+        restrict: "",
+        c_terminal: false,
+        note: "Cuts before K.",
+    },
+    EnzymePreset {
+        name: "pepsin-a",
+        cleave_at: "FL",
+        restrict: "",
+        c_terminal: true,
+        note: "Cuts after F and L.",
+    },
+    EnzymePreset {
+        name: "trypchymo",
+        cleave_at: "FYWLKR",
+        restrict: "P",
+        c_terminal: true,
+        note: "Trypsin and chymotrypsin residues together. Not before P.",
+    },
+    EnzymePreset {
+        name: "glu-c",
+        cleave_at: "E",
+        restrict: "P",
+        c_terminal: true,
+        note: "V8 protease. Cuts after E. Phosphate buffer.",
+    },
+    EnzymePreset {
+        name: "glu-c/de",
+        cleave_at: "DE",
+        restrict: "P",
+        c_terminal: true,
+        note: "V8 protease. Cuts after D and E. Ammonium bicarbonate buffer.",
+    },
+];
 
 /// Residues Sage will accept in an enzyme rule. Read from `VALID_AA` in the
 /// pinned Sage source (`crates/sage/src/enzyme.rs`): the 20 standard residues
@@ -1795,6 +2019,178 @@ impl SageLauncher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every bundled template must name a known enzyme after going through
+    /// the real import path. Catches a template edit that silently changes
+    /// the digest. Mirrors `every_bundled_template_shows_the_intended_delta_window`.
+    ///
+    /// The four tryptic templates set `"restrict": null`, which is trypsin/p.
+    /// `tmt11.json` omits `restrict` entirely, so it keeps the default
+    /// proline rule and reads as plain trypsin.
+    #[test]
+    fn every_bundled_template_names_a_known_enzyme() {
+        let expected: &[(&str, &str)] = &[
+            ("tryptic-wide-ms1.json", "trypsin/p"),
+            ("tryptic-tight.json", "trypsin/p"),
+            ("tryptic-open.json", "trypsin/p"),
+            ("tryptic-biofluid.json", "trypsin/p"),
+            ("tmt11.json", "trypsin"),
+        ];
+
+        let templates = crate::sage_json::bundled_templates();
+        assert_eq!(
+            templates.len(),
+            expected.len(),
+            "a template was added or removed without updating this test"
+        );
+
+        for (file, want) in expected {
+            let template = templates
+                .iter()
+                .find(|t| t.file == *file)
+                .unwrap_or_else(|| panic!("{file} is not in the bundled set"));
+
+            let mut config = Config::default();
+            let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);
+            template.doc.apply(&mut config, &mut p, &mut f, file);
+
+            let enzyme = &config.database.enzyme;
+            let matched = enzyme.matching_preset().unwrap_or_else(|| {
+                panic!(
+                    "{file} does not name a known enzyme: cleave_at={:?} restrict={:?} c_terminal={}",
+                    enzyme.cleave_at,
+                    enzyme.effective_restrict(),
+                    enzyme.c_terminal
+                )
+            });
+            assert_eq!(ENZYME_PRESETS[matched].name, *want, "{file} changed enzyme");
+
+            // A template that reached Sage with a bad residue would hang a run.
+            assert!(validate_enzyme_residues(enzyme).is_ok(), "{file}");
+        }
+    }
+
+    /// Two presets with the same cut rule would make the derived name
+    /// ambiguous, and the picker would silently show the wrong enzyme.
+    #[test]
+    fn enzyme_presets_are_all_distinct() {
+        let mut seen: Vec<(String, String, bool)> = Vec::new();
+        for p in ENZYME_PRESETS {
+            let mut cleave: Vec<char> = p.cleave_at.chars().collect();
+            cleave.sort_unstable();
+            let key = (
+                cleave.into_iter().collect(),
+                p.restrict.to_string(),
+                p.c_terminal,
+            );
+            assert!(!seen.contains(&key), "{} duplicates another rule", p.name);
+            seen.push(key);
+        }
+        assert_eq!(ENZYME_PRESETS.len(), 14, "sageRecon ships 14 presets");
+    }
+
+    /// Apply and match have to agree. The trap is `trypsin/p`: applying it
+    /// must leave the restriction genuinely off, not merely blanked.
+    #[test]
+    fn every_preset_round_trips_through_the_matcher() {
+        for (i, preset) in ENZYME_PRESETS.iter().enumerate() {
+            let mut e = EnzymeConfig::default();
+            e.apply_preset(preset);
+            assert_eq!(
+                e.matching_preset(),
+                Some(i),
+                "{} did not match itself after being applied",
+                preset.name
+            );
+            assert_eq!(
+                e.effective_restrict(),
+                preset.restrict,
+                "{} restriction disagrees after apply",
+                preset.name
+            );
+        }
+    }
+
+    /// Importing a Sage config with `"restrict": null` clears the flag but
+    /// leaves the old character behind. Matching the raw field would read
+    /// trypsin/p as trypsin, which is a different digest.
+    #[test]
+    fn trypsin_p_matches_with_a_stale_restrict_char() {
+        let mut e = EnzymeConfig::default();
+        e.cleave_at = "KR".to_string();
+        e.enable_restrict = false;
+        e.restrict_char = "P".to_string(); // stale, not in force
+        e.c_terminal = true;
+
+        let matched = e.matching_preset().expect("should match a preset");
+        assert_eq!(ENZYME_PRESETS[matched].name, "trypsin/p");
+    }
+
+    /// The identity-only lock. A preset sets the cut rule and nothing else.
+    #[test]
+    fn applying_a_preset_never_touches_the_tuning_fields() {
+        for preset in ENZYME_PRESETS {
+            let mut e = EnzymeConfig {
+                missed_cleavages: 4,
+                min_len: 9,
+                max_len: 33,
+                semi_enzymatic: true,
+                ..EnzymeConfig::default()
+            };
+            e.apply_preset(preset);
+            assert_eq!(
+                e.missed_cleavages, 4,
+                "{} changed missed_cleavages",
+                preset.name
+            );
+            assert_eq!(e.min_len, 9, "{} changed min_len", preset.name);
+            assert_eq!(e.max_len, 33, "{} changed max_len", preset.name);
+            assert!(e.semi_enzymatic, "{} changed semi_enzymatic", preset.name);
+        }
+    }
+
+    /// Sage builds a character class, so residue order carries no meaning.
+    /// The persistence test fixture already stores "RK".
+    #[test]
+    fn cleave_at_order_and_case_do_not_change_the_match() {
+        for spelling in ["KR", "RK", "kr", "KRK"] {
+            let mut e = EnzymeConfig::default();
+            e.cleave_at = spelling.to_string();
+            let matched = e.matching_preset().expect("{spelling} should match");
+            assert_eq!(
+                ENZYME_PRESETS[matched].name, "trypsin",
+                "{spelling} should read as trypsin"
+            );
+        }
+    }
+
+    /// A typo'd residue in the table would hang a real run, so the table is
+    /// held to the same rule as user input.
+    #[test]
+    fn every_preset_passes_the_residue_validator() {
+        for preset in ENZYME_PRESETS {
+            let mut e = EnzymeConfig::default();
+            e.apply_preset(preset);
+            assert!(
+                validate_enzyme_residues(&e).is_ok(),
+                "{} contains a residue Sage would assert on",
+                preset.name
+            );
+        }
+    }
+
+    /// The three N-terminal proteases are the reason the cut-side control is
+    /// a radio pair. If one silently flipped to C-terminal the digest would
+    /// change with nothing on screen to show it.
+    #[test]
+    fn the_n_terminal_proteases_stay_n_terminal() {
+        let n_terminal: Vec<&str> = ENZYME_PRESETS
+            .iter()
+            .filter(|p| !p.c_terminal)
+            .map(|p| p.name)
+            .collect();
+        assert_eq!(n_terminal, vec!["asp-n", "asp-n/ambic", "lys-n"]);
+    }
 
     /// Sage `assert!`s on non-residue characters, on the run thread. Before
     /// the guard, one stray keystroke in Cleave At hung the app with no

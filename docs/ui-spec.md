@@ -93,12 +93,13 @@ feature). Defaults/ranges are from the live code.
 
 | Control | Widget | Range | Default | Tooltip draft |
 |---|---|---|---|---|
+| Enzyme | combo | 14 presets | trypsin | Curated proteases from sageRecon. Sets the cut rule only; lengths and missed cleavages stay. Shows `Custom` when the rule matches no preset. |
 | Missed Cleavages | slider | 0–5 | 2 | Max enzyme cut sites a peptide may skip. Higher = larger search space. |
 | Min Length | slider | 1–20 | 5 | Shortest peptide (residues) to consider. |
 | Max Length | slider | 6–100 | 50 | Longest peptide (residues) to consider. |
-| Cleave At | text | — | `KR` | Residues the enzyme cuts after (trypsin = `KR`). |
+| Cleave At | text | — | `KR` | Residues the enzyme cuts at, in capitals. Empty = non-specific, `$` = no digestion. Validated against Sage's accepted residues before a run. |
 | Enable Restrict + Restrict Char | checkbox + 1-char text | — | on, `P` | Block cleavage when this residue follows (trypsin "not before P"). Only 1 char honored. |
-| C-Terminal | checkbox | — | true | Enzyme cuts at C-terminal side of the cleavage residues. |
+| Cut side | radio pair | after / before | after | Whether the enzyme cuts after the residue or before it. A pair, not a checkbox, so the "before" case is visible: Asp-N and Lys-N need it. |
 | Semi-Enzymatic | checkbox | — | false | Allow one non-enzymatic terminus. Doubles+ search space. |
 
 ### Database → Modifications

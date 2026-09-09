@@ -297,6 +297,47 @@ When enabled, forces Sage to ignore the charge annotation in your mzML file and 
 
 ### Enzyme Settings
 
+#### Enzyme (preset picker)
+
+**Default:** trypsin
+
+**What it does:**
+Sets the cut rule from a list of 14 curated proteases. Selecting one writes
+Cleave At, Restrict and Cut side. It does **not** change Missed Cleavages, Min
+Length, Max Length or Semi-Enzymatic, which are tuning rather than identity.
+
+The picker shows the enzyme you currently have, whether you chose it here, set
+it by hand, or loaded it with a template. It reads `Custom` when the rule is
+not one of the presets.
+
+| Enzyme | Cleaves at | Do not cut before | Cut side |
+|--------|-----------|-------------------|----------|
+| trypsin | K, R | P | after |
+| trypsin/p | K, R | | after |
+| arg-c | R | P | after |
+| asp-n | D | | **before** |
+| asp-n/ambic | D, E | | **before** |
+| chymotrypsin | F, Y, W, L | P | after |
+| cnbr | M | | after |
+| lys-c | K | P | after |
+| lys-c/p | K | | after |
+| lys-n | K | | **before** |
+| pepsin-a | F, L | | after |
+| trypchymo | F, Y, W, L, K, R | P | after |
+| glu-c | E | P | after |
+| glu-c/de | D, E | P | after |
+
+Ported from [sageRecon](https://github.com/usnistgov/sageRecon), whose source
+is Mascot's published enzyme list. Ambiguity codes (B, Z) are dropped, because
+Sage rejects them. Enzymes needing more than one cleavage rule are not
+included, because Sage holds only one.
+
+Two buffer-dependent proteases appear twice on purpose. Use `glu-c` in
+phosphate buffer and `glu-c/de` in ammonium bicarbonate; the same distinction
+separates `asp-n` from `asp-n/ambic`.
+
+---
+
 #### Missed Cleavages
 
 **Default:** 2
@@ -327,7 +368,19 @@ Restricts peptide length in amino acids. Sage only considers peptides whose leng
 **Default:** `KR`
 
 **What it does:**
-Residues where the enzyme cuts. Default `KR` is trypsin specificity.[file:250]
+Residues where the enzyme cuts, in capitals. Default `KR` is trypsin
+specificity.[file:250]
+
+Only residues Sage accepts are allowed: `ACDEFGHIKLMNPQRSTVWYUO`. Anything
+else, including lower case and the ambiguity codes B, Z, J and X, is reported
+before the search starts. Sage rejects them in a way the interface cannot
+recover from once a run has begun.
+
+Two special values:
+
+- **Empty** means a non-specific search. Sage cuts everywhere, which is very
+  large. Turn on database prefiltering if you use it.
+- **`$`** means no digestion at all.
 
 ---
 
@@ -340,12 +393,17 @@ Proline restriction for trypsin. When enabled, Sage does not cut at K or R when 
 
 ---
 
-#### C Terminal
+#### Cut side
 
-**Default:** ✓ Checked
+**Default:** After the residue
 
 **What it does:**
-Controls whether cleavage is applied at the C terminus of the specified residues (checked) or at the N terminus (unchecked).[file:250]
+Whether the enzyme cuts after the Cleave At residue or before it.[file:250]
+
+Most proteases cut after. Three of the presets cut before: `asp-n`,
+`asp-n/ambic` and `lys-n`. Getting this wrong produces a digest that shares no
+peptides with the intended one, so it is shown as two labelled choices rather
+than a single checkbox.
 
 ---
 
