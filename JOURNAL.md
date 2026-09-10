@@ -1,3 +1,39 @@
+## 2026-09-10 (later) — v0.8.2: macOS said "damaged"
+
+**Did:** The maintainer downloaded v0.8.1 on a Mac and macOS refused to open it: "Sage Launcher.app is damaged and can't be opened."
+
+**Reproduced rather than assumed.** On Apple Silicon, against the published release:
+
+| v0.8.1 bundle | Result |
+| --- | --- |
+| As shipped, quarantined | Did not launch. The reported error |
+| As shipped, quarantine removed | Launched |
+| Re-signed ad hoc, quarantined | Signature valid. Still did not launch |
+
+The block is Gatekeeper refusing an app Apple has not notarized. Notarization needs a paid Apple Developer account; the maintainer decided not to get one for now. So the user-facing fix is guidance: `xattr -dr com.apple.quarantine "Sage Launcher.app"`.
+
+**It was nearly misdiagnosed as only that.** Checking signatures before settling on quarantine found two real defects. The arm64 binary carried only the linker's automatic signature and nothing sealed the bundle, so strict verification failed with "code has no resources but signature indicates they must be present", probably since v0.7.1. The x86_64 binary was not signed at all, because the linker only auto-signs arm64; that is new with v0.8.0, since the "x64" asset used to be the arm64 build in disguise.
+
+**The README was wrong too.** It described an "unidentified developer" warning and suggested right-click then Open. Users get "damaged", which has no Open button and puts Move to Trash forward. The maintainer clicked it by accident. The README now names the real message, gives the command, and explains Put Back.
+
+**Fix.** CI seals the bundle with `codesign --force --deep --sign -` and strict-verifies it, then archives with `ditto` and strict-verifies the extracted zip. `zip -r` was tested and also preserves the signature; `ditto` is used as Apple's supported method.
+
+**A near-miss in the verification.** The first CI watcher reported both macOS jobs green, but its grep for the verify lines came back empty. It had sent errors to `/dev/null`, so a failed log download looked like silence. Green alone was not proof. Re-fetched with errors and byte counts visible, both jobs showed "valid on disk" at both the bundle and extracted-zip stages. Only then was v0.8.2 tagged. The published zips were then downloaded and checked by hand: both architectures valid and sealed, and the arm64 app launched with quarantine removed.
+
+**sageRecon.** Its build shares lineage, so its v0.1.2 release was checked the same way. It ships a bare `recon` binary with no bundle, so no seal to break: arm64 is ad-hoc signed and valid, Intel is unsigned. A quarantined `recon` run from Terminal printed nothing and did not exit while macOS showed "recon Not Opened", so it looks like a hang. A copy without the quarantine attribute runs on both architectures, including unsigned Intel under Rosetta. The first recon test was inconclusive: both runs exited 142, which was my own 20-second timeout, not Gatekeeper, and a fresh never-quarantined copy settled it. A handoff document was written and delivered for the sageRecon side.
+
+**What did you assume without stating it? (Q2):** That GitHub's `shell: bash` runs with `-eo pipefail`, so a failing `codesign --verify` would fail the job. It does, but I leaned on that to reason about a green run before I had seen the logs. The logs are the evidence; the shell flags were only a reason to expect them.
+
+**What's the biggest thing you might be missing? (Q3):** Windows. The `.exe` is also unsigned, and a browser download likely triggers SmartScreen's "Windows protected your PC". Nobody has checked, and it is the same class of problem on the platform the maintainer uses most.
+
+**What could have gone better? (Q4):** My launch tests opened Gatekeeper dialogs on the maintainer's screen without warning first, and one of those dialogs is where Move to Trash got clicked. The tests should have been announced beforehand, or done with `spctl --assess` alone, which raises no dialog. Separately, the silent `2>/dev/null` in the watcher nearly turned "the log did not download" into "verified".
+
+**Least confident about (Q1):** Two unverified claims. First, whether sealing changes the dialog macOS shows: I tested that a sealed, quarantined bundle still does not launch, not what the dialog says. Second, whether the x86_64 GUI app launches at all: its signature is verified, but it has not been run on Intel hardware or under Rosetta. Proven by downloading v0.8.2 through a browser on this Mac (reading the dialog), then running the x64 app under Rosetta after the `xattr` step.
+
+**Suggested improvement (Q5):** Never suppress stderr in a verification step. A check that can fail silently is not a check. Print byte counts, exit codes and explicit "not found" states, so a broken probe cannot pass for a clean result.
+
+---
+
 ## 2026-09-10 — v0.8.1: the app was deleting its own error messages
 
 **Did:** Fixed two bugs found by the maintainer running v0.8.0 on Windows with eight files, then cut v0.8.1.
