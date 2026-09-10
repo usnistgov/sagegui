@@ -50,7 +50,13 @@ Get the latest release from the [Releases page](https://github.com/neely/sagegui
 | macOS (Intel) | [sage-launcher-macos-x64.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-x64.zip) |
 | macOS (Apple Silicon) | [sage-launcher-macos-arm64.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-arm64.zip) |
 
-> **macOS:** the archive contains **Sage Launcher.app** — double-click to run. If you see an "unidentified developer" warning, right-click the app and select Open, or run `xattr -dr com.apple.quarantine "Sage Launcher.app"`
+> **macOS:** the archive contains **Sage Launcher.app**. The app is not notarized by Apple, so after you download it macOS refuses to open it with **"Sage Launcher.app is damaged and can't be opened."** The app is not actually damaged. Unzip it, then run this once in Terminal from the folder containing the app:
+>
+> ```bash
+> xattr -dr com.apple.quarantine "Sage Launcher.app"
+> ```
+>
+> Then open it normally. Right-clicking and choosing Open does **not** work for this message. If you clicked **Move to Trash**, open the Trash in Finder, right-click the app and choose **Put Back**, or download it again.
 
 ## Quick start
 
@@ -98,7 +104,7 @@ Tools that read what SageGUI produces. This list grows as support lands.
 If you use SageGUI in published work, please cite the software:
 
 > Neely, B.A. (2026). *SageGUI: a graphical interface for the Sage proteomics
-> search engine* (Version 0.8.1) [Computer software]. National Institute of
+> search engine* (Version 0.8.2) [Computer software]. National Institute of
 > Standards and Technology. https://github.com/neely/sagegui
 
 Cite the version you ran, not the repository in general. The pinned Sage

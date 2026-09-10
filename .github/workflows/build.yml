@@ -144,6 +144,21 @@ jobs:
           # the raw binary as a plain Unix executable and runs it via Terminal.app
           # instead of launching it directly as a windowed app — the "a terminal
           # window opens alongside the GUI" bug (found in live testing 2026-08-24).
+          #
+          # Seal the finished bundle with an ad-hoc signature, then prove it.
+          # Before this, the arm64 binary carried only the linker's signature and
+          # nothing sealed the bundle, so Info.plist and the icon were uncovered
+          # and `codesign --verify --strict` failed with "code has no resources
+          # but signature indicates they must be present". The x86_64 binary was
+          # not signed at all, because the linker only auto-signs on arm64.
+          #
+          # This does NOT get a downloaded app past Gatekeeper. That needs Developer
+          # ID signing and Apple notarization, which this project does not have
+          # (maintainer decision 2026-09-10: no Apple Developer account for now).
+          # Users still need the `xattr` step in the README. What this fixes is a
+          # bundle that is internally invalid.
+          codesign --force --deep --sign - "$BUNDLE"
+          codesign --verify --deep --strict --verbose=2 "$BUNDLE"
 
       - name: Create Release Archive
         shell: bash
@@ -152,7 +167,13 @@ jobs:
           if [ "${{ runner.os }}" = "Windows" ]; then
             7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
           elif [ "${{ runner.os }}" = "macOS" ]; then
-            zip -r ../../../${{ matrix.asset_name }}.zip "Sage Launcher.app"
+            # ditto is Apple's supported way to archive a signed bundle.
+            ditto -c -k --keepParent "Sage Launcher.app" ../../../${{ matrix.asset_name }}.zip
+            # Verify the archive users actually download, not just the bundle on
+            # disk. A seal that does not survive archiving is the same bug.
+            CHECK=$(mktemp -d)
+            ditto -x -k ../../../${{ matrix.asset_name }}.zip "$CHECK"
+            codesign --verify --deep --strict --verbose=2 "$CHECK/Sage Launcher.app"
           else
             tar -czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
           fi

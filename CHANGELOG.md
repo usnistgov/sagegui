@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-09-10
+
+### Fixed
+- **macOS: "Sage Launcher.app is damaged and can't be opened"** — macOS blocks the app after download because Apple has not notarized it, and notarization needs a paid Apple Developer account this project does not have. The README now names this message and gives the one Terminal command that opens the app. Right-click then Open does not work for this message, and Move to Trash deletes your copy; the README says how to put it back.
+- **The macOS app bundle failed Apple's own signature check** — on Apple Silicon the program inside was signed but the bundle around it was never sealed, so a strict signature check rejected it, and the Intel build was not signed at all. Both are now sealed, and every build checks the archive users download. This does not remove the need for the Terminal command above.
+
 ## [0.8.1] - 2026-09-10
 
 ### Fixed

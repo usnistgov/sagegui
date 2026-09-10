@@ -1245,12 +1245,45 @@ world go stale silently.
 
 ---
 
+## macOS Gatekeeper: "damaged and can't be opened" (2026-09-10)
+
+Reported by the maintainer downloading v0.8.1 on a Mac. Reproduced here on Apple Silicon against the published release, not assumed.
+
+**What users see.** A browser download carries `com.apple.quarantine`. On first open, macOS says "Sage Launcher.app is damaged and can't be opened", with Move to Trash as the prominent button. The maintainer clicked it by accident. Right-click then Open does not help for this message. The README had described an "unidentified developer" warning and suggested right-click then Open; both were wrong for current macOS.
+
+| v0.8.1 bundle | Result |
+| --- | --- |
+| As shipped, quarantined | Did not launch. The reported error |
+| As shipped, quarantine removed | Launched |
+| Re-signed ad hoc, quarantined | Signature valid. Still did not launch |
+
+So `xattr -dr com.apple.quarantine "Sage Launcher.app"` is the working fix for users, and ad-hoc signing does not replace it.
+
+**Two signature defects were also found.** The arm64 binary carried only the linker's automatic ad-hoc signature and nothing sealed the bundle, so `Info.plist` and the icon were uncovered and `codesign --verify --deep --strict` failed with "code has no resources but signature indicates they must be present". This probably dates from v0.7.1, when the bundle was introduced; earlier testing never opened a quarantined download. The x86_64 binary was not signed at all, because the linker only auto-signs on arm64. That one is new with v0.8.0: before the architecture fix, the "x64" asset was secretly the arm64 build.
+
+**Fix in v0.8.2.** CI seals the finished bundle with `codesign --force --deep --sign -` and strict-verifies it, then archives with `ditto -c -k --keepParent` and strict-verifies the extracted archive, so the check covers what users download. `zip -r` was tested too and also preserves the signature. `ditto` is used because it is Apple's supported method, not because `zip` failed.
+
+**Only notarization gets past Gatekeeper.** That needs Developer ID signing with the hardened runtime, then notarization and stapling. Maintainer decision 2026-09-10: no Apple Developer account for now. See PLAN, macOS Code Signing.
+
+### sageRecon has the same Gatekeeper problem, in a different form
+
+sageRecon's build was derived from this repo's, so its v0.1.2 release was checked the same day.
+
+- It ships a bare `recon` binary, not a `.app`, so there is no bundle seal to break. `recon-apple-silicon` is ad-hoc linker-signed and passes strict verification. `recon-apple-intel` is not signed at all.
+- A quarantined `recon` run from Terminal printed nothing and had not exited after 20 seconds, while macOS showed "recon Not Opened". To a user it looks like a hang, not an error.
+- A copy without the quarantine attribute, which is the state `xattr -d` produces, runs on both architectures. That includes the unsigned Intel binary under Rosetta: `recon --version` prints `recon 0.1.2`.
+- sageRecon's README gives no macOS guidance.
+
+A handoff for the sageRecon side was written for the maintainer. Its main fix is README guidance. Signing the Intel binary is hygiene rather than a requirement there, since it runs unsigned once unquarantined. Its release procedure is manual, because GitHub Actions is not available in the usnistgov org.
+
+---
+
 ## Known permanent / standing limitations
 
 - **Coupled to Sage's internal API.** By design (Option A), a Sage update can break compilation. This is the accepted cost of embedding; the mitigation is MAINTENANCE.md, not a code change.
 - **One search at a time.** Not a batch/queue system — that's an explicit non-goal (see PLAN). Batch processing is a possible far-future phase.
 - **Not a results viewer beyond a basic summary.** Deep analysis is left to downstream tools: sageRecon before a search, PDV and MSstats after one.
-- **macOS binaries are unsigned.** Triggers Gatekeeper "unidentified developer" warnings. Workaround documented in README (`xattr -d com.apple.quarantine`). Real fix (Apple Developer Program + code signing) is deferred — see PLAN "Future / Distribution".
+- **macOS binaries are unsigned.** A browser download is blocked with "damaged and can't be opened"; see macOS Gatekeeper above. Workaround documented in README (`xattr -d com.apple.quarantine`). Real fix (Apple Developer Program + code signing) is deferred — see PLAN "Future / Distribution".
 
 ---
 

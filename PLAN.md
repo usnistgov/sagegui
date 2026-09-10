@@ -391,16 +391,13 @@ whether iBAQ is a Sage-side computation or a downstream one.
 ### Distribution Improvements (Future)
 
 #### macOS Code Signing
-- **Problem:** Unsigned apps trigger Gatekeeper warnings ("unidentified developer")
-- **Solution:** Apple Developer Program ($99/year) + code signing in CI
-- **Implementation:**
-  ```yaml
-  # Future workflow addition
-  - name: Sign macOS Binary
-    if: matrix.os == 'macos-latest'
-    run: codesign --sign "${{ secrets.APPLE_DEVELOPER_ID }}" target/release/sagegui
-  ```
-- **Alternative:** Document how users can bypass Gatekeeper (`xattr -d com.apple.quarantine`)
+
+**Decision 2026-09-10: no Apple Developer account for now.** The maintainer chose not to pay for the Apple Developer Program. The app stays un-notarized, so macOS blocks a browser download.
+
+- **What users see:** "Sage Launcher.app is damaged and can't be opened." Not "unidentified developer". Right-click then Open does not help for this message. The prominent button is Move to Trash, which deletes the user's copy; the maintainer clicked it by accident on 2026-09-10.
+- **Workaround, verified 2026-09-10:** `xattr -dr com.apple.quarantine "Sage Launcher.app"`. Documented in README.
+- **Done in CI since v0.8.2:** the bundle is sealed with an ad-hoc signature, and `codesign --verify --deep --strict` runs on the bundle and on the extracted release zip. This fixes a bundle that was internally invalid. It does not get past Gatekeeper.
+- **The real fix, if an account is obtained:** Developer ID signing with the hardened runtime, then `xcrun notarytool submit --wait` and `xcrun stapler staple`. Put the signing where CI now ad-hoc signs, in "Create macOS App Bundle", on `target/<triple>/release/Sage Launcher.app`. Check for a NIST institutional account before paying. See NOTES, macOS Gatekeeper.
 
 #### Windows MSI Installer
 - **Problem:** Raw .exe requires manual extraction, no Start Menu integration
