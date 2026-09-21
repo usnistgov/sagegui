@@ -164,8 +164,17 @@ web-LLM proposal live in `docs/ui-spec.md`; the porter's handoff (ASCII mockups
    advanced). Redesign pinned below.
 5. **Quant** — standalone thin tab (enable, LFQ/TMT, per-type settings). Grows
    later (LFQ mobility tol, TMT S/N).
-6. **Run / Info** — Output Options (write_pin, annotate_matches); Launch;
-   status; results summary (planned); export buttons (planned); Info/Help.
+6. **Run / Info** — two groups, then Sage Log and Info/Help (regrouped
+   2026-09-21). **Search output**: Output Location + Browse, and the three
+   checkboxes Sage writes during a search (Write PIN file, Write HTML report,
+   Annotate Matches). **Results**: Results location + Browse, Use Output
+   Location, Refresh, a status line, then the Convert filters, checkboxes and
+   buttons. Launch and run status live in the run bar. The Results rules are in
+   "Built here: mzIdentML 1.1.1 and pepXML converters".
+   Write HTML report can only be made during a search, and the file needs
+   internet to display: Sage builds it with `report-builder` 0.1.1 (locked in
+   `Cargo.lock`), whose `lib.rs` loads plotly, jQuery and DataTables from CDNs.
+   Checked in the crate source 2026-09-21.
 
 Pinned **Run Bar** (`TopBottomPanel::bottom`) renders every frame regardless of
 active tab — the single most important structural change (today's Launch button
@@ -183,8 +192,8 @@ could not change them). Homes assigned:
 | `override_precursor_charge` (None, `//TODO`) | stub | Search › ▸ Advanced | checkbox "Force charge range" |
 | `isotope_errors` (-1,3) | hardcoded | Search › Search behavior (visible) | range slider + trade-off tooltip |
 | `score_type` (SageHyperScore) | hardcoded | Search › Scoring (visible) | ComboBox + conservative tooltip |
-| `write_pin` (false) | hardcoded | Run/Info › Output Options | checkbox (Percolator .pin) |
-| `annotate_matches` (false) | hardcoded | Run/Info › Output Options | checkbox |
+| `write_pin` (false) | hardcoded | Run/Info › Search output | checkbox (Percolator .pin) |
+| `annotate_matches` (false) | hardcoded | Run/Info › Search output | checkbox |
 
 Trade-off tooltip for `isotope_errors`: Sage docs note isotope-error search is
 *slower* than simply widening `precursor_tol` to cover the same mass range, and
@@ -287,7 +296,7 @@ roughly ordered:
    "Experiment templates" work (PLAN Phase 5) since both need the same
    "load a JSON into `self.config`" code path.
 2. **Move Output Location control to the Run tab.** ✅ Done 2026-08-13 — the
-   Output Location group now lives on the Run / Info tab (above Output Options);
+   Output Location group now lives on the Run / Info tab (later inside Search output);
    removed from Files & Database. *(Still relates to the open "smarter output
    directory" item — default is still cwd.)*
 3. **Rework the Run / Info screen — log panel done, Info/Help re-home dropped.**
@@ -782,6 +791,13 @@ Not yet re-verified live (no reason to expect it's wrong — it's now
 identical in approach to an already-correct adjacent label — but hasn't
 actually been seen rendered since the fix).
 
+**Status text colours (2026-09-21).** The same rule now covers the run-bar
+status line and the Convert status lines. Success is plain `ui.label`, in the
+theme's text colour, as "Processing" is. Errors stay `Color32::RED`. "Stopped"
+and "Stopping" were pure `Color32::YELLOW`, which is unreadable on the light
+theme, so they use `ui.visuals().warn_fg_color`. Do not put pure green or pure
+yellow back. Not yet seen rendered on the light theme.
+
 ---
 
 Things that look wrong but are correct. Do not "fix" these.
@@ -865,7 +881,8 @@ importer follows it.
 ### What import never touches, and why it says so
 
 `mzml_paths`, `database.fasta` and `output_directory` are parsed but never
-applied. An imported file describes files on the machine that made it.
+applied. `results_directory` and `results_follows_output` are not Sage keys, so
+no import or template can change them. An imported file describes files on the machine that made it.
 
 They are not dropped in silence. The import reports each one, says whether the
 recorded path still exists here, and names the tab to re-pick it on. A
@@ -1197,14 +1214,44 @@ checkbox has hover text that says this (commit de1452b, 2026-09-21).
 The "do not build" rule above covers PDV and MSstats only. For pepXML and
 mzIdentML the maintainer decided to BUILD both converters inside SageGUI.
 Status: the converter core is in `src/export/`. The UI is wired in
-`src/convert_job.rs` and the Convert results group on Run / Info (2026-09-21).
+`src/convert_job.rs` and the Results group on Run / Info (2026-09-21).
 Two buttons run it on demand. Two checkboxes run it after a search that ends
 with `Ok`. It runs on its own thread with its own status lines, and it never
 writes `status_message`. The auto-run request is taken when the search starts,
-so it uses the folder Sage used. The buttons do no file access per frame: a
-missing input is reported by the converter on click. The settings are three
-`Config` fields with `serde(default)`. They are not in templates and not in
-`Input`.
+so it uses the folder Sage used. The settings are five `Config` fields with
+`serde(default)`. They are not in templates, not in `Input` and not in a Sage
+file import.
+
+**Results location (decided 2026-09-21).** Convert used to read the live Output
+Location, the box that says where the NEXT search writes. A person who opened
+the app with an old run's folder there could not tell what Convert had used. So
+the Results group has its own folder box. Two `Config` fields hold it.
+`results_directory` is the text. `results_follows_output` is a flag that
+defaults to true, so it needs `serde(default = "default_results_follows_output")`
+because serde's own bool default is false. The rules, all pure methods on
+`Config`:
+
+- The folder Convert uses is `results_directory`, or `output_directory` when
+  that is empty (`effective_results_dir`). Old saved state has no key, so it
+  behaves as before.
+- A search that ends with `Ok`, while the flag is true, sets
+  `results_directory` to the folder that search started with
+  (`follow_finished_search`). That is `run_output_directory` in `main.rs`,
+  taken at launch. It is not the live box, and it is not `pending_conversion`,
+  which is `None` when no after-search box is ticked. A failed or stopped search
+  changes nothing.
+- Browse or typing in the Results box sets the flag to false. Emptying the box
+  sets it to true again, because an empty box means the Output Location. "Use Output
+  Location" copies `output_directory` in and sets it to true.
+- The two buttons use the effective folder (`ConvertRequest::from_config`). The
+  after-search run keeps the Output Location snapshot (`after_search`), and the
+  follow rule then points Results at it.
+- The status line under the box is `scan_results_dir`. It reads the folder, so
+  the window keeps the answer in `SageLauncher::results_scan`, keyed by the path
+  text. It is read again when the path text changes, a search ends, a
+  conversion ends, or Refresh is clicked. It must never run every frame. The
+  buttons stay on when an input is missing. The converter's message on click is
+  still the source of truth.
 
 **Why build, and not wrap or ship someone else's tool:**
 

@@ -8,11 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Convert results to mzIdentML and pepXML** — a new Convert results group on the Run / Info tab. Two buttons write `results.sage.mzid` (mzIdentML 1.1.1) or `results.sage.pep.xml` (pepXML 1.23) from `results.sage.tsv` and `results.json` in the Output Location. They work on any earlier run. You choose the q-value (spectrum, peptide or protein), the limit (default 0.01) and whether decoys stay in. Two checkboxes convert after a search that ends without error. The work runs on its own thread, with a progress bar and a Cancel button. A failed conversion shows its own message and never changes the result of the search. The pepXML file does not pass strict validation, because the schema does not list Sage as a search engine. The mzIdentML file does.
-- **Write HTML report** — a new checkbox under Output Options on the Run / Info tab. It makes Sage write `results.sage.report.html`. Off by default, as in Sage. Settings saved by an earlier version still load.
+- **Convert results to mzIdentML and pepXML** — a new Results group on the Run / Info tab. Two buttons write `results.sage.mzid` (mzIdentML 1.1.1) or `results.sage.pep.xml` (pepXML 1.23) from `results.sage.tsv` and `results.json` in the Results location. They work on any earlier run. You choose the q-value (spectrum, peptide or protein), the limit (default 0.01) and whether decoys stay in. Two checkboxes convert after a search that ends without error. The work runs on its own thread, with a progress bar and a Cancel button. A failed conversion shows its own message and never changes the result of the search. The pepXML file does not pass strict validation, because the schema does not list Sage as a search engine. The mzIdentML file does.
+- **Results location** — the Results group has its own folder box, with Browse. Convert reads and writes there and not in the Output Location, so an old run's folder can no longer be used by mistake. It follows the folder of each finished search until you Browse or type in it. Use Output Location makes it follow again. A status line names the files found there, and Refresh reads the folder again. Settings saved by an earlier version still load.
+- **Write HTML report** — a new checkbox under Search output on the Run / Info tab. It makes Sage write `results.sage.report.html`. Off by default, as in Sage. Settings saved by an earlier version still load.
 - **Hover note on Combine Charge States** — it says what the option does to `lfq.tsv` and that tools which group by charge, such as MSstats, need it off.
 
+### Changed
+- **Run / Info is regrouped** — Search output holds the Output Location and the three files Sage writes during a search (PIN file, HTML report, Annotate Matches). Results holds the Results location and Convert. The Write HTML report hover text now says the report needs internet to display.
+
 ### Fixed
+- **Success text is no longer bright green** — the run bar and the Convert status now use the normal text colour, which is readable on the light theme. The stopped messages use the theme warning colour instead of pure yellow.
 - **A bad output folder is caught before the run starts** — an empty Output Location, a path that is a file, and a read-only folder now give a message up front. Before, the run failed after the search, when Sage wrote its first file. A folder that does not exist yet is not an error: Sage creates it.
 
 ## [0.8.2] - 2026-09-10

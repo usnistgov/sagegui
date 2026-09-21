@@ -150,6 +150,16 @@ pub struct SageLauncher {
     /// What to convert when the running search ends well. Taken when the search
     /// starts, so it holds the folder Sage used. `None` when no box was ticked.
     pending_conversion: Option<ConvertRequest>,
+    /// The Output Location as it was when the running search started. When the
+    /// search ends well, the Results location follows it (`Config::
+    /// follow_finished_search`). Kept apart from `pending_conversion`, which is
+    /// `None` when no after-search box is ticked.
+    run_output_directory: Option<String>,
+    /// What the Results location holds, and the path text it was read for.
+    /// Read again only when the path text changes, a search or conversion ends,
+    /// or Refresh is clicked. `None` means read on the next frame. Never read
+    /// the folder on every frame.
+    pub results_scan: Option<(String, convert_job::ResultsScan)>,
 }
 
 impl Default for SageLauncher {
@@ -182,6 +192,8 @@ impl Default for SageLauncher {
             status_is_preflight_error: false,
             convert: Converter::default(),
             pending_conversion: None,
+            run_output_directory: None,
+            results_scan: None,
         }
     }
 }
@@ -293,7 +305,7 @@ impl eframe::App for SageLauncher {
                 if self.is_running {
                     ui.spinner();
                     if self.stop_requested {
-                        ui.colored_label(egui::Color32::YELLOW, "Stopping");
+                        ui.colored_label(ui.visuals().warn_fg_color, "Stopping");
                     } else {
                         ui.label("Processing");
                     }
@@ -325,16 +337,15 @@ impl eframe::App for SageLauncher {
             });
 
             if !self.status_message.is_empty() {
-                ui.colored_label(
-                    if self.status_message.starts_with("Error") {
-                        egui::Color32::RED
-                    } else if self.status_message.starts_with("Search stopped") {
-                        egui::Color32::YELLOW
-                    } else {
-                        egui::Color32::GREEN
-                    },
-                    &self.status_message,
-                );
+                // Success is plain theme text, as the "Processing" label is.
+                // Pure green is hard to read on the light theme.
+                if self.status_message.starts_with("Error") {
+                    ui.colored_label(egui::Color32::RED, &self.status_message);
+                } else if self.status_message.starts_with("Search stopped") {
+                    ui.colored_label(ui.visuals().warn_fg_color, &self.status_message);
+                } else {
+                    ui.label(&self.status_message);
+                }
             }
             ui.add_space(4.0);
         });
@@ -384,7 +395,12 @@ impl eframe::App for SageLauncher {
 
 impl SageLauncher {
     fn check_thread_status(&mut self) {
+        let was_converting = self.convert.is_running();
         self.convert.poll();
+        if was_converting && !self.convert.is_running() {
+            // The conversion may have written a file the status line names.
+            self.results_scan = None;
+        }
         if let Some(receiver) = &self.message_receiver {
             match receiver.try_recv() {
                 Ok(ThreadMessage::Progress(msg)) => {
@@ -414,6 +430,12 @@ impl SageLauncher {
                     // converted. See `should_auto_convert`.
                     let pending = self.pending_conversion.take();
                     let auto_convert = should_auto_convert(&result, &pending);
+                    // Point the Results location at the folder this search used,
+                    // if it follows. A failed or stopped search changes nothing.
+                    if let Some(run_dir) = self.run_output_directory.take() {
+                        self.config.follow_finished_search(result.is_ok(), &run_dir);
+                    }
+                    self.results_scan = None;
                     self.status_message = match result {
                         Ok(msg) => msg,
                         Err(err) if self.stop_requested && err == "cancelled" => {
@@ -447,6 +469,7 @@ impl SageLauncher {
         self.cancel_flag = None;
         self.stop_requested = false;
         self.pending_conversion = None;
+        self.run_output_directory = None;
         if let Some(mutex) = LOG_SENDER.get() {
             if let Ok(mut guard) = mutex.lock() {
                 *guard = None;
@@ -564,6 +587,7 @@ impl SageLauncher {
         self.message_receiver = Some(receiver);
         self.log_lines.clear();
         self.pending_conversion = ConvertRequest::after_search(&self.config);
+        self.run_output_directory = Some(self.config.output_directory.clone());
         LOG_SENDER
             .get_or_init(|| Mutex::new(None))
             .lock()
@@ -1418,6 +1442,8 @@ mod tests {
                 export_pepxml_after_run: true,
                 score_type: ScoreType::OpenMSHyperScore,
                 output_directory: "/custom/output/dir".to_string(),
+                results_directory: "/custom/results/dir".to_string(),
+                results_follows_output: false,
                 override_precursor_charge: true,
             },
             precursor_tolerance_type: ToleranceType::Da,
@@ -1511,6 +1537,8 @@ mod tests {
         assert_eq!(rc.export_pepxml_after_run, oc.export_pepxml_after_run);
         assert!(matches!(rc.score_type, ScoreType::OpenMSHyperScore));
         assert_eq!(rc.output_directory, oc.output_directory);
+        assert_eq!(rc.results_directory, "/custom/results/dir");
+        assert!(!rc.results_follows_output, "false must survive the trip");
         assert_eq!(rc.override_precursor_charge, oc.override_precursor_charge);
 
         assert_eq!(
@@ -1635,6 +1663,80 @@ mod tests {
         }
         assert!(!dir.join("results.sage.mzid").exists());
         assert!(!dir.join("results.sage.pep.xml").exists());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// The Results location follows a search that ends with `Ok`, and uses the
+    /// folder the search started with, not the box as it is at the end.
+    #[test]
+    fn a_finished_search_points_the_results_location_at_its_own_folder() {
+        let (mut app, sender) = running_launcher(false);
+        app.config.output_directory = "search/started/here".to_string();
+        app.run_output_directory = Some("search/started/here".to_string());
+        // The user edits the box while the search runs.
+        app.config.output_directory = "edited/during/the/run".to_string();
+        sender
+            .send(ThreadMessage::Completed(Ok(
+                "Analysis completed successfully".to_string(),
+            )))
+            .unwrap();
+        app.check_thread_status();
+        assert_eq!(app.config.results_directory, "search/started/here");
+        assert!(app.config.results_follows_output, "following stays on");
+        assert!(app.run_output_directory.is_none());
+        assert!(app.results_scan.is_none(), "the scan is read again");
+    }
+
+    /// A failed or stopped search changes nothing, and neither does a search
+    /// when the user has chosen a folder.
+    #[test]
+    fn the_results_location_moves_only_after_a_good_search_while_it_follows() {
+        for (result, stop_requested) in [
+            (Err("out of memory".to_string()), false),
+            (Err("cancelled".to_string()), true),
+        ] {
+            let (mut app, sender) = running_launcher(stop_requested);
+            app.config.results_directory = "kept".to_string();
+            app.run_output_directory = Some("new/run".to_string());
+            sender.send(ThreadMessage::Completed(result)).unwrap();
+            app.check_thread_status();
+            assert_eq!(app.config.results_directory, "kept");
+            assert!(app.run_output_directory.is_none(), "nothing stays queued");
+        }
+
+        let (mut app, sender) = running_launcher(false);
+        app.config.set_results_dir("chosen".to_string());
+        app.run_output_directory = Some("new/run".to_string());
+        sender
+            .send(ThreadMessage::Completed(Ok(
+                "Analysis completed successfully".to_string(),
+            )))
+            .unwrap();
+        app.check_thread_status();
+        assert_eq!(app.config.results_directory, "chosen");
+        assert!(!app.config.results_follows_output);
+    }
+
+    /// The scan is read again when a conversion ends, because it may have
+    /// written a file the status line names.
+    #[test]
+    fn a_finished_conversion_clears_the_cached_scan() {
+        let dir = fixture_folder("scan-reset");
+        let mut app = SageLauncher {
+            results_scan: Some((
+                "x".to_string(),
+                convert_job::scan_results_dir(std::path::Path::new("x")),
+            )),
+            ..SageLauncher::default()
+        };
+        assert!(app.convert.start(request_for(&dir, true, false)));
+        app.check_thread_status();
+        assert!(
+            app.results_scan.is_some(),
+            "a running job does not clear it"
+        );
+        wait_for_conversion(&mut app);
+        assert!(app.results_scan.is_none());
         let _ = std::fs::remove_dir_all(dir);
     }
 }

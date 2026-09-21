@@ -99,7 +99,7 @@ Tools that read what SageGUI produces. This list grows as support lands.
   which carries the MS1 areas MSstats wants. **If you plan to use it, turn off Combine Charge States
   on the Quant tab.** With it on, which is the default, Sage writes a charge of -1 and
   `PrecursorCharge` is meaningless downstream.
-- Tools that read mzIdentML or pepXML — use **Convert results** on the Run / Info tab. It writes
+- Tools that read mzIdentML or pepXML — use the **Results** group on the Run / Info tab. It writes
   `results.sage.mzid` (mzIdentML 1.1.1) and `results.sage.pep.xml` (pepXML 1.23) next to the Sage
   output. The mzIdentML file passes strict schema validation. The pepXML file does not, because the
   pepXML 1.23 schema does not list Sage as a search engine and the file names it as `Sage`. Neither

@@ -1106,6 +1106,8 @@ mod tests {
         mine.export_options.include_decoys = true;
         mine.export_mzid_after_run = true;
         mine.export_pepxml_after_run = true;
+        mine.results_directory = "/my/results".to_string();
+        mine.results_follows_output = false;
 
         let check = |config: &Config, what: &str| {
             assert_eq!(config.export_options.max_q, 0.05, "{what}");
@@ -1113,6 +1115,8 @@ mod tests {
             assert!(config.export_options.include_decoys, "{what}");
             assert!(config.export_mzid_after_run, "{what}");
             assert!(config.export_pepxml_after_run, "{what}");
+            assert_eq!(config.results_directory, "/my/results", "{what}");
+            assert!(!config.results_follows_output, "{what}");
         };
 
         for t in bundled_templates() {
@@ -1124,7 +1128,8 @@ mod tests {
 
         let doc = SageJson::from_str(
             r#"{"export_options":{"max_q":0.5},"export_mzid_after_run":false,
-                "export_pepxml_after_run":false,"report_psms":3}"#,
+                "export_pepxml_after_run":false,"results_directory":"/x",
+                "results_follows_output":true,"report_psms":3}"#,
         )
         .expect("must parse");
         let mut config = mine.clone();

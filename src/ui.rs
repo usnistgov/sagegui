@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use crate::convert_job::{ConvertRequest, ConvertStatus};
+use crate::convert_job::{conversion_dir, scan_results_dir, ConvertRequest, ConvertStatus};
 use crate::export::{ExportOptions, QSource};
 use crate::SageLauncher;
 
@@ -1178,7 +1178,62 @@ pub struct Config {
     pub export_pepxml_after_run: bool,
     pub score_type: ScoreType,
     pub output_directory: String,
+    /// Added after v0.8.2. Where Convert reads and writes. Empty means the
+    /// Output Location. Not a Sage setting.
+    #[serde(default)]
+    pub results_directory: String,
+    /// Added after v0.8.2. True until the user picks or types a results folder.
+    /// While true, each finished search points `results_directory` at its own
+    /// folder. Not a Sage setting. Serde's default for a bool is false, so it
+    /// needs a function.
+    #[serde(default = "default_results_follows_output")]
+    pub results_follows_output: bool,
     pub override_precursor_charge: bool,
+}
+
+fn default_results_follows_output() -> bool {
+    true
+}
+
+impl Config {
+    /// The folder Convert uses: the Results location, or the Output Location
+    /// when no Results location is set.
+    pub fn effective_results_dir(&self) -> &str {
+        if self.results_directory.is_empty() {
+            &self.output_directory
+        } else {
+            &self.results_directory
+        }
+    }
+
+    /// The user typed in the Results location box. From now on it stays where
+    /// they put it. An empty box means "same as Output Location", the state of a
+    /// fresh install, so it follows again. Without this, an emptied box would
+    /// stay on the Output Location for good and no search would move it.
+    pub fn results_dir_edited(&mut self) {
+        self.results_follows_output = self.results_directory.is_empty();
+    }
+
+    /// The user chose a folder with Browse.
+    pub fn set_results_dir(&mut self, dir: String) {
+        self.results_directory = dir;
+        self.results_dir_edited();
+    }
+
+    /// The "Use Output Location" button. It follows the searches again.
+    pub fn use_output_location(&mut self) {
+        self.results_directory = self.output_directory.clone();
+        self.results_follows_output = true;
+    }
+
+    /// A search ended. `run_dir` is the folder that search used, taken when it
+    /// started. Only a search that ended with `Ok` moves the Results location,
+    /// and only while it follows.
+    pub fn follow_finished_search(&mut self, search_ok: bool, run_dir: &str) {
+        if search_ok && self.results_follows_output {
+            self.results_directory = run_dir.to_string();
+        }
+    }
 }
 
 impl Default for Config {
@@ -1213,6 +1268,8 @@ impl Default for Config {
             export_pepxml_after_run: false,
             score_type: ScoreType::SageHyperScore,
             output_directory: cwd_str.unwrap_or_else(|| "output".to_string()),
+            results_directory: String::new(),
+            results_follows_output: true,
             override_precursor_charge: false,
         }
     }
@@ -1927,7 +1984,8 @@ impl SageLauncher {
         ui.add_space(10.0);
 
         ui.group(|ui| {
-            ui.heading("Output Location");
+            ui.heading("Search output");
+            ui.weak("Sage writes these during the search.");
             ui.horizontal(|ui| {
                 ui.label("Output Location:");
                 ui.text_edit_singleline(&mut self.config.output_directory);
@@ -1937,16 +1995,13 @@ impl SageLauncher {
                     }
                 }
             });
-        });
-
-        ui.add_space(10.0);
-
-        ui.group(|ui| {
-            ui.heading("Output Options");
             ui.checkbox(&mut self.config.write_pin, "Write PIN file")
                 .on_hover_text("Write a Percolator .pin file for downstream rescoring.");
             ui.checkbox(&mut self.config.write_report, "Write HTML report")
-                .on_hover_text("Write an HTML summary report, results.sage.report.html.");
+                .on_hover_text(
+                    "Write an HTML summary report, results.sage.report.html. Made only \
+                     during a search. Needs internet to display.",
+                );
             ui.checkbox(&mut self.config.annotate_matches, "Annotate Matches")
                 .on_hover_text("Write annotated fragment-ion match detail alongside results.");
         });
@@ -2001,17 +2056,77 @@ impl SageLauncher {
         });
     }
 
-    /// Convert `results.sage.tsv` to mzIdentML or pepXML. The conversion runs on
-    /// its own thread (`crate::convert_job`) and has its own status lines. It
-    /// never writes `status_message`, so a failed conversion cannot change the
-    /// result of a search.
+    /// The Results group: where the results are, and Convert. It converts
+    /// `results.sage.tsv` to mzIdentML or pepXML. The conversion runs on its own
+    /// thread (`crate::convert_job`) and has its own status lines. It never
+    /// writes `status_message`, so a failed conversion cannot change the result
+    /// of a search.
     ///
-    /// The buttons are on whenever no search or conversion is running. They do
-    /// no file access. A missing `results.sage.tsv` or `results.json` is
-    /// reported by the converter when the button is clicked.
+    /// The buttons are on whenever no search or conversion is running. The
+    /// converter reports a missing `results.sage.tsv` or `results.json` when the
+    /// button is clicked. The status line under the Results location reads the
+    /// folder, so the window keeps the answer in `results_scan` and asks again
+    /// only when the path text changes, a search or a conversion ends, or the
+    /// user clicks Refresh. Never scan on every frame.
     fn convert_section(&mut self, ui: &mut egui::Ui) {
         ui.group(|ui| {
-            ui.heading("Convert results");
+            ui.heading("Results");
+            ui.horizontal(|ui| {
+                ui.label("Results location:").on_hover_text(
+                    "Convert reads and writes here. It follows each finished search until you \
+                     change it.",
+                );
+                let edit = ui.add(
+                    egui::TextEdit::singleline(&mut self.config.results_directory)
+                        .hint_text("Same as Output Location"),
+                );
+                if edit.changed() {
+                    self.config.results_dir_edited();
+                }
+                if ui.button("Browse").clicked() {
+                    if let Some(path) = FileDialog::new().pick_folder() {
+                        self.config.set_results_dir(path.display().to_string());
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                if ui
+                    .button("Use Output Location")
+                    .on_hover_text("Copy the Output Location here and follow it again.")
+                    .clicked()
+                {
+                    self.config.use_output_location();
+                }
+                if ui
+                    .button("Refresh")
+                    .on_hover_text("Look in the folder again.")
+                    .clicked()
+                {
+                    self.results_scan = None;
+                }
+            });
+            let dir_text = self.config.effective_results_dir().to_string();
+            match conversion_dir(&dir_text) {
+                Err(problem) => {
+                    ui.colored_label(ui.visuals().error_fg_color, problem);
+                }
+                Ok(dir) => {
+                    if !matches!(&self.results_scan, Some((key, _)) if *key == dir_text) {
+                        self.results_scan = Some((dir_text, scan_results_dir(&dir)));
+                    }
+                    if let Some((_, scan)) = &self.results_scan {
+                        for (line, is_problem) in scan.status_lines() {
+                            if is_problem {
+                                ui.colored_label(ui.visuals().error_fg_color, line);
+                            } else {
+                                ui.weak(line);
+                            }
+                        }
+                    }
+                }
+            }
+            ui.add_space(4.0);
+
             let opts = &mut self.config.export_options;
             ui.horizontal(|ui| {
                 ui.label("Q-value source:").on_hover_text(
@@ -2055,7 +2170,7 @@ impl SageLauncher {
                 if ui
                     .add_enabled(idle, egui::Button::new("Convert to mzIdentML"))
                     .on_hover_text(
-                        "Reads results.sage.tsv and results.json in the Output Location. \
+                        "Reads results.sage.tsv and results.json in the Results location. \
                          Writes results.sage.mzid there.",
                     )
                     .clicked()
@@ -2065,7 +2180,7 @@ impl SageLauncher {
                 if ui
                     .add_enabled(idle, egui::Button::new("Convert to pepXML"))
                     .on_hover_text(
-                        "Reads results.sage.tsv and results.json in the Output Location. \
+                        "Reads results.sage.tsv and results.json in the Results location. \
                          Writes results.sage.pep.xml there.",
                     )
                     .clicked()
@@ -2098,15 +2213,20 @@ impl SageLauncher {
                     }
                 });
             } else if let Some(status) = &self.convert.status {
+                // Success is plain theme text. Pure green is hard to read on the
+                // light theme. See NOTES, "Status text colours".
                 let colour = if status.is_error() {
-                    egui::Color32::RED
+                    Some(egui::Color32::RED)
                 } else if matches!(status, ConvertStatus::Stopped(_)) {
-                    egui::Color32::YELLOW
+                    Some(ui.visuals().warn_fg_color)
                 } else {
-                    egui::Color32::GREEN
+                    None
                 };
                 for line in status.lines() {
-                    ui.colored_label(colour, line);
+                    match colour {
+                        Some(colour) => ui.colored_label(colour, line),
+                        None => ui.label(line),
+                    };
                 }
             }
         });
@@ -2791,6 +2911,99 @@ mod tests {
         assert_eq!(config.export_options.max_q, 0.05);
         assert_eq!(config.export_options.q_source, QSource::SpectrumQ);
         assert!(!config.export_options.include_decoys);
+    }
+
+    /// The Results location fields were added after v0.8.2. Old saved state has
+    /// neither key. A missing bool must load as true, which is not serde's own
+    /// default, and a missing folder must load empty so Convert uses the
+    /// Output Location as it did before.
+    #[test]
+    fn old_config_json_without_results_fields_loads_following_the_output_location() {
+        let full = serde_json::to_value(Config::default()).expect("Config must serialize");
+        for keys in [
+            &["results_directory"][..],
+            &["results_follows_output"][..],
+            &["results_directory", "results_follows_output"][..],
+        ] {
+            let mut value = full.clone();
+            for key in keys {
+                assert!(
+                    value.as_object_mut().unwrap().remove(*key).is_some(),
+                    "expected `{key}` in the serialized default. Was the field renamed?"
+                );
+            }
+            let config: Config = serde_json::from_value(value)
+                .unwrap_or_else(|e| panic!("a config without {keys:?} must still load: {e}"));
+            assert!(config.results_follows_output, "must default to true");
+            assert!(config.results_directory.is_empty());
+            assert_eq!(config.effective_results_dir(), config.output_directory);
+        }
+        assert!(Config::default().results_follows_output);
+        assert!(Config::default().results_directory.is_empty());
+    }
+
+    #[test]
+    fn the_results_folder_is_its_own_text_or_falls_back_to_the_output_folder() {
+        let mut config = Config {
+            output_directory: "out".to_string(),
+            ..Config::default()
+        };
+        assert_eq!(config.effective_results_dir(), "out", "empty falls back");
+        config.results_directory = "results".to_string();
+        assert_eq!(config.effective_results_dir(), "results", "non-empty wins");
+        config.output_directory = "other".to_string();
+        assert_eq!(config.effective_results_dir(), "results");
+    }
+
+    #[test]
+    fn the_results_location_follows_a_good_search_while_it_follows() {
+        let mut config = Config::default();
+        config.follow_finished_search(true, "run/one");
+        assert_eq!(config.results_directory, "run/one");
+        config.follow_finished_search(false, "run/two");
+        assert_eq!(config.results_directory, "run/one", "a failed search");
+        config.follow_finished_search(true, "run/three");
+        assert_eq!(config.results_directory, "run/three");
+        assert!(config.results_follows_output);
+
+        config.results_follows_output = false;
+        config.follow_finished_search(true, "run/four");
+        assert_eq!(config.results_directory, "run/three", "not following");
+    }
+
+    #[test]
+    fn typing_or_browsing_stops_the_following_and_the_button_starts_it_again() {
+        let mut config = Config {
+            output_directory: "out".to_string(),
+            ..Config::default()
+        };
+        // Typing: the box edits `results_directory` itself, then the UI calls
+        // `results_dir_edited`.
+        config.results_directory = "typed".to_string();
+        config.results_dir_edited();
+        assert!(!config.results_follows_output);
+
+        config.follow_finished_search(true, "run");
+        assert_eq!(config.results_directory, "typed");
+
+        // Typing back to an empty box means "same as Output Location".
+        config.results_directory.clear();
+        config.results_dir_edited();
+        assert!(config.results_follows_output);
+        config.results_directory = "typed".to_string();
+        config.results_dir_edited();
+
+        config.use_output_location();
+        assert_eq!(config.results_directory, "out");
+        assert!(config.results_follows_output);
+
+        config.set_results_dir("browsed".to_string());
+        assert_eq!(config.results_directory, "browsed");
+        assert!(!config.results_follows_output);
+
+        config.use_output_location();
+        config.follow_finished_search(true, "run");
+        assert_eq!(config.results_directory, "run", "following again");
     }
 
     #[test]
