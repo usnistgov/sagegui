@@ -732,6 +732,31 @@ Writes annotated fragment ion match detail alongside results when enabled.[file:
 
 ---
 
+### Write HTML Report
+
+**Default:** ☐ Unchecked
+
+**What it does:**
+Writes `results.sage.report.html`, a QC report from Sage. It shows a per-file table at 1% q-value, score and q-value histograms, retention time prediction plots and the search settings. Sage makes it only during a search. The page needs internet access to display, because it loads its plotting scripts from the web.
+
+---
+
+### Results Location
+
+**Default:** the same folder as Output Location
+
+**What it does:**
+The folder that the Convert buttons read from and write to. It follows Output Location: after a search ends without error, it points to the folder that search used. Browse to pick the folder of an earlier run. Use Output Location makes it follow again. A status line under the box lists which of `results.sage.tsv` and `results.json` are in the folder.
+
+---
+
+### Convert to mzIdentML and Convert to pepXML
+
+**What it does:**
+Writes `results.sage.mzid` (mzIdentML 1.1.1) or `results.sage.pep.xml` (pepXML 1.23) from `results.sage.tsv` and `results.json` in the Results Location. It needs no new search. The q-value source (spectrum, peptide or protein), the q-value limit (default 0.01) and Include decoys set which rows are kept. Two checkboxes convert automatically after a search that ends without error. The pepXML file does not pass strict schema validation, because the schema does not list Sage as a search engine.
+
+---
+
 ### Info / Help
 
 Shows SageGUI version, Sage engine version, author and maintainer, repository links and the recommended Sage citation.[file:250]
