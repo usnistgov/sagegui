@@ -21,7 +21,7 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Rejected:** Rewriting in another framework — no reason to.
 
 ### Single `main.rs` (locked, revisit-able)
-- **What:** The GUI started as one `src/main.rs`. It is now split: `src/main.rs` (app state, run thread), `src/ui.rs` (tab rendering), `src/sage_json.rs` (template and config import) and `src/version.rs` (Sage version constants). The UI was extracted to `ui.rs` in the 2026-08-13 restructure. The last line below allows a split.
+- **What:** The GUI started as one `src/main.rs`. It is now split: `src/main.rs` (app state, run thread), `src/ui.rs` (tab rendering), `src/sage_json.rs` (template and config import), `src/export/` (mzIdentML and pepXML converters, no UI yet) and `src/version.rs` (Sage version constants). The UI was extracted to `ui.rs` in the 2026-08-13 restructure. The last line below allows a split.
 - **Why:** Keeps Sebastian's original structure; no need to refactor while it's working.
 - Not deeply locked — fine to split if a feature makes the single file unwieldy.
 
@@ -1189,8 +1189,188 @@ reported a multi-file run with it off "taking too long", because all charge
 states are compared separately. So this is a real tradeoff, not a setting to
 flip by default.
 
-Recorded in README → Downstream tools. An open PLAN item asks whether the
-Quant tab's Combine Charge States checkbox should say this in its hover text.
+Recorded in README → Downstream tools. The Quant tab's Combine Charge States
+checkbox has hover text that says this (commit de1452b, 2026-09-21).
+
+### Built here: mzIdentML 1.1.1 and pepXML 1.23 converters (decided 2026-09-21)
+
+The "do not build" rule above covers PDV and MSstats only. For pepXML and
+mzIdentML the maintainer decided to BUILD both converters inside SageGUI.
+Status: the converter core is in `src/export/`. It has no UI yet.
+
+**Why build, and not wrap or ship someone else's tool:**
+
+- `psm-utils` would add a Python runtime to a single-binary GUI. It also has
+  no pepXML writer.
+- `shic` is incomplete and writes invalid XML. It also reads columns by
+  position, so it breaks when Sage adds a column.
+- Nothing that is maintained writes pepXML from Sage output.
+- The PDV and MSstats decision above is not changed.
+
+**What it does.** `convert_to_mzid(out_dir, &ExportOptions)` and
+`convert_to_pepxml(...)` read `results.sage.tsv` and `results.json` from one
+output folder. They write `results.sage.mzid` and `results.sage.pep.xml` beside
+them. A `_with` variant takes a `Control` (progress callback, cancel flag) so
+the UI can run it on a thread. The file is written to `*.tmp` and renamed, so a
+failed or cancelled run does not damage an older file. No new crate was added.
+The XML is built by hand with one escape function that also strips characters
+XML 1.0 does not allow.
+
+**Filters (`ExportOptions`).** `q_source` (spectrum, peptide or protein q),
+`max_q` (default 0.01) and `include_decoys` (default off). A PSM that fails is
+left out. It is never written with `passThreshold="false"`. There is no
+rank-1-only switch: the rank is kept and a reader can filter on it. Every real
+fixture is rank 1 because Sage defaults `report_psms` to 1. The new fields need
+`serde(default)` in the settings struct that stores them.
+
+**Verified facts the code depends on:**
+
+- The TSV is read BY COLUMN NAME. 0.14.6 writes 40 columns. 0.15.0-beta.2
+  writes 43 (it adds `protein_groups`, `num_protein_groups`,
+  `protein_group_q`). A position from one is wrong in the other.
+- The column headed `precursor_ppm` is Sage's `delta_mass` field
+  (`scoring.rs`, `(exp - iso - calc) * 2e6 / (exp - iso + calc)`). It is a ppm
+  value with the isotope offset removed. It is NOT a Da value. pepXML
+  `massdiff` is `expmass - calcmass` in Da instead, and it keeps the isotope
+  offset. The ppm value goes to mzIdentML as a `Sage:precursor_ppm` user
+  parameter with a ppm unit.
+- `expmass` and `calcmass` are neutral masses. m/z is
+  `(M + z * 1.00727646677) / z`.
+- `rt` is in MINUTES (`mzml.rs` divides seconds by 60). mzIdentML keeps minutes
+  with `UO:0000031`. pepXML `retention_time_sec` is `rt * 60`.
+- `delta_next` is the hyperscore minus the next best hyperscore, or minus 0
+  when there is no other candidate. pepXML gets `hyperscore`, `delta_next` and
+  `nextscore` (the hyperscore minus `delta_next`, which is exact). `posterior_error`
+  is log10 of a probability, so it is written as `posterior_error_log10`.
+- Sage writes the TSV sorted by discriminant score. The writers sort a list of
+  indices to group PSMs by file and spectrum.
+- Sage's mod masses are per residue and inline. Static mods appear inline too.
+
+**Tolerance sign (see AGENTS.md).** Every tolerance written is a DELTA-MASS
+window (observed minus theoretical), taken through
+`ToleranceConfig::displayed_delta`. `MS:1001412` plus is the delta high value.
+`MS:1001413` minus is the negated delta low value, so it is a positive
+magnitude for a window that reaches below zero. Raw `[-500, 100]` Da gives plus
+500, minus 100. Raw `[-20, 10]` ppm gives plus 20, minus 10. The fragment window
+gets the same flip: Sage's `page_search` centres the window on the experimental
+peak and looks up theoretical fragments, the same direction as the precursor.
+It is invisible in symmetric fragment windows. Tests:
+`asymmetric_tolerance_windows_are_written_in_delta_mass_terms` and the
+`DeltaTol` tests in `src/export/params.rs`. The data also checks it:
+`every_kept_psm_lies_inside_the_emitted_precursor_window` removes the isotope
+offset from `expmass - calcmass` and requires every fixture PSM to lie in the
+emitted window. The fixture reaches +3.02 Da, above the +1.25 that the
+unflipped pair would allow, so the test can fail. The full 32,881 row serum run
+spans -1.2501 to +3.4989 Da against the window -1.25 to +3.5. The same window goes into pepXML as
+`*_delta_mass_low`, `*_delta_mass_high` and `*_delta_mass_unit` parameters.
+
+**pepXML `search_engine` (decision).** The 1.23 schema lists a fixed set of
+engines and Sage is not in it. The converter writes `search_engine="Sage"`, with
+`search_engine_version`, and a `search_engine_note` parameter that says so. The
+other choice is a listed name such as `X! Tandem`. That file would validate. It
+would also tell every reader that X!Tandem made it, and those readers may
+expect an `expect` score that Sage does not produce. A wrong label fails
+silently and an unknown label fails loudly, so the converter takes the second.
+The design brief names MSFragger as precedent for writing its own name here.
+That was not checked in this session. To switch, change `SEARCH_ENGINE` in `src/export/pepxml.rs`. It is a single
+constant.
+
+**What strict validation passes (run 2026-09-21, libxml 2.9.13, `xmllint`):**
+
+- mzIdentML 1.1.1: passes with no errors. Tested on the committed fixture, a
+  hand-made file with terminal mods, a 0.14.6 layout file, and the full real
+  outputs (9,484 rows and 32,881 rows, decoys and all q-values included).
+- pepXML 1.23: fails with exactly two error lines, both about the
+  `search_engine` value `Sage`. It has no other error. The same file with
+  `search_engine="X! Tandem"` passes with no errors. The tests assert both
+  facts, so a new error elsewhere fails the test.
+- xmllint checks structure, types and the schema's key and keyref rules. It does
+  not check the CV. It does not check that a peptide mass adds up. It does not
+  check that a reader like Scaffold or Skyline accepts the file. None of the
+  three was tested with a real reader.
+
+**What is not written, and why.** Flanking residues and peptide start and end
+(the TSV has none). `num_tol_term`. An `expect` score (Sage has none). Any
+pepXML `analysis_result` probability, because no tool has calculated one.
+Modification names: every mzIdentML modification is `MS:1001460` "unknown
+modification" with the mass. A mass alone fits several Unimod entries, and we
+do not guess.
+
+**pepXML modification rule.** `mod_aminoacid_mass` is the TOTAL mass of the
+modified residue: residue mass plus delta. `C[+57.0215]` is `160.03069`, not
+`57.0215`. The residue masses are Sage's own table (`sage_core::mass`). A test
+recomputes every fixture peptide from that table and the parsed deltas and
+compares it to Sage's `calcmass`. `mod_nterm_mass` is H (1.007825) plus the
+delta. `mod_cterm_mass` is OH (17.002740) plus the delta. `search_summary`
+`aminoacid_modification` has the same total in `mass`. Static mods get
+`variable="N"`. The attribute values `protein_terminus` and `peptide_terminus`
+follow common tool output and were not checked against a reader.
+
+**CV accessions used** (checked against psi-ms.obo data-version 4.2.2 and the
+Unit Ontology, 2026-09-21): `MS:1004007` Sage, `MS:1001083` ms-ms search,
+`MS:1001211` and `MS:1001256` parent and fragment mass type mono, `MS:1001108`
+to `MS:1001263` ion series (`a b c x y z`), `MS:1001460` unknown modification,
+`MS:1001189`, `MS:1001190`, `MS:1002057`, `MS:1002058` modification
+specificity (peptide N/C, protein N/C), `MS:1001251`, `MS:1001313`,
+`MS:1001309`, `MS:1001310`, `MS:1001303`, `MS:1001304`, `MS:1001955`,
+`MS:1001956` enzymes, `MS:1001412` and `MS:1001413` tolerance plus and minus,
+`MS:1002260`, `MS:1001448`, `MS:1001447` FDR thresholds (PSM, peptide,
+protein), `MS:1001494` no threshold, `MS:1001348` FASTA format, `MS:1001197`,
+`MS:1001195`, `MS:1001283` decoy database terms, `MS:1000584`, `MS:1001062`,
+`MS:1000566` file formats, `MS:1000768`, `MS:1000774`, `MS:1000776`,
+`MS:1000777`, `MS:1002818`, `MS:1000824` nativeID formats, `MS:1001331`
+hyperscore, `MS:1002354` PSM-level q-value, `MS:1001868` distinct peptide-level
+q-value, `MS:1001121` matched peaks, `MS:1001117` theoretical neutral mass,
+`MS:1000016` scan start time. Units: `UO:0000221` dalton, `UO:0000169` parts
+per million, `UO:0000187` percent, `UO:0000031` minute. Note that `MS:1001331`
+is named `X!Tandem:hyperscore`. Sage's hyperscore is the same formula, and the
+CV has no Sage term for it. `MS:1001868` is used for `peptide_q`. Its
+definition is about distinct peptides, which is what Sage's peptide-level
+q-value is. `protein_q` is a user parameter, because the CV term for it is for
+protein hypotheses and not for PSMs.
+
+**Fixtures and schemas.**
+
+- `tests/fixtures/export/results.sage.tsv`: 185 real rows from the 14 MB serum
+  search (0.15.0-beta.2, 43 columns). It has targets and decoys, rows on both
+  sides of 1% for all three q columns, multi-protein rows, and rows with
+  carbamidomethyl and oxidation. It is 81 KB.
+- `tests/fixtures/export/results.json`: that run's parameters, with the user
+  paths replaced by `/path/to`. It has the asymmetric Da window (raw
+  `[-3.5, 1.25]`).
+- `tests/fixtures/export/results_0.14.6.json`: a real 0.14.6 file (`c_terminal`
+  and `semi_enzymatic` are `null`, no `score_type`, raw Da `[-500, 100]`), paths
+  replaced. The 0.14.6 TSV layout is built in a test, from the real row.
+- `tests/schemas/mzIdentML1.1.1.xsd`: fetched 2026-09-21 from
+  `https://raw.githubusercontent.com/HUPO-PSI/mzIdentML/master/schema/mzIdentML1.1.1.xsd`.
+  It imports nothing.
+- `tests/schemas/pepXML_v123.xsd`: fetched 2026-09-21 from
+  `https://svn.code.sf.net/p/sashimi/code/trunk/trans_proteomic_pipeline/schema/pepXML_v123.xsd`.
+- Licences are in `THIRD_PARTY_LICENSES.md`.
+- The tests that run `xmllint` skip when it is not installed (it is not on the
+  Windows CI image). To run the real-output check by hand:
+  `SAGEGUI_EXPORT_DIRS=dirA:dirB cargo test --offline --release export_real_outputs -- --ignored --nocapture`,
+  then `xmllint --noout --schema tests/schemas/<xsd> <file>` on the printed paths.
+
+**Open risks.** Both real fixtures are single-file and rank 1, so the
+multi-file `msms_run_summary` split and the multi-rank grouping are tested only
+on hand-made rows. A chimeric spectrum (two rank-1 hits, same scan and charge)
+gives two pepXML queries with the same `spectrum` name. The TSV reader rejects a
+quoted field, which Sage would write only for a protein name that holds a quote
+or a tab.
+
+### Perseus and ProteoPlotter (researched 2026-09-21, parked)
+
+Perseus work is parked by maintainer decision. What the research found:
+
+- ProteoPlotter needs a Perseus-processed `.txt` export. That file has `#!{Type}`
+  and `#!{C:Grouping}` annotation rows and t-test columns. A raw Sage table
+  cannot feed it.
+- A reformat-only peptide table derived from `lfq.tsv` is the safe first step.
+- UNVERIFIED until a file is test-loaded in Perseus: how `#!{Type}` rows are
+  handled on a generic matrix upload, and how NaN and 0 values are handled.
+- Sources: https://cox-labs.github.io/coxdocs/genericmatrixupload.html and
+  https://github.com/JGM-Lab-UoG/ProteoPlotter.
 
 ---
 
