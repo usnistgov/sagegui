@@ -9,8 +9,8 @@
 //!
 //! The functions are pure. They take a folder and options and return the path
 //! of the file they wrote, or a message for the user. They never panic on bad
-//! input. They know nothing about the GUI. To run one off the UI thread, pass
-//! a [`Control`] to the `_with` variant:
+//! input. They know nothing about the GUI. The GUI runs them off the UI thread
+//! through the `_with` variants and a [`Control`] (see `src/convert_job.rs`):
 //!
 //! ```ignore
 //! let cancel = Arc::new(AtomicBool::new(false));
@@ -22,9 +22,6 @@
 //!
 //! The file is written to a temporary name first and renamed on success. A
 //! failed or cancelled run does not replace a good file from an earlier run.
-
-// Nothing calls this yet. The UI wiring comes in a later change.
-#![allow(dead_code)]
 
 /// `write!` that turns an I/O error into the message the caller returns.
 macro_rules! wr {
@@ -116,7 +113,9 @@ impl Control<'_> {
 }
 
 /// Convert `results.sage.tsv` and `results.json` in `out_dir` to
-/// `results.sage.mzid`. Returns the path of the new file.
+/// `results.sage.mzid`. Returns the path of the new file. The GUI uses the
+/// `_with` variant, so this one is built for the tests only.
+#[cfg(test)]
 pub fn convert_to_mzid(out_dir: &Path, opts: &ExportOptions) -> Result<PathBuf, String> {
     convert_to_mzid_with(out_dir, opts, &Control::default())
 }
@@ -131,7 +130,9 @@ pub fn convert_to_mzid_with(
 }
 
 /// Convert `results.sage.tsv` and `results.json` in `out_dir` to
-/// `results.sage.pep.xml`. Returns the path of the new file.
+/// `results.sage.pep.xml`. Returns the path of the new file. The GUI uses the
+/// `_with` variant, so this one is built for the tests only.
+#[cfg(test)]
 pub fn convert_to_pepxml(out_dir: &Path, opts: &ExportOptions) -> Result<PathBuf, String> {
     convert_to_pepxml_with(out_dir, opts, &Control::default())
 }

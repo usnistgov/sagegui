@@ -7,6 +7,7 @@
 /// Is this pretty? No ... but is it well tested.... also no ... was an I on a deadline
 /// well ... not really. BUT I learned a lot about Rust and sage and I'm glad I did.
 /// I am more than happy to take PRs and suggestions for improvements!
+mod convert_job;
 mod export;
 mod sage_json;
 mod ui;
@@ -23,6 +24,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use convert_job::{should_auto_convert, ConvertRequest, Converter};
 use ui::*;
 
 /// The subset of `SageLauncher` that survives between sessions. Run state
@@ -140,6 +142,14 @@ pub struct SageLauncher {
     /// message must NEVER be cleared this way: it is the only record of why the
     /// run failed.
     status_is_preflight_error: bool,
+    /// The mzIdentML / pepXML conversion. Its state is apart from the search on
+    /// purpose: it has its own status lines and never writes `status_message`,
+    /// so a failed conversion cannot turn a good search into a failed one.
+    /// `cleanup_thread` does not touch it.
+    pub convert: Converter,
+    /// What to convert when the running search ends well. Taken when the search
+    /// starts, so it holds the folder Sage used. `None` when no box was ticked.
+    pending_conversion: Option<ConvertRequest>,
 }
 
 impl Default for SageLauncher {
@@ -170,6 +180,8 @@ impl Default for SageLauncher {
             selected_template: 0,
             last_import: None,
             status_is_preflight_error: false,
+            convert: Converter::default(),
+            pending_conversion: None,
         }
     }
 }
@@ -237,7 +249,12 @@ impl eframe::App for SageLauncher {
         egui::TopBottomPanel::bottom("run_bar").show(ctx, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                let run_btn = ui.add_enabled(!self.is_running, egui::Button::new("Run"));
+                // A conversion reads the files a search writes, so the two do not
+                // run at the same time.
+                let run_btn = ui.add_enabled(
+                    !self.is_running && !self.convert.is_running(),
+                    egui::Button::new("Run"),
+                );
                 if run_btn.clicked() {
                     // Pre-flight is checked here, separately from the launch, so
                     // a refusal to start can be told apart from a failure after
@@ -286,6 +303,14 @@ impl eframe::App for SageLauncher {
                     }
                 }
 
+                if self.convert.is_running() {
+                    ui.spinner();
+                    ui.label(format!(
+                        "Converting ({:.0}%)",
+                        self.convert.progress * 100.0
+                    ));
+                }
+
                 let fraction = match (&self.search_progress, self.total_spectra) {
                     (Some(scored), Some(total)) if total > 0 => {
                         (scored.load(Ordering::Relaxed) as f32 / total as f32).min(1.0)
@@ -328,7 +353,7 @@ impl eframe::App for SageLauncher {
                 });
         });
 
-        if self.is_running {
+        if self.is_running || self.convert.is_running() {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
     }
@@ -345,6 +370,8 @@ impl eframe::App for SageLauncher {
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // Stop a running conversion, so it removes its temporary file.
+        self.convert.stop_and_join();
         // Closing the window while a search is running skips `cleanup_thread`,
         // which would otherwise delete the temp concatenated FASTA.
         if let Some(p) = self.temp_fasta_path.take() {
@@ -357,6 +384,7 @@ impl eframe::App for SageLauncher {
 
 impl SageLauncher {
     fn check_thread_status(&mut self) {
+        self.convert.poll();
         if let Some(receiver) = &self.message_receiver {
             match receiver.try_recv() {
                 Ok(ThreadMessage::Progress(msg)) => {
@@ -381,6 +409,11 @@ impl SageLauncher {
                     // (from `run_sage`'s own cancellation checks) means the run
                     // genuinely aborted and wrote nothing.
                     self.status_is_preflight_error = false;
+                    // Decide before the result is moved. `Ok` means Sage wrote its
+                    // files. A stopped or failed search is `Err`, so it is never
+                    // converted. See `should_auto_convert`.
+                    let pending = self.pending_conversion.take();
+                    let auto_convert = should_auto_convert(&result, &pending);
                     self.status_message = match result {
                         Ok(msg) => msg,
                         Err(err) if self.stop_requested && err == "cancelled" => {
@@ -389,6 +422,9 @@ impl SageLauncher {
                         Err(err) => format!("Error: {}", err),
                     };
                     self.cleanup_thread();
+                    if let (true, Some(request)) = (auto_convert, pending) {
+                        self.convert.start(request);
+                    }
                 }
                 Err(mpsc::TryRecvError::Empty) => {}
                 Err(mpsc::TryRecvError::Disconnected) => {
@@ -410,6 +446,7 @@ impl SageLauncher {
         self.total_spectra = None;
         self.cancel_flag = None;
         self.stop_requested = false;
+        self.pending_conversion = None;
         if let Some(mutex) = LOG_SENDER.get() {
             if let Ok(mut guard) = mutex.lock() {
                 *guard = None;
@@ -526,6 +563,7 @@ impl SageLauncher {
         let (sender, receiver) = mpsc::channel();
         self.message_receiver = Some(receiver);
         self.log_lines.clear();
+        self.pending_conversion = ConvertRequest::after_search(&self.config);
         LOG_SENDER
             .get_or_init(|| Mutex::new(None))
             .lock()
@@ -665,6 +703,9 @@ fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
 
 // ─── From<Config> for Input ───────────────────────────────────────────────────
 
+// Every `Input` field is named below and there is no `..`, so a new `Config`
+// field cannot reach Sage by accident. The converter settings
+// (`export_options`, `export_*_after_run`) are not Sage settings and stay out.
 impl From<Config> for Input {
     fn from(val: Config) -> Self {
         let quant = if val.quant_enabled {
@@ -1368,6 +1409,13 @@ mod tests {
                 annotate_matches: true,
                 write_pin: true,
                 write_report: true,
+                export_options: crate::export::ExportOptions {
+                    q_source: crate::export::QSource::ProteinQ,
+                    max_q: 0.05,
+                    include_decoys: true,
+                },
+                export_mzid_after_run: true,
+                export_pepxml_after_run: true,
                 score_type: ScoreType::OpenMSHyperScore,
                 output_directory: "/custom/output/dir".to_string(),
                 override_precursor_charge: true,
@@ -1453,6 +1501,14 @@ mod tests {
         assert_eq!(rc.annotate_matches, oc.annotate_matches);
         assert_eq!(rc.write_pin, oc.write_pin);
         assert_eq!(rc.write_report, oc.write_report);
+        assert_eq!(rc.export_options.q_source, oc.export_options.q_source);
+        assert_eq!(rc.export_options.max_q, oc.export_options.max_q);
+        assert_eq!(
+            rc.export_options.include_decoys,
+            oc.export_options.include_decoys
+        );
+        assert_eq!(rc.export_mzid_after_run, oc.export_mzid_after_run);
+        assert_eq!(rc.export_pepxml_after_run, oc.export_pepxml_after_run);
         assert!(matches!(rc.score_type, ScoreType::OpenMSHyperScore));
         assert_eq!(rc.output_directory, oc.output_directory);
         assert_eq!(rc.override_precursor_charge, oc.override_precursor_charge);
@@ -1467,5 +1523,118 @@ mod tests {
         );
         assert_eq!(restored.experiment, original.experiment);
         assert_eq!(restored.active_page, original.active_page);
+    }
+
+    fn fixture_folder(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sagegui-test-convert-{name}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let fixture =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/export");
+        for file in ["results.json", "results.sage.tsv"] {
+            std::fs::copy(fixture.join(file), dir.join(file)).expect("copy fixture");
+        }
+        dir
+    }
+
+    fn wait_for_conversion(app: &mut SageLauncher) {
+        for _ in 0..600 {
+            app.check_thread_status();
+            if !app.convert.is_running() {
+                return;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the conversion did not finish");
+    }
+
+    fn request_for(dir: &std::path::Path, mzid: bool, pepxml: bool) -> ConvertRequest {
+        ConvertRequest {
+            dir: dir.to_string_lossy().to_string(),
+            opts: crate::export::ExportOptions::default(),
+            mzid,
+            pepxml,
+        }
+    }
+
+    /// The reason for a separate conversion state: a conversion that fails must
+    /// leave the search result exactly as it was. A finished run's message is
+    /// the only record of how it ended (commit f76d608, NOTES "A failed run
+    /// reported nothing").
+    #[test]
+    fn a_failed_conversion_leaves_the_search_status_untouched() {
+        let mut app = SageLauncher {
+            status_message: "Analysis completed successfully".to_string(),
+            ..SageLauncher::default()
+        };
+
+        // A folder with no results files, so the converter refuses.
+        let empty = std::env::temp_dir().join("sagegui-test-convert-fail");
+        let _ = std::fs::remove_dir_all(&empty);
+        std::fs::create_dir_all(&empty).unwrap();
+        assert!(app.convert.start(request_for(&empty, true, true)));
+        wait_for_conversion(&mut app);
+
+        let status = app.convert.status.as_ref().expect("the failure is kept");
+        assert!(status.is_error());
+        assert_eq!(app.status_message, "Analysis completed successfully");
+        assert!(!app.status_is_preflight_error);
+
+        // Later frames must not change it either.
+        for _ in 0..5 {
+            app.check_thread_status();
+            app.clear_stale_preflight_error();
+        }
+        assert_eq!(app.status_message, "Analysis completed successfully");
+        let _ = std::fs::remove_dir_all(empty);
+    }
+
+    /// A finished search with a ticked box starts the conversion, and the
+    /// search message stays the search message.
+    #[test]
+    fn a_finished_search_starts_the_pending_conversion() {
+        let dir = fixture_folder("auto");
+        let (mut app, sender) = running_launcher(false);
+        app.pending_conversion = Some(request_for(&dir, true, true));
+        sender
+            .send(ThreadMessage::Completed(Ok(
+                "Analysis completed successfully".to_string(),
+            )))
+            .unwrap();
+
+        app.check_thread_status();
+        assert!(!app.is_running, "the search is over");
+        assert!(app.convert.is_running(), "the conversion started");
+        assert!(app.pending_conversion.is_none());
+        assert_eq!(app.status_message, "Analysis completed successfully");
+
+        wait_for_conversion(&mut app);
+        assert!(!app.convert.status.as_ref().unwrap().is_error());
+        assert!(dir.join("results.sage.mzid").is_file());
+        assert!(dir.join("results.sage.pep.xml").is_file());
+        assert_eq!(app.status_message, "Analysis completed successfully");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// A failed or stopped search is never converted, and nothing stays queued
+    /// for the next one.
+    #[test]
+    fn a_failed_or_stopped_search_starts_no_conversion() {
+        let dir = fixture_folder("no-auto");
+        for (result, stop_requested) in [
+            (Err("out of memory".to_string()), false),
+            (Err("cancelled".to_string()), true),
+        ] {
+            let (mut app, sender) = running_launcher(stop_requested);
+            app.pending_conversion = Some(request_for(&dir, true, true));
+            sender.send(ThreadMessage::Completed(result)).unwrap();
+            app.check_thread_status();
+            assert!(!app.convert.is_running());
+            assert!(app.convert.status.is_none());
+            assert!(app.pending_conversion.is_none());
+        }
+        assert!(!dir.join("results.sage.mzid").exists());
+        assert!(!dir.join("results.sage.pep.xml").exists());
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

@@ -1196,7 +1196,15 @@ checkbox has hover text that says this (commit de1452b, 2026-09-21).
 
 The "do not build" rule above covers PDV and MSstats only. For pepXML and
 mzIdentML the maintainer decided to BUILD both converters inside SageGUI.
-Status: the converter core is in `src/export/`. It has no UI yet.
+Status: the converter core is in `src/export/`. The UI is wired in
+`src/convert_job.rs` and the Convert results group on Run / Info (2026-09-21).
+Two buttons run it on demand. Two checkboxes run it after a search that ends
+with `Ok`. It runs on its own thread with its own status lines, and it never
+writes `status_message`. The auto-run request is taken when the search starts,
+so it uses the folder Sage used. The buttons do no file access per frame: a
+missing input is reported by the converter on click. The settings are three
+`Config` fields with `serde(default)`. They are not in templates and not in
+`Input`.
 
 **Why build, and not wrap or ship someone else's tool:**
 

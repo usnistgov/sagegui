@@ -20,6 +20,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use crate::convert_job::{ConvertRequest, ConvertStatus};
+use crate::export::{ExportOptions, QSource};
 use crate::SageLauncher;
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -1128,6 +1130,15 @@ impl Default for QuantType {
     }
 }
 
+/// The name of a q-value source, as the Convert results picker shows it.
+fn q_source_label(q: QSource) -> &'static str {
+    match q {
+        QSource::SpectrumQ => "Spectrum q-value",
+        QSource::PeptideQ => "Peptide q-value",
+        QSource::ProteinQ => "Protein q-value",
+    }
+}
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1155,6 +1166,16 @@ pub struct Config {
     /// Added after v0.8.2. Old saved state has no key, so it must default.
     #[serde(default)]
     pub write_report: bool,
+    /// Added after v0.8.2. What the mzIdentML and pepXML converters keep. Not a
+    /// Sage setting: it never goes into Sage's input and no template states it.
+    #[serde(default)]
+    pub export_options: ExportOptions,
+    /// Added after v0.8.2. Convert after a successful search. Not a Sage setting.
+    #[serde(default)]
+    pub export_mzid_after_run: bool,
+    /// Added after v0.8.2. Convert after a successful search. Not a Sage setting.
+    #[serde(default)]
+    pub export_pepxml_after_run: bool,
     pub score_type: ScoreType,
     pub output_directory: String,
     pub override_precursor_charge: bool,
@@ -1187,6 +1208,9 @@ impl Default for Config {
             annotate_matches: false,
             write_pin: false,
             write_report: false,
+            export_options: ExportOptions::default(),
+            export_mzid_after_run: false,
+            export_pepxml_after_run: false,
             score_type: ScoreType::SageHyperScore,
             output_directory: cwd_str.unwrap_or_else(|| "output".to_string()),
             override_precursor_charge: false,
@@ -1929,6 +1953,10 @@ impl SageLauncher {
 
         ui.add_space(10.0);
 
+        self.convert_section(ui);
+
+        ui.add_space(10.0);
+
         ui.group(|ui| {
             ui.heading("Sage Log");
             ui.label("Live output from Sage's own search engine, captured during a run.");
@@ -1970,6 +1998,117 @@ impl SageLauncher {
                  'Sage: An Open-Source Tool for Fast Proteomics Searching and Quantification at \
                  Scale' https://doi.org/10.1021/acs.jproteome.3c00486",
             );
+        });
+    }
+
+    /// Convert `results.sage.tsv` to mzIdentML or pepXML. The conversion runs on
+    /// its own thread (`crate::convert_job`) and has its own status lines. It
+    /// never writes `status_message`, so a failed conversion cannot change the
+    /// result of a search.
+    ///
+    /// The buttons are on whenever no search or conversion is running. They do
+    /// no file access. A missing `results.sage.tsv` or `results.json` is
+    /// reported by the converter when the button is clicked.
+    fn convert_section(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.heading("Convert results");
+            let opts = &mut self.config.export_options;
+            ui.horizontal(|ui| {
+                ui.label("Q-value source:").on_hover_text(
+                    "The q-value that filters the PSMs. Default spectrum. Protein q-value also \
+                     removes shared peptides.",
+                );
+                egui::ComboBox::from_id_salt("export_q_source")
+                    .selected_text(q_source_label(opts.q_source))
+                    .show_ui(ui, |ui| {
+                        for q in [QSource::SpectrumQ, QSource::PeptideQ, QSource::ProteinQ] {
+                            ui.selectable_value(&mut opts.q_source, q, q_source_label(q));
+                        }
+                    });
+            });
+            ui.horizontal(|ui| {
+                ui.label("Q-value limit:");
+                ui.add(
+                    egui::DragValue::new(&mut opts.max_q)
+                        .speed(0.001)
+                        .range(0.0..=1.0)
+                        .max_decimals(4),
+                )
+                .on_hover_text("Keep PSMs at or below this q-value. Default 0.01.");
+            });
+            ui.checkbox(&mut opts.include_decoys, "Include decoys")
+                .on_hover_text("Keep decoy PSMs in the output. Default off.");
+            ui.checkbox(
+                &mut self.config.export_mzid_after_run,
+                "Write mzIdentML after the search",
+            )
+            .on_hover_text("Convert the results when a search ends without error. Default off.");
+            ui.checkbox(
+                &mut self.config.export_pepxml_after_run,
+                "Write pepXML after the search",
+            )
+            .on_hover_text("Convert the results when a search ends without error. Default off.");
+
+            let idle = !self.is_running && !self.convert.is_running();
+            let mut request = None;
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(idle, egui::Button::new("Convert to mzIdentML"))
+                    .on_hover_text(
+                        "Reads results.sage.tsv and results.json in the Output Location. \
+                         Writes results.sage.mzid there.",
+                    )
+                    .clicked()
+                {
+                    request = Some((true, false));
+                }
+                if ui
+                    .add_enabled(idle, egui::Button::new("Convert to pepXML"))
+                    .on_hover_text(
+                        "Reads results.sage.tsv and results.json in the Output Location. \
+                         Writes results.sage.pep.xml there.",
+                    )
+                    .clicked()
+                {
+                    request = Some((false, true));
+                }
+            });
+            if let Some((mzid, pepxml)) = request {
+                self.convert
+                    .start(ConvertRequest::from_config(&self.config, mzid, pepxml));
+            }
+
+            if self.convert.is_running() {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.add(
+                        egui::ProgressBar::new(self.convert.progress)
+                            .desired_width(160.0)
+                            .show_percentage(),
+                    );
+                    let cancelling = self.convert.cancel_requested();
+                    if ui
+                        .add_enabled(!cancelling, egui::Button::new("Cancel"))
+                        .clicked()
+                    {
+                        self.convert.request_cancel();
+                    }
+                    if cancelling {
+                        ui.label("Stopping");
+                    }
+                });
+            } else if let Some(status) = &self.convert.status {
+                let colour = if status.is_error() {
+                    egui::Color32::RED
+                } else if matches!(status, ConvertStatus::Stopped(_)) {
+                    egui::Color32::YELLOW
+                } else {
+                    egui::Color32::GREEN
+                };
+                for line in status.lines() {
+                    ui.colored_label(colour, line);
+                }
+            }
         });
     }
 
@@ -2109,8 +2248,8 @@ mod tests {
     /// into strings and cannot be checked by the compiler, so pin them here.
     ///
     /// If this fails, a default changed. Update the hover text in
-    /// `EnzymeConfig::update_section`, `QuantType::update_section`, `page_search` and
-    /// `page_files_database`
+    /// `EnzymeConfig::update_section`, `QuantType::update_section`, `page_search`,
+    /// `page_files_database` and `convert_section`
     /// to match, then update this test. Do not just change the numbers here.
     #[test]
     fn defaults_quoted_in_hover_text_are_still_correct() {
@@ -2139,6 +2278,19 @@ mod tests {
             ),
             QuantType::Tmt(..) => panic!("the default quantification is LFQ"),
         }
+
+        // Convert results group on Run / Info. The limit tooltip says 0.01 and the
+        // three checkboxes say "Default off".
+        let export = ExportOptions::default();
+        assert_eq!(export.max_q, 0.01, "Q-value limit tooltip");
+        assert_eq!(
+            export.q_source,
+            QSource::SpectrumQ,
+            "Q-value source tooltip"
+        );
+        assert!(!export.include_decoys, "Include decoys tooltip");
+        assert!(!config.export_mzid_after_run, "mzIdentML checkbox tooltip");
+        assert!(!config.export_pepxml_after_run, "pepXML checkbox tooltip");
 
         // Three tooltips also say "every bundled template uses N". Check that
         // claim rather than leaving it to rot.
@@ -2607,6 +2759,38 @@ mod tests {
             !config.write_report,
             "write_report must default to false (Sage's own default)"
         );
+    }
+
+    /// Same pattern for the three converter fields, added after v0.8.2. Each
+    /// key is removed alone, and then all together with the inner keys of
+    /// `export_options`, because the container needs `serde(default)` and so
+    /// does the field that holds it.
+    #[test]
+    fn old_config_json_without_export_fields_still_loads() {
+        let full = serde_json::to_value(Config::default()).expect("Config must serialize");
+        for key in [
+            "export_options",
+            "export_mzid_after_run",
+            "export_pepxml_after_run",
+        ] {
+            let mut value = full.clone();
+            assert!(
+                value.as_object_mut().unwrap().remove(key).is_some(),
+                "expected `{key}` in the serialized default. Was the field renamed?"
+            );
+            let config: Config = serde_json::from_value(value)
+                .unwrap_or_else(|e| panic!("a config without `{key}` must still load: {e}"));
+            assert_eq!(config.export_options.max_q, 0.01);
+            assert!(!config.export_mzid_after_run && !config.export_pepxml_after_run);
+        }
+
+        // A blob from a later version that has only some inner keys.
+        let mut value = full;
+        value["export_options"] = serde_json::json!({ "max_q": 0.05 });
+        let config: Config = serde_json::from_value(value).expect("a partial export_options loads");
+        assert_eq!(config.export_options.max_q, 0.05);
+        assert_eq!(config.export_options.q_source, QSource::SpectrumQ);
+        assert!(!config.export_options.include_decoys);
     }
 
     #[test]

@@ -27,7 +27,6 @@ pub const C_TERM_OH: f64 = 17.002_739_65;
 /// One PSM that passed the filters.
 #[derive(Debug, Clone)]
 pub struct Psm {
-    pub psm_id: u64,
     /// Index into [`Table::peptides`].
     pub pep: u32,
     /// Index into [`Table::files`].
@@ -317,11 +316,11 @@ pub fn load_table(
                 _ => Ok(f64::NAN),
             }
         };
+        // No writer uses `psm_id`. A value that is not a number is still an error.
+        if let Some(c) = c_id {
+            parse_int::<u64>(f[c], "psm_id", line_no)?;
+        }
         table.psms.push(Psm {
-            psm_id: match c_id {
-                Some(c) => parse_int(f[c], "psm_id", line_no)?,
-                None => table.psms.len() as u64,
-            },
             pep: pep_idx,
             file: file_idx,
             native_id: f[c_scan].into(),

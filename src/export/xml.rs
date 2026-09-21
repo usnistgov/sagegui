@@ -46,7 +46,8 @@ impl fmt::Display for Esc<'_> {
     }
 }
 
-/// Escape to an owned string. Used where a value is built before it is written.
+/// Escape to an owned string. Only the tests need it: the writers use [`Esc`].
+#[cfg(test)]
 pub fn escaped(s: &str) -> String {
     Esc(s).to_string()
 }

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Convert results to mzIdentML and pepXML** — a new Convert results group on the Run / Info tab. Two buttons write `results.sage.mzid` (mzIdentML 1.1.1) or `results.sage.pep.xml` (pepXML 1.23) from `results.sage.tsv` and `results.json` in the Output Location. They work on any earlier run. You choose the q-value (spectrum, peptide or protein), the limit (default 0.01) and whether decoys stay in. Two checkboxes convert after a search that ends without error. The work runs on its own thread, with a progress bar and a Cancel button. A failed conversion shows its own message and never changes the result of the search. The pepXML file does not pass strict validation, because the schema does not list Sage as a search engine. The mzIdentML file does.
 - **Write HTML report** — a new checkbox under Output Options on the Run / Info tab. It makes Sage write `results.sage.report.html`. Off by default, as in Sage. Settings saved by an earlier version still load.
 - **Hover note on Combine Charge States** — it says what the option does to `lfq.tsv` and that tools which group by charge, such as MSstats, need it off.
 

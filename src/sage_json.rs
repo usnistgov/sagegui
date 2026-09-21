@@ -1094,6 +1094,46 @@ mod tests {
         assert!(!config.annotate_matches);
     }
 
+    /// The converter settings are output choices, not Sage settings. Neither a
+    /// template nor a Sage file may change them, and a Sage file that names
+    /// them is not read for them.
+    #[test]
+    fn imports_and_templates_leave_the_converter_settings_alone() {
+        use crate::export::QSource;
+        let mut mine = Config::default();
+        mine.export_options.max_q = 0.05;
+        mine.export_options.q_source = QSource::ProteinQ;
+        mine.export_options.include_decoys = true;
+        mine.export_mzid_after_run = true;
+        mine.export_pepxml_after_run = true;
+
+        let check = |config: &Config, what: &str| {
+            assert_eq!(config.export_options.max_q, 0.05, "{what}");
+            assert_eq!(config.export_options.q_source, QSource::ProteinQ, "{what}");
+            assert!(config.export_options.include_decoys, "{what}");
+            assert!(config.export_mzid_after_run, "{what}");
+            assert!(config.export_pepxml_after_run, "{what}");
+        };
+
+        for t in bundled_templates() {
+            let mut config = mine.clone();
+            let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);
+            t.doc.apply(&mut config, &mut p, &mut f, t.file);
+            check(&config, t.file);
+        }
+
+        let doc = SageJson::from_str(
+            r#"{"export_options":{"max_q":0.5},"export_mzid_after_run":false,
+                "export_pepxml_after_run":false,"report_psms":3}"#,
+        )
+        .expect("must parse");
+        let mut config = mine.clone();
+        let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);
+        doc.apply(&mut config, &mut p, &mut f, "test");
+        assert_eq!(config.report_psms, 3, "the Sage key was applied");
+        check(&config, "a Sage file that names the converter keys");
+    }
+
     /// A `results.json` carries keys a `config.json` never has (`version`,
     /// `output_paths`, `score_type`, a resolved `quant` block). They must be
     /// ignored, and the parameters still applied.

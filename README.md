@@ -32,11 +32,12 @@ Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it t
 - Load search parameters from any Sage `config.json` or a past run's `results.json`
 - Tolerance windows entered as a delta-mass range, so a +500 Da modification is set as +500
 - Stop button — cancels a run, including one already scoring spectra
+- Convert results to mzIdentML 1.1.1 and pepXML 1.23 from the Run / Info tab, for any earlier run or automatically after a search. Choose the q-value (spectrum, peptide or protein), the limit and whether to keep decoys
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
 
 ## To be added
 
-- Export options: pepXML/mzIdentML, Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), Scaffold (?). PDV and MSstats are covered under Downstream tools instead: both read Sage output directly, so no exporter is needed here.
+- Export options: Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), Scaffold (?). PDV and MSstats are covered under Downstream tools instead: both read Sage output directly, so no exporter is needed here.
 - iBAQ and other LFQ options
 
 ## Download
@@ -98,6 +99,11 @@ Tools that read what SageGUI produces. This list grows as support lands.
   which carries the MS1 areas MSstats wants. **If you plan to use it, turn off Combine Charge States
   on the Quant tab.** With it on, which is the default, Sage writes a charge of -1 and
   `PrecursorCharge` is meaningless downstream.
+- Tools that read mzIdentML or pepXML — use **Convert results** on the Run / Info tab. It writes
+  `results.sage.mzid` (mzIdentML 1.1.1) and `results.sage.pep.xml` (pepXML 1.23) next to the Sage
+  output. The mzIdentML file passes strict schema validation. The pepXML file does not, because the
+  pepXML 1.23 schema does not list Sage as a search engine and the file names it as `Sage`. Neither
+  file was tested with a real reader yet.
 
 ## Citation
 
