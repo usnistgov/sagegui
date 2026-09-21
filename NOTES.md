@@ -12,7 +12,7 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 ### Option A — fork Sage, don't wrap it (locked)
 - **What:** SageGUI embeds Sage as a Rust library dependency (via our fork `neely/sage`), rather than shelling out to `sage.exe` as a subprocess (that rejected approach is "Option C").
 - **Why:** Tight integration — single-binary distribution and the ability to show real-time progress from inside the process. This was the user's preference.
-- **Rejected:** Option C (subprocess wrapper generating a JSON config and calling `sage.exe`). Would decouple us from Sage's internal API, but loses single-binary distribution and in-process progress. Reconsider only if the fork-sync maintenance burden becomes too high (that's flagged as a possible Phase 8 in PLAN).
+- **Rejected:** Option C (subprocess wrapper generating a JSON config and calling `sage.exe`). Would decouple us from Sage's internal API, but loses single-binary distribution and in-process progress. Reconsider only if the fork-sync maintenance burden becomes too high (that's flagged as a possible Phase 9 in PLAN).
 - **Consequence:** We accept the ongoing burden of keeping `neely/sage` in sync with upstream `lazear/sage`. See MAINTENANCE.md.
 
 ### egui/eframe GUI framework (locked)
@@ -21,16 +21,16 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Rejected:** Rewriting in another framework — no reason to.
 
 ### Single `main.rs` (locked, revisit-able)
-- **What:** All GUI code lives in one `src/main.rs` (~1000 lines), plus `src/version.rs` for Sage version constants.
+- **What:** The GUI started as one `src/main.rs`. It is now split: `src/main.rs` (app state, run thread), `src/ui.rs` (tab rendering), `src/sage_json.rs` (template and config import) and `src/version.rs` (Sage version constants). The UI was extracted to `ui.rs` in the 2026-08-13 restructure. The last line below allows a split.
 - **Why:** Keeps Sebastian's original structure; no need to refactor while it's working.
 - Not deeply locked — fine to split if a feature makes the single file unwieldy.
 
 ### Pin Sage to a commit hash, not a branch (locked)
-- **What:** `Cargo.toml` pins `sage-core`/`sage-cli` to `rev = "d74024df..."`, not `branch = "master"`.
+- **What:** `Cargo.toml` pins `sage-core`/`sage-cli` to `rev = "ed5f06ca..."` (see `Cargo.toml`), not `branch = "master"`.
 - **Why:** Reproducible builds — prevents unexpected breakage when upstream changes. Update the rev deliberately per MAINTENANCE.md.
 
 ### Version sync via `src/version.rs` constants (locked)
-- **What:** Sage version info lives in `src/version.rs` constants (`SAGE_VERSION`, `SAGE_COMMIT`, `SAGE_REPO`, `SAGE_UPSTREAM`), consumed at compile time.
+- **What:** Sage version info lives in `src/version.rs` constants (`SAGE_VERSION`, `SAGE_COMMIT`, `SAGE_COMMIT_SHORT`, `SAGE_RELEASE_URL`, `SAGE_COMMIT_URL`), consumed at compile time.
 - **Why:** Simpler than the originally-considered `build.rs` auto-detection.
 - **Rejected:** `build.rs` that auto-detects the version from `Cargo.toml` — removed in favor of the plain constants. Do not re-add it.
 
@@ -136,11 +136,11 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 
 ---
 
-## UI redesign (in progress)
+## UI redesign (landed 2026-08-13)
 
 Decided 2026-08-13. Moving from the single scrolling `CentralPanel` to a
 **sidebar-nav + pinned run-bar** layout (inspired by MetaMorpheus's task-first
-pattern). Design finalized; port planned. Full paste-in design spec and the
+pattern). Design finalized and ported. Full paste-in design spec and the
 web-LLM proposal live in `docs/ui-spec.md`; the porter's handoff (ASCII mockups
 + YAML layout) was the source for the tab structure below.
 
@@ -292,7 +292,7 @@ roughly ordered:
    directory" item — default is still cwd.)*
 3. **Rework the Run / Info screen — log panel done, Info/Help re-home dropped.**
    The Info/Help block (author, repo, license, citation, versions) still
-   occupies the Run/Info tab (`page_run_info`, `src/ui.rs:1497`) — confirmed
+   occupies the Run/Info tab (`page_run_info` in `src/ui.rs`) — confirmed
    2026-08-24 it was never actually moved, despite an earlier belief that it
    had been. **Resolved, not a bug:** the maintainer confirmed the same day
    they're fine with it staying there — no other obvious destination — so
@@ -1448,8 +1448,8 @@ Also removed: the `BrukerSpectrumProcessor` import (no longer needed).
 
 | Gotcha | Details |
 |--------|---------|
-| **TMT plex bug** (fixed) | `main.rs` ~lines 421–423: TMT 16/18-plex were mapped to `Tmt11`. Fixed to `Tmt16`/`Tmt18` in commit a225481. |
-| **Fragment tolerance bug** (fixed) | `main.rs` ~lines 720–726: switching tolerance type (ppm↔Da) wrote to `precursor_tol` instead of `fragment_tol`. Fixed in commit a225481. |
+| **TMT plex bug** (fixed) | Sebastian's original `main.rs`: TMT 16/18-plex were mapped to `Tmt11`. Fixed to `Tmt16`/`Tmt18` in commit a225481. |
+| **Fragment tolerance bug** (fixed) | Sebastian's original `main.rs`: switching tolerance type (ppm↔Da) wrote to `precursor_tol` instead of `fragment_tol`. Fixed in commit a225481. |
 | **sage-cli lib target** | Official Sage *now* exposes `sage-cli` as a library (v0.15.0-beta.2+). Sebastian's older fork had to add `lib.rs`; we don't. |
 | **`Kind` not hashable** | `sage_core::ion_series::Kind` doesn't implement `Hash`/`Eq` in official Sage — relevant if you touch ion-series collections. |
 | **timsrust API drift** | `timsrust::readers::SpectrumReaderConfig` doesn't exist in newer versions — watch for this when touching Bruker/timsTOF paths. |
@@ -1469,7 +1469,7 @@ Also removed: the `BrukerSpectrumProcessor` import (no longer needed).
 | Version | Status | Notes |
 |---------|--------|-------|
 | v0.14.7 | old (Sebastian's) | what the original GUI used |
-| v0.15.0-beta.2 | current | our version, commit `d74024df` |
+| v0.15.0-beta.2 | current | our version, commit `ed5f06ca` (with our patches) |
 
 ### Divergent `v0.7.0-alpha.*` tags (not our work — deleted locally)
 
@@ -1481,7 +1481,7 @@ reflecting only our releases (`v0.6.0` line). We do **not** use `v0.7.0` as our
 next version — our next tag continues our own sequence.
 
 Their Sage dep pointed at `jspaezp/sage` (`rev 9271e28d`, an "lfq branch"), a
-different fork than ours (`neely/sage`, `d74024df`) — so their pins are not
+different fork than ours (`neely/sage`, `ed5f06ca`) — so their pins are not
 directly reusable.
 
 **Worth harvesting** (ideas only, verify against current code before adopting):
@@ -1564,7 +1564,7 @@ auto self-disables on small search spaces. The wasted work is the extra digest.
 - **File-count cliff** (`runner.rs:150-157`). If `parallel >= mzml_paths.len()`,
   Sage reads all spectra once and holds them for the whole pass. Otherwise it
   re-reads and re-processes every mzML file once per chunk. `sagegui` sets
-  `parallel = num_cpus::get() / 2` (`src/main.rs:266`), so a 16-core machine
+  `parallel = num_cpus::get() / 2` (in the launch code in `src/main.rs`), so a 16-core machine
   switches at 9 files.
 - **Per-chunk decoys.** `prefilter_peptides` generates decoys per chunk and does
   not regenerate them over the final filtered set. The disabling code is

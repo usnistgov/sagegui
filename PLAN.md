@@ -190,7 +190,7 @@ Provide a user-friendly graphical interface for Sage that:
 
 ---
 
-### Phase 5 — Core UX & Input Improvements (Planned)
+### Phase 5 — Core UX & Input Improvements (Largely done)
 
 **Goals:** Address the blocking usability pain points before adding features. Async execution is highest priority — long searches currently freeze the GUI.
 
@@ -206,11 +206,11 @@ Provide a user-friendly graphical interface for Sage that:
 - [x] **Reset-to-defaults on numeric controls** — maintainer request 2026-09-09, from live testing: "in case I hit the slider and forget what it should be at". *(Landed 2026-09-09 as the cheapest form: each numeric control's hover text names its default, and the Experiment tab notes that re-applying a template restores everything it covers. A per-control reset button was considered and rejected: "default" is ambiguous here, because SageGUI's defaults and the bundled templates disagree on Min Length (5 vs 7), Min Matched Peaks (6 vs 4) and Max Variable Mods (2 vs 3), so a reset button after a template would silently move the search away from the template's values. Re-applying the template is the exact reset, and it is now order-independent and tested. Reopen if the tooltips prove not to be enough.)*
 - [ ] **Session resilience / auto-recovery** — If the GUI is closed or crashes during a run, persist enough state to resume or at least report results.
 - [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI. *(Placeholder slot reserved on Run/Info tab.)*
-- [x] **Configuration persistence (save/load)** — Save/Load Config as JSON on the Experiment tab. *(Remembering last-used settings across sessions is still open.)*
+- [ ] **Configuration export (save)** — Save the current config as JSON. *(Not built. It needs an exporter from `Config` back to Sage's schema. The import half is done: see "Load configuration from a Sage JSON file" below. Remembering last-used settings across sessions is also done: see "Remember settings between sessions" above.)*
 - [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory.
 - [x] **Expanded modifications preset library** — Modifications tab redesigned as a two-box (Static/Variable) list-picker with a curated "Common modifications" master list + transfer arrows and a "+ Custom…" escape hatch. Multi-residue presets insert as separate rows; Static/Variable mutually exclusive. *(Landed 2026-08-13. Presets are hardcoded in `src/ui.rs` `MOD_PRESETS`; masses are Unimod monoisotopic deltas.)*
 - [x] **Parameter documentation in the GUI** — Inline `on_hover_text` tooltips on controls (copy sourced from `docs/ui-spec.md` §3 / NOTES).
-- [ ] Parameter presets (default, open search, semi-enzymatic) *(Experiment tab dropdown exists but is **inert** — selecting an archetype does nothing to the other tabs; confirmed 2026-08-13. Needs `apply_archetype`. See NOTES → UI-review feedback #6.)*
+- [x] Parameter presets — **done 2026-09-08 as Experiment templates.** Five bundled templates replaced the inert archetype dropdown. See "Experiment templates" below. There is no semi-enzymatic template.
 - [x] Load configuration from a Sage JSON file — **done 2026-09-08**, import-only, as scoped in NOTES UI-review #1. Reads both a Sage `config.json` and a past run's `results.json`; reports anything it could not apply, and lists the file paths it deliberately ignored. Export back to Sage schema is not built.
 - [ ] Better error messages and validation
 - [x] **Delta-mass framing for the tolerance windows — DONE 2026-09-08.** Built in the shape this item specified as preferred: display-only. The widget shows a delta-mass range; `Config` and everything sent to Sage stay in the raw convention. Applied to ppm and Da, precursor and fragment, since a partial re-framing would be worse than none. The stored raw pair is printed under the control so a Sage config file can still be cross-checked. Original caveats and the reasoning are kept below for the record. — Optionally let the user enter the precursor Da window in **delta-mass / modification space** (type `+500` for "find IDs carrying a +500 Da mod") instead of Sage's raw `(lower, upper)` relative to the experimental mass, where a `-500` lower bound is what actually finds a +500 Da mod. This is the sign-flip Michael flagged. **Currently NOT done** — the GUI passes the two boxes through verbatim as Sage's `(lower, upper)`, and we added Lower/Upper labels + hover text + an inverted-window warning to explain the raw convention (see NOTES → "Precursor/fragment tolerance window — sign & delta-mass convention"). **Caveats before building this:**
@@ -222,9 +222,9 @@ Provide a user-friendly graphical interface for Sage that:
 
 **UI restructure (landed 2026-08-13):** sidebar-nav + pinned run-bar, 6 tabs, UI extracted to `src/ui.rs`, the 6 previously-hidden Sage params surfaced, native `.d`/Bruker support dropped (mzML/.gz only). See NOTES → "UI redesign" and CHANGELOG [Unreleased].
 
-#### Input: multi-FASTA & contaminants — **NEXT SESSION, targets v0.7.0 release**
+#### Input: multi-FASTA & contaminants — **done, shipped in v0.7.0**
 
-The top remaining file-input item. cRAP is just another FASTA, so both share one
+The spec below is kept for the record. cRAP is just another FASTA, so both share one
 concat mechanism. Concrete spec:
 
 - [x] **Multi-FASTA selection** — replace the single `fasta: String` text/browse
@@ -241,7 +241,7 @@ concat mechanism. Concrete spec:
 - ~~**Built-in cRAP toggle**~~ — dropped in favour of **just more FASTA slots**;
   user adds their cRAP file like any other FASTA (decision 2026-08-13).
 
-#### Experiment templates (JSON-file approach) — secondary next session, if quick
+#### Experiment templates (JSON-file approach) — done 2026-09-08
 
 Chosen 2026-08-13 over hardcoded `apply_archetype`. **A template *is* a saved
 config JSON** — reuse the existing Save/Load Config plumbing:
@@ -291,7 +291,7 @@ what each option would have to change.
 
 #### Enzyme presets (from sageRecon)
 
-Deferred to its own session by maintainer decision, 2026-09-08.
+Built in its own session, by maintainer decision, 2026-09-08.
 
 - [x] **Port the 14 enzyme presets from [sageRecon](https://github.com/usnistgov/sageRecon)**
   into an enzyme dropdown on the Search tab, filling `cleave_at`,
@@ -439,25 +439,29 @@ Locked decisions and their rationale have moved to **NOTES.md → Design decisio
 
 **Start here:** read AGENTS.md, then this status block, then NOTES.md (locked decisions + dead-ends), then the top of JOURNAL.md.
 
-**State:** Phases 0-4 done. `v0.8.0` released 2026-09-09. `v0.7.1` was confirmed on Windows, macOS
+**State:** Phases 0-4 done. `v0.8.2` released 2026-09-10. `v0.7.1` was confirmed on Windows, macOS
 and Linux. Phase 5 is well advanced: async execution, real progress, the Stop
 button, settings persistence, the app icon, the macOS `.app` bundle, multi-FASTA,
-prefilter controls, experiment templates and Sage-JSON import have all landed.
+prefilter controls, experiment templates, Sage-JSON import and enzyme presets
+have all landed.
 Phase 6 is planned but untouched.
 
 **Immediate next actions (in order):**
 
-1. **Live-test the Experiment tab** (2026-09-08 work, never clicked). Apply each
-   of the five templates, confirm the other tabs change to match, then import a
-   real `results.json` and check the re-select notes. Also check the flipped
-   tolerance display: the open template must read "from -100 to 500".
-2. **Enzyme presets from sageRecon** — see the Phase 5 section above.
+1. **Check the three unchecked release items** (see the status block). Windows
+   SmartScreen on the unsigned `.exe`. The Intel GUI app on Intel hardware or
+   under Rosetta. The macOS dialog text after sealing.
+2. **SageGUI versus Sage defaults audit.** Assert it as an invariant over an
+   empty Sage config. Also check the persisted output directory for a stale
+   reference.
 3. **Locate rollup scripts** — they exist in a separate project (not sageRecon).
    Find them, read them, record language + structure in NOTES before Phase 6 can
    be scoped accurately.
 4. **Phase 6 format survey** — find a sample input file for MSstats, LFQ-analyst
    and Scaffold; identify which columns Sage already produces vs. what needs
    synthesizing; record the gap analysis in NOTES.
+5. **Licence decision and rename checklist** — scoped and waiting. See
+   Governance and licensing above.
 
 **Watch out for:**
 - **The precursor window is written backwards.** Read the STOP section at the top
