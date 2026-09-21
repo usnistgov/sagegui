@@ -13,7 +13,7 @@ egui = "0.29.0"
 rfd = "0.15.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# Pinned to v0.15.0-beta.2 plus our own additive patches (commit cf20b75b).
+# Pinned to v0.15.0-beta.2 plus our own additive patches (commit ed5f06ca).
 # These are git dependencies, so cargo compiles the fork as part of every build —
 # our CI therefore covers the fork on all four target platforms. Patch inventory
 # and the merge-conflict guide for the next Sage sync live in NOTES.md, under

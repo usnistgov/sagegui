@@ -449,6 +449,11 @@ impl SageLauncher {
         missing_file(&self.config.database.fasta_paths, "FASTA")?;
         missing_file(&self.config.mzml_paths, "Spectrum file")?;
 
+        // Sage creates a missing output folder, so a missing one is fine. It
+        // fails only when the path cannot become a folder, and a read-only
+        // folder fails after the whole search, when the first file is written.
+        output_directory_problem(&self.config.output_directory)?;
+
         Ok(())
     }
 
@@ -583,6 +588,65 @@ fn missing_file(paths: &[std::path::PathBuf], kind: &str) -> Result<(), String> 
     Ok(())
 }
 
+/// Refuse an output directory that Sage cannot use, before the search starts.
+///
+/// Sage runs `create_dir_all` on a local output directory (`Input::build`,
+/// `crates/sage-cli/src/input.rs`), so a folder that does not exist yet is
+/// NOT an error. A stale path from an earlier session is created again. What
+/// does fail: an empty string, because `canonicalize("")` errors; a path, or
+/// the nearest parent that exists, that is a file; and a read-only folder,
+/// which fails after the search when Sage writes its first output.
+///
+/// The read-only test is `Permissions::readonly`. On Unix that is true only
+/// when no write bit is set at all, so a folder owned by another user with
+/// mode 755 passes here and fails later. A real write probe would need file
+/// I/O on every frame, because the run bar calls `preflight` each frame.
+///
+/// Cloud URLs are skipped, as in `missing_file`.
+fn output_directory_problem(dir: &str) -> Result<(), String> {
+    if dir.contains("://") {
+        return Ok(());
+    }
+    if dir.is_empty() {
+        return Err("Output Location is empty. Choose a folder on Run / Info.".to_string());
+    }
+
+    // Walk up to the nearest part of the path that exists. That part decides
+    // whether `create_dir_all` can succeed. An empty parent is the current
+    // folder, which is where Sage resolves a relative path.
+    let mut probe = std::path::Path::new(dir);
+    loop {
+        match std::fs::metadata(probe) {
+            Ok(meta) if !meta.is_dir() => {
+                return Err(format!(
+                    "Output Location cannot be used: {} is a file, not a folder. \
+                     Choose a folder on Run / Info.",
+                    probe.display()
+                ));
+            }
+            Ok(meta) if meta.permissions().readonly() => {
+                return Err(format!(
+                    "Output Location is read-only: {}. Choose a folder you can write to \
+                     on Run / Info.",
+                    probe.display()
+                ));
+            }
+            Ok(_) => return Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => match probe.parent() {
+                Some(parent) if parent.as_os_str().is_empty() => probe = std::path::Path::new("."),
+                Some(parent) => probe = parent,
+                None => return Ok(()),
+            },
+            Err(e) => {
+                return Err(format!(
+                    "Output Location cannot be used: {} ({e}). Choose a folder on Run / Info.",
+                    probe.display()
+                ));
+            }
+        }
+    }
+}
+
 /// Pull a readable message out of a caught panic payload.
 ///
 /// `panic!` and `assert!` both produce either a `&'static str` or a `String`,
@@ -638,7 +702,7 @@ impl From<Config> for Input {
             protein_grouping_peptide_fdr: None,
             annotate_matches: Some(val.annotate_matches),
             write_pin: Some(val.write_pin),
-            write_report: None,
+            write_report: Some(val.write_report),
             score_type: Some(val.score_type),
         }
     }
@@ -970,6 +1034,83 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    /// Sage creates a missing output folder, so a stale persisted path must
+    /// pass. Only a path that cannot become a folder is refused.
+    #[test]
+    fn preflight_checks_the_output_directory_like_sage_uses_it() {
+        let mut app = SageLauncher::default();
+        let dir = launchable(&mut app, "preflight-output-dir");
+        assert!(app.preflight().is_ok(), "baseline should be launchable");
+
+        // A folder that does not exist yet is created by Sage: not an error.
+        // This is the stale-persisted-path case.
+        app.config.output_directory = dir.join("not/made/yet").to_string_lossy().to_string();
+        assert!(app.preflight().is_ok());
+        assert!(!dir.join("not").exists(), "the check must not create it");
+
+        // A relative path resolves against the current folder.
+        app.config.output_directory = "not-made-yet-relative".to_string();
+        assert!(app.preflight().is_ok());
+
+        // Empty fails in Sage (`canonicalize("")`).
+        app.config.output_directory = String::new();
+        let err = app.preflight().unwrap_err();
+        assert!(err.contains("Output Location is empty"), "{err}");
+
+        // The path is a file.
+        let file = dir.join("db.fasta");
+        app.config.output_directory = file.to_string_lossy().to_string();
+        let err = app.preflight().unwrap_err();
+        assert!(err.contains("is a file"), "{err}");
+        assert!(
+            err.contains("db.fasta"),
+            "the message must name the path: {err}"
+        );
+
+        // The nearest folder that exists is a file, so it cannot be created.
+        app.config.output_directory = file.join("sub").to_string_lossy().to_string();
+        let err = app.preflight().unwrap_err();
+        assert!(err.contains("db.fasta"), "{err}");
+
+        // A cloud URL is not on this filesystem.
+        app.config.output_directory = "s3://bucket/out".to_string();
+        assert!(app.preflight().is_ok());
+
+        // The clearing rule sees a fixed folder.
+        app.config.output_directory = file.to_string_lossy().to_string();
+        app.status_message = "Error: x".to_string();
+        app.status_is_preflight_error = true;
+        app.clear_stale_preflight_error();
+        assert!(!app.status_message.is_empty());
+        app.config.output_directory = dir.to_string_lossy().to_string();
+        app.clear_stale_preflight_error();
+        assert!(app.status_message.is_empty());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_read_only_output_directory_is_refused() {
+        let dir = std::env::temp_dir().join("sagegui-test-readonly-output");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let mut perms = std::fs::metadata(&dir).expect("metadata").permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&dir, perms).expect("set read-only");
+
+        let text = dir.to_string_lossy().to_string();
+        let err = output_directory_problem(&text).unwrap_err();
+        assert!(err.contains("read-only"), "{err}");
+        // A folder that would be created inside it is refused for the same reason.
+        assert!(output_directory_problem(&format!("{text}/sub")).is_err());
+
+        let mut perms = std::fs::metadata(&dir).expect("metadata").permissions();
+        #[allow(clippy::permissions_set_readonly_false)]
+        perms.set_readonly(false);
+        std::fs::set_permissions(&dir, perms).expect("restore");
+        assert!(output_directory_problem(&text).is_ok());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
     /// Sage accepts cloud URLs, which are not on this filesystem. Reporting
     /// them as missing would refuse a valid configuration.
     #[test]
@@ -1225,6 +1366,7 @@ mod tests {
                 quant_class: SupportedQuantTypes::Tmt,
                 annotate_matches: true,
                 write_pin: true,
+                write_report: true,
                 score_type: ScoreType::OpenMSHyperScore,
                 output_directory: "/custom/output/dir".to_string(),
                 override_precursor_charge: true,
@@ -1309,6 +1451,7 @@ mod tests {
         assert_eq!(rc.quant_class, oc.quant_class);
         assert_eq!(rc.annotate_matches, oc.annotate_matches);
         assert_eq!(rc.write_pin, oc.write_pin);
+        assert_eq!(rc.write_report, oc.write_report);
         assert!(matches!(rc.score_type, ScoreType::OpenMSHyperScore));
         assert_eq!(rc.output_directory, oc.output_directory);
         assert_eq!(rc.override_precursor_charge, oc.override_precursor_charge);

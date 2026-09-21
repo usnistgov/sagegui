@@ -76,6 +76,7 @@ pub struct SageJson {
     pub report_psms: Option<usize>,
     pub predict_rt: Option<bool>,
     pub write_pin: Option<bool>,
+    pub write_report: Option<bool>,
     pub annotate_matches: Option<bool>,
     pub quant: Option<QuantJson>,
     // ── Read, but deliberately never applied ──────────────────────────────
@@ -504,6 +505,9 @@ impl SageJson {
         }
         if let Some(v) = self.write_pin {
             config.write_pin = v;
+        }
+        if let Some(v) = self.write_report {
+            config.write_report = v;
         }
         if let Some(v) = self.annotate_matches {
             config.annotate_matches = v;
@@ -1077,6 +1081,17 @@ mod tests {
         );
 
         assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    }
+
+    /// `write_pin`, `write_report` and `annotate_matches` are `skip_serializing`
+    /// on Sage's `Search`, so a `results.json` never carries them. A
+    /// hand-written `config.json` does, and the import must apply them.
+    #[test]
+    fn output_option_flags_are_read_from_config_json() {
+        let (config, ..) = apply(r#"{"write_pin":true,"write_report":true}"#);
+        assert!(config.write_pin);
+        assert!(config.write_report);
+        assert!(!config.annotate_matches);
     }
 
     /// A `results.json` carries keys a `config.json` never has (`version`,

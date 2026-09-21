@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Write HTML report** — a new checkbox under Output Options on the Run / Info tab. It makes Sage write `results.sage.report.html`. Off by default, as in Sage. Settings saved by an earlier version still load.
+- **Hover note on Combine Charge States** — it says what the option does to `lfq.tsv` and that tools which group by charge, such as MSstats, need it off.
+
+### Fixed
+- **A bad output folder is caught before the run starts** — an empty Output Location, a path that is a file, and a read-only folder now give a message up front. Before, the run failed after the search, when Sage wrote its first file. A folder that does not exist yet is not an error: Sage creates it.
+
 ## [0.8.2] - 2026-09-10
 
 ### Fixed

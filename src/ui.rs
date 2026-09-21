@@ -1057,7 +1057,12 @@ impl QuantType {
                         egui::Slider::new(&mut lfq.spectral_angle, 0.0..=1.0)
                             .text("Spectral Angle"),
                     );
-                    ui.checkbox(&mut lfq.combine_charge_states, "Combine Charge States");
+                    ui.checkbox(&mut lfq.combine_charge_states, "Combine Charge States")
+                        .on_hover_text(
+                            "On: one lfq.tsv row per peptide, with charge -1. Off: one row \
+                             per peptide and charge, and slower. Tools that group by charge, \
+                             such as MSstats, need it off. Default on.",
+                        );
                 });
             }
             QuantType::Tmt(isobar, tmt) => {
@@ -1147,6 +1152,9 @@ pub struct Config {
     pub quant_class: SupportedQuantTypes,
     pub annotate_matches: bool,
     pub write_pin: bool,
+    /// Added after v0.8.2. Old saved state has no key, so it must default.
+    #[serde(default)]
+    pub write_report: bool,
     pub score_type: ScoreType,
     pub output_directory: String,
     pub override_precursor_charge: bool,
@@ -1178,6 +1186,7 @@ impl Default for Config {
             quant_class: SupportedQuantTypes::Lfq,
             annotate_matches: false,
             write_pin: false,
+            write_report: false,
             score_type: ScoreType::SageHyperScore,
             output_directory: cwd_str.unwrap_or_else(|| "output".to_string()),
             override_precursor_charge: false,
@@ -1912,6 +1921,8 @@ impl SageLauncher {
             ui.heading("Output Options");
             ui.checkbox(&mut self.config.write_pin, "Write PIN file")
                 .on_hover_text("Write a Percolator .pin file for downstream rescoring.");
+            ui.checkbox(&mut self.config.write_report, "Write HTML report")
+                .on_hover_text("Write an HTML summary report, results.sage.report.html.");
             ui.checkbox(&mut self.config.annotate_matches, "Annotate Matches")
                 .on_hover_text("Write annotated fragment-ion match detail alongside results.");
         });
@@ -2098,7 +2109,8 @@ mod tests {
     /// into strings and cannot be checked by the compiler, so pin them here.
     ///
     /// If this fails, a default changed. Update the hover text in
-    /// `EnzymeConfig::update_section`, `page_search` and `page_files_database`
+    /// `EnzymeConfig::update_section`, `QuantType::update_section`, `page_search` and
+    /// `page_files_database`
     /// to match, then update this test. Do not just change the numbers here.
     #[test]
     fn defaults_quoted_in_hover_text_are_still_correct() {
@@ -2120,6 +2132,13 @@ mod tests {
         assert_eq!(config.min_matched_peaks, 6, "Min Matched Peaks tooltip");
         assert_eq!(config.max_fragment_charge, 1, "Max Fragment Charge tooltip");
         assert_eq!(config.report_psms, 1, "Report PSMs tooltip");
+        match QuantType::default() {
+            QuantType::Lfq(lfq) => assert!(
+                lfq.combine_charge_states,
+                "Combine Charge States tooltip says the default is on"
+            ),
+            QuantType::Tmt(..) => panic!("the default quantification is LFQ"),
+        }
 
         // Three tooltips also say "every bundled template uses N". Check that
         // claim rather than leaving it to rot.
@@ -2563,6 +2582,30 @@ mod tests {
             db.prefilter_low_memory,
             "low_memory must default to true, matching Sage's own resolved default \
              (Builder::make_parameters, crates/sage/src/database.rs) — NOT false"
+        );
+    }
+
+    /// Same pattern for `write_report`, added after v0.8.2. A saved blob from
+    /// v0.8.2 has no such key. `eframe::get_value` returns `None` when the
+    /// deserialize fails, which resets every setting, not only the new one.
+    #[test]
+    fn old_config_json_without_write_report_still_loads() {
+        let mut value =
+            serde_json::to_value(Config::default()).expect("Config::default() must serialize");
+        assert!(
+            value
+                .as_object_mut()
+                .expect("Config serializes as an object")
+                .remove("write_report")
+                .is_some(),
+            "expected `write_report` in the serialized default — did the field get renamed?"
+        );
+
+        let config: Config = serde_json::from_value(value)
+            .expect("a pre-write_report config JSON must still deserialize");
+        assert!(
+            !config.write_report,
+            "write_report must default to false (Sage's own default)"
         );
     }
 
