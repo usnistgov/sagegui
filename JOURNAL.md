@@ -1,3 +1,39 @@
+## 2026-09-21 — mzIdentML and pepXML converters, output folder check, doc cleanup
+
+**Did:** Six commits on `main`, none pushed, no release cut. Subagents did the reading and the coding. I re-ran the checks myself after each one.
+
+| Commit | What |
+| --- | --- |
+| f384b3b | PLAN and NOTES: stale checkboxes, the old `d74024df` pin, renamed constants, old headings |
+| de1452b | Write HTML report checkbox. Pre-run check of the output folder. Combine Charge States hover note. Pin comment in `Cargo.toml` |
+| 0e0b597 | Converter core in `src/export/`, two schemas, small fixtures |
+| 8302143 | NOTES and PLAN: the decision to build, the validation result, the Perseus research |
+| 46a8b5d | Convert results group on the Run / Info tab, `src/convert_job.rs` |
+| (this one) | PLAN status block and this entry |
+
+**Decisions.**
+- The maintainer chose to BUILD both converters inside SageGUI, not wrap psm-utils. psm-utils adds a Python runtime and has no pepXML writer. The shic script is incomplete and depends on column order.
+- Both triggers: two buttons, and two run-after-search checkboxes. The filter is a UI setting: q-value source, limit (default 0.01), and decoys.
+- pepXML keeps `search_engine="Sage"`. It fails strict XSD validation on that one attribute. The same file passes with a value from the schema's list.
+- Perseus and ProteoPlotter are parked. Research is in NOTES.
+- The output folder check does not flag a missing folder. Sage creates it. It flags an empty path, a path that is a file, and a read-only folder.
+
+**Checked by me, not only reported.** `cargo test --offline`: 129 passed, 0 failed, 1 ignored. Clippy with `-D warnings`, `cargo fmt --check` and `cargo build --offline --locked` are clean. I generated both files from the committed fixture and ran `xmllint`: mzIdentML validates. pepXML fails on `search_engine` only, and validates with the engine value swapped. No commit carries a Co-Authored-By trailer.
+
+**Not checked.** Nobody has looked at the new group in the running app. Nobody has opened either file in a real reader. `xmllint` checks structure. It does not check CV terms.
+
+**What are you least confident about? (Q1):** The tolerance. The mzIdentML file writes `MS:1001412` (plus) and `MS:1001413` (minus) in delta-mass terms. A reader may expect the window around the observed mass, which is mirrored on an asymmetric search. The file carries a note about this. Symmetric searches are not affected. Proven by: reading the PSI definition of those two terms, then loading an asymmetric open-search file in PeptideShaker or Skyline and comparing the window shown.
+
+**What did you assume without stating it? (Q2):** That a file which passes the XSD is a useful file. It is only a well-formed file. I also assumed that the agents' NOTES text says what the code does. I read their reports and ran the checks. I did not read the new NOTES section line by line.
+
+**What's the biggest thing you might be missing? (Q3):** A real reader. If Scaffold, Skyline or TPP rejects the files, the schema check gave a false comfort. The GUI is the second gap: layout, disabled states and the progress bar are covered only by unit tests.
+
+**What could have gone better? (Q4):** My first `xmllint` run pointed at the wrong folder, because the ignored test writes to its own temp folder. It printed "failed to load external entity" and exit 0, which looks like success. I caught it because I read the output. The converter build also took about 33 minutes as one handoff, which is long for a single step.
+
+**Suggested improvement (Q5):** Add a CI step that runs `xmllint` on the converter output from the committed fixture (Linux and macOS have it). Today the validation runs only by hand. A schema regression would ship without a signal.
+
+---
+
 ## 2026-09-10 (later) — v0.8.2: macOS said "damaged"
 
 **Did:** The maintainer downloaded v0.8.1 on a Mac and macOS refused to open it: "Sage Launcher.app is damaged and can't be opened."
