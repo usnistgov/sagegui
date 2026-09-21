@@ -576,7 +576,7 @@ impl SageJson {
 /// `file:///Users/…/B.naive%2001.mzML.gz`. A hand-written `config.json` just
 /// has the bare path. Handle both; leave genuine cloud URLs (`s3://`, `gs://`,
 /// `az://`) alone, since for those the URL *is* the readable form.
-fn pretty_path(raw: &str) -> String {
+pub fn pretty_path(raw: &str) -> String {
     let Some(rest) = raw.strip_prefix("file://") else {
         return raw.to_string();
     };

@@ -62,3 +62,26 @@ Note: this project is a heavily modified fork of sagegui. Substantial
 portions have been rewritten, including GUI redesign, executable packaging,
 and updated Sage version integration. Modified files carry a notice indicating
 they have been changed from the original, per Apache License 2.0 Section 4(b).
+
+---
+
+## Test schemas (not shipped in the app)
+
+Two XML Schema files in `tests/schemas/` are used only by the tests, to check
+the output of the mzIdentML and pepXML converters. They are not built into the
+program. Both were fetched on 2026-09-21 and are not modified.
+
+**mzIdentML 1.1.1** (`tests/schemas/mzIdentML1.1.1.xsd`)  
+Source: https://github.com/HUPO-PSI/mzIdentML  
+License: Creative Commons Attribution 2.0 (CC BY 2.0). The file header says:
+"Distributed under the Creative Commons license
+http://creativecommons.org/licenses/by/2.0/". Attribution: HUPO Proteomics
+Standards Initiative (PSI).
+
+**pepXML 1.23** (`tests/schemas/pepXML_v123.xsd`)  
+Source: Trans-Proteomic Pipeline,
+https://svn.code.sf.net/p/sashimi/code/trunk/trans_proteomic_pipeline/schema/pepXML_v123.xsd  
+License: the file has no licence text. Its header says "Developed by ISB
+proteome center". The licence of the source tree was not checked. The file is
+kept for validation in the tests only.
+
