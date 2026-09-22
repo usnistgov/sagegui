@@ -1,3 +1,66 @@
+## 2026-09-22 — Results location, Windows CI fix, v0.9.0 cut
+
+**Did:** Continued yesterday's work. Added a Results location box (own commit
+`64e8ea0`), separate from Output Location, after the maintainer tried Convert
+and could not tell which run it had used. Fixed a Windows-only CI failure
+(`b4adbbf`). Cut `v0.9.0` and pushed it.
+
+**Live-tested by the maintainer, in the running app, not just by me.** All
+eight points passed: the two-group layout, the follow rule (fills in, stays
+put on an unrelated Output Location change, stops following after Browse,
+resumes after Use Output Location), the softer success and warning colours on
+the light theme, and a real search with PIN, HTML report and Annotate Matches
+all ticked. `results.sage.report.html` was opened and read. `results.sage.pin`
+and `matched_fragments.sage.tsv` were seen to exist but not opened. Convert
+worked both by hand and by auto-run-after-search.
+
+**The Windows CI failure was a real diagnosis, not a guess.** The push after
+yesterday's session failed on `windows-latest` only, at `Run Tests`, on three
+export tests. The code's own comment said `xmllint` "is not on the Windows CI
+image". That was wrong: it is present, and it passed the mzIdentML check.
+`xmllint` refused to *compile* `pepXML_v123.xsd` at all: "Schemas parser
+error: local complex type: The content model is not determinist," a Unique
+Particle Attribution violation the upstream TPP schema carries. macOS and
+Linux `xmllint` tolerate it; Windows's does not. Confirmed by reading the full
+job log, not the panic summary alone: the summary line alone would have read
+as "schema broken," which is not what happened. Fixed by treating a
+schema-compile failure as a skip, keeping the assertion for a real document
+error. Watched the next CI run to completion (`Run Tests` passed at the same
+point that failed before; the full run went green on all four platforms in
+17m41s) before calling it fixed, rather than trusting the diff alone.
+
+**Style-guide note.** The user attached a manuscript style guide (long
+compound sentences, high citation density, academic register) and offered it
+for this work. It was not used for CHANGELOG or README text: AGENTS.md
+already sets a hard, different rule for this repo (ASD-STE100, short
+sentences, no em dashes), and the two conflict. Said so plainly instead of
+silently picking one.
+
+**What did you assume without stating it? (Q2):** That the earlier session's
+comment "not on the Windows CI image" was fact rather than an untested guess
+made while writing the tests. It went uncaught through two failed pushes
+because nobody had actually watched Windows CI run this code before.
+
+**What's the biggest thing you might be missing? (Q3):** No real mzIdentML or
+mzXML reader has opened either converter output file. `xmllint` checks
+structure and the XSD only, never CV term correctness or whether Skyline,
+PeptideShaker, TPP or Scaffold actually accept the file. That is still the
+first item in PLAN's next action.
+
+**Least confident about (Q1):** Whether the tolerance values in the
+mzIdentML file (`MS:1001412`/`MS:1001413`, written in delta-mass terms) read
+correctly in a real tool on an asymmetric, open-search window. Proven only by
+opening such a file in PeptideShaker or Skyline and comparing the window
+shown against the source `config.json`.
+
+**Suggested improvement (Q5):** When a test comment states a fact about the
+CI environment ("X is not installed on platform Y"), treat that as a claim to
+verify on that platform before shipping, not as background knowledge. It is
+exactly the kind of statement that looks safe, is copied into NOTES, and then
+goes stale or was never true.
+
+---
+
 ## 2026-09-21 — mzIdentML and pepXML converters, output folder check, doc cleanup
 
 **Did:** Six commits on `main`, none pushed, no release cut. Subagents did the reading and the coding. I re-ran the checks myself after each one.

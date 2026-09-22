@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-22
+
 ### Added
 - **Convert results to mzIdentML and pepXML** — a new Results group on the Run / Info tab. Two buttons write `results.sage.mzid` (mzIdentML 1.1.1) or `results.sage.pep.xml` (pepXML 1.23) from `results.sage.tsv` and `results.json` in the Results location. They work on any earlier run. You choose the q-value (spectrum, peptide or protein), the limit (default 0.01) and whether decoys stay in. Two checkboxes convert after a search that ends without error. The work runs on its own thread, with a progress bar and a Cancel button. A failed conversion shows its own message and never changes the result of the search. The pepXML file does not pass strict validation, because the schema does not list Sage as a search engine. The mzIdentML file does.
 - **Results location** — the Results group has its own folder box, with Browse. Convert reads and writes there and not in the Output Location, so an old run's folder can no longer be used by mistake. It follows the folder of each finished search until you Browse or type in it. Use Output Location makes it follow again. A status line names the files found there, and Refresh reads the folder again. Settings saved by an earlier version still load.
