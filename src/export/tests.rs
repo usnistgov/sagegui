@@ -765,14 +765,25 @@ fn a_0_14_6_tsv_with_40_columns_converts() {
 
 // ── Validation against the published schemas ────────────────────────────
 
-/// The path of `xmllint` if it runs here. `None` skips the test. It is not on
-/// the Windows CI image.
+/// The path of `xmllint` if it runs here. `None` skips the test.
 fn xmllint() -> Option<&'static str> {
     Command::new("xmllint")
         .arg("--version")
         .output()
         .ok()
         .map(|_| "xmllint")
+}
+
+/// True when `xmllint` could not even compile the schema, as opposed to
+/// finding document errors. Seen on the Windows CI image: its `xmllint`
+/// enforces Unique Particle Attribution strictly and refuses the upstream
+/// pepXML schema outright ("the content model is not determinist", at
+/// `complexType` line 15 of `pepXML_v123.xsd`). That is a known quirk of the
+/// TPP schema itself, not of our output; macOS and Linux `xmllint` tolerate
+/// it. Treat this as a skip, not a failure, so the check reflects what this
+/// machine's `xmllint` can tell us.
+fn schema_failed_to_compile(err: &str) -> bool {
+    err.contains("failed to compile")
 }
 
 /// Run `xmllint --noout --schema` and return (success, stderr).
@@ -803,12 +814,27 @@ fn validate_outputs(dir: &Path) -> Vec<String> {
     let mut report = Vec::new();
 
     let (ok, err) = validate("mzIdentML1.1.1.xsd", &mzid);
-    assert!(ok, "mzIdentML does not validate:\n{err}");
-    report.push(format!("mzIdentML 1.1.1: {}", err.trim()));
+    if schema_failed_to_compile(&err) {
+        report.push(format!(
+            "mzIdentML 1.1.1: SKIPPED, this xmllint cannot compile the schema: {}",
+            err.trim()
+        ));
+    } else {
+        assert!(ok, "mzIdentML does not validate:\n{err}");
+        report.push(format!("mzIdentML 1.1.1: {}", err.trim()));
+    }
 
     // Strict: `Sage` is not in the search_engine list, so this must fail, and
-    // only there.
+    // only there. Some `xmllint` builds (the Windows CI image's) cannot
+    // compile this schema at all: see `schema_failed_to_compile`.
     let (ok, err) = validate("pepXML_v123.xsd", &pep);
+    if schema_failed_to_compile(&err) {
+        report.push(format!(
+            "pepXML 1.23: SKIPPED, this xmllint cannot compile the schema: {}",
+            err.trim()
+        ));
+        return report;
+    }
     assert!(!ok, "expected the search_engine enumeration to fail");
     let errors: Vec<&str> = err.lines().filter(|l| l.contains("error")).collect();
     assert!(!errors.is_empty());

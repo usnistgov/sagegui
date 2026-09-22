@@ -1402,8 +1402,18 @@ protein hypotheses and not for PSMs.
 - `tests/schemas/pepXML_v123.xsd`: fetched 2026-09-21 from
   `https://svn.code.sf.net/p/sashimi/code/trunk/trans_proteomic_pipeline/schema/pepXML_v123.xsd`.
 - Licences are in `THIRD_PARTY_LICENSES.md`.
-- The tests that run `xmllint` skip when it is not installed (it is not on the
-  Windows CI image). To run the real-output check by hand:
+- The tests that run `xmllint` skip cleanly when it is not installed. It IS on
+  the Windows CI image, but that build cannot compile `pepXML_v123.xsd` at
+  all: "Schemas parser error: local complex type: The content model is not
+  determinist" (a Unique Particle Attribution violation the schema itself
+  carries; macOS and Linux `xmllint` tolerate it, Windows's does not). Found
+  2026-09-22 when the first push after adding the converter failed CI on
+  Windows only (`Build and Release` run 35648026947, then 35758538381). The
+  fix: `schema_failed_to_compile` in `src/export/tests.rs` treats a compile
+  failure as a skip, separate from a real document error, so a genuine
+  regression in our XML still fails the test on any machine that can compile
+  the schema. mzIdentML has the same guard, defensively; it has not been seen
+  to fail this way. To run the real-output check by hand:
   `SAGEGUI_EXPORT_DIRS=dirA:dirB cargo test --offline --release export_real_outputs -- --ignored --nocapture`,
   then `xmllint --noout --schema tests/schemas/<xsd> <file>` on the printed paths.
 
