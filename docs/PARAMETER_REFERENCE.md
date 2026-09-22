@@ -721,6 +721,8 @@ Directory where `results.sage.tsv`, `lfq.tsv`, and other outputs are written.[fi
 **What it does:**
 Writes a Percolator `.pin` file for downstream rescoring.[file:250]
 
+**Verified (2026-09-22):** on a real 32,221-PSM run, `results.sage.pin` matched `results.sage.tsv` exactly on target/decoy counts and peptide sequences, and [mokapot](https://mokapot.readthedocs.io/) loaded it and completed a full rescoring run.
+
 ---
 
 ### Annotate Matches
@@ -729,6 +731,8 @@ Writes a Percolator `.pin` file for downstream rescoring.[file:250]
 
 **What it does:**
 Writes annotated fragment ion match detail alongside results when enabled.[file:250]
+
+**Verified (2026-09-22):** on the same run, every row in `matched_fragments.sage.tsv` traced back to a real PSM, and `results.sage.tsv`'s match-quality columns (`matched_peaks`, `longest_b`, `longest_y`) reproduced correctly from the raw fragment data.
 
 ---
 
@@ -754,6 +758,8 @@ The folder that the Convert buttons read from and write to. It follows Output Lo
 
 **What it does:**
 Writes `results.sage.mzid` (mzIdentML 1.1.1) or `results.sage.pep.xml` (pepXML 1.23) from `results.sage.tsv` and `results.json` in the Results Location. It needs no new search. The q-value source (spectrum, peptide or protein), the q-value limit (default 0.01) and Include decoys set which rows are kept. Two checkboxes convert automatically after a search that ends without error. The pepXML file does not pass strict schema validation, because the schema does not list Sage as a search engine.
+
+**Verified (2026-09-22):** on a real 9,392-entry conversion, [pyteomics](https://pyteomics.readthedocs.io/) (an independent Python reader) parsed every entry in both files with zero errors, correctly resolved all CV terms, and confirmed pepXML's modification masses. No specific target tool (Scaffold, Skyline, PeptideShaker, TPP) has opened either file yet.
 
 ---
 

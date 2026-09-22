@@ -1,3 +1,72 @@
+## 2026-09-22 (later) — Real-reader verification of the converters
+
+**Did:** After the v0.9.0 cut, checked what the earlier entry left open: whether
+`results.sage.pin` and `matched_fragments.sage.tsv` are actually correct, and
+whether anything besides `xmllint` can read the mzIdentML and pepXML files.
+Used the maintainer's own real 32,221-PSM run
+(`~/Documents/proteomicsTesting/2026-9-9-serum/test2/`), not the dev fixture.
+
+**Scripted checks, not eyeballing.** `results.sage.pin`: zero duplicate
+`SpecId`, zero orphan references, exact target/decoy match against
+`results.sage.tsv` (21,892 / 10,329). `matched_fragments.sage.tsv`: zero
+orphan `psm_id`, zero PSMs missing fragments, `matched_peaks` cross-checked
+against actual fragment-row counts on a 2,000-PSM sample with zero
+mismatches, and one PSM hand-verified down to individual b/y ion ordinals
+reproducing `longest_b`, `longest_y` and `longest_y_pct` exactly.
+
+**Then installed real, independent tools and ran them, not just recommended
+them.** `pyteomics` + `psims` (Python, a different codebase from both our
+writer and libxml2) parsed all 9,392 entries in both the mzIdentML and pepXML
+files with zero errors, resolved every CV accession to its real name, and
+confirmed the pepXML "total mass, not delta" modification rule on a live
+example. `mokapot` loaded `results.sage.pin` with exact matching counts, then
+actually ran full semi-supervised SVM rescoring to completion, the real
+purpose of a PIN file, not just a load test.
+
+**Two small environment problems, both diagnosed rather than worked around
+blindly.** `pyteomics` 5.0 would not import on this Mac's Python 3.9.6 (newer
+union-type syntax); pinned `pyteomics==4.6.3`. `mokapot` 0.10.0 calls
+`np.float_`, removed in NumPy 2.0; pinned `numpy<2` in the same venv. Neither
+is a defect in our files, both are recorded in NOTES so the next session does
+not waste time rediscovering them.
+
+**Docs.** Wrote the "Independent-reader verification" subsection in NOTES,
+updated PLAN's status block, the converter item, and the Handoff list, and
+added the PIN/matched_fragments/HTML-report options to README's Features list
+and a proper Downstream tools entry for Percolator/mokapot and spectral
+libraries. Added a Verified note to each of the four affected entries in
+`docs/PARAMETER_REFERENCE.md`. Did not claim anything for Write HTML Report
+beyond what was actually checked (it renders; its numbers were not
+script-verified against `results.sage.tsv`), to avoid overclaiming.
+
+**What did you assume without stating it? (Q2):** That "the file loads
+without an error" and "the file is correct" are the same claim. They are not
+quite: `pyteomics` proves structure and cross-references are sound, and the
+scripted checks against `results.sage.tsv` prove Sage's own numbers are
+self-consistent. Neither proves a specific tool's importer (Scaffold's,
+Skyline's) accepts the file, which is why PLAN still lists that as open.
+
+**What's the biggest thing you might be missing? (Q3):** `mokapot`'s
+converged FDR (10,618 at q≤0.01) differs from Sage's own (10,511 at
+spectrum_q≤0.01). That is expected, since they are different scoring methods,
+not a discrepancy to chase, but it was not investigated further than noting
+it.
+
+**Least confident about (Q1):** Whether the venv's package pins
+(`pyteomics==4.6.3`, `numpy<2`) reflect this machine's old system Python
+(3.9.6) rather than a real constraint on the file itself. A newer Python
+might use current `pyteomics` and `mokapot` cleanly. Proven by rerunning the
+same checks under Python 3.11+ if this machine's Python is ever upgraded.
+
+**Suggested improvement (Q5):** When a "test with a real tool" action item
+sits in PLAN, prefer actually installing and running a lightweight,
+independent, real implementation (a library, a CLI, a second parser) over
+recommending one and leaving it undone. It found and confirmed real facts
+here (exact count matches, a live modification-mass check) that schema
+validation alone could not.
+
+---
+
 ## 2026-09-22 — Results location, Windows CI fix, v0.9.0 cut
 
 **Did:** Continued yesterday's work. Added a Results location box (own commit

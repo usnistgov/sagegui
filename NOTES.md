@@ -1339,10 +1339,11 @@ constant.
   `search_engine` value `Sage`. It has no other error. The same file with
   `search_engine="X! Tandem"` passes with no errors. The tests assert both
   facts, so a new error elsewhere fails the test.
-- xmllint checks structure, types and the schema's key and keyref rules. It does
-  not check the CV. It does not check that a peptide mass adds up. It does not
-  check that a reader like Scaffold or Skyline accepts the file. None of the
-  three was tested with a real reader.
+- xmllint checks structure, types and the schema's key and keyref rules. It
+  does not check the CV, and it does not check that a peptide mass adds up.
+  Two independent parsers and a real rescoring tool since have: see
+  "Independent-reader verification" below. Scaffold, Skyline, PeptideShaker
+  and TPP itself remain untested.
 
 **What is not written, and why.** Flanking residues and peptide start and end
 (the TSV has none). `num_tol_term`. An `expect` score (Sage has none). Any
@@ -1423,6 +1424,69 @@ on hand-made rows. A chimeric spectrum (two rank-1 hits, same scan and charge)
 gives two pepXML queries with the same `spectrum` name. The TSV reader rejects a
 quoted field, which Sage would write only for a protein name that holds a quote
 or a tab.
+
+### Independent-reader verification (2026-09-22)
+
+Run against a real v0.9.0 output folder, 32,221 PSMs
+(`~/Documents/proteomicsTesting/2026-9-9-serum/test2/`), not the 185-row dev
+fixture. Every check below is a real tool reading a real file, not xmllint
+again.
+
+**`results.sage.pin` (Sage's own writer, not ours).** Checked with a Python
+script: 39 columns, correct Percolator header order, zero duplicate `SpecId`,
+zero orphan `SpecId`. `Label`, `Peptide`, and the target/decoy split (21,892 /
+10,329) match `results.sage.tsv` row for row. Decoys always carry `rev_`,
+targets never do. Then loaded with
+[mokapot](https://mokapot.readthedocs.io/) 0.10.0 (`mokapot.read_pin`): same
+counts exactly, and it auto-detected all 30 feature columns. Then actually run
+through `mokapot.brew()`, real semi-supervised SVM rescoring, end to end: it
+converged and wrote `mokapot.psms.txt` / `mokapot.peptides.txt` with rescored
+q-values (10,618 PSMs at q ≤ 0.01, against Sage's own 10,511 at
+`spectrum_q` ≤ 0.01 — different scoring method, a different but comparable
+number, not a bug).
+
+**`matched_fragments.sage.tsv` (Sage's own writer).** 264,036 fragment rows
+for the same 32,221 PSMs. Zero orphan `psm_id`, zero PSMs with no fragments.
+`fragment_charge` always in `[1, precursor charge]`. m/z error: median 1.38
+ppm, max 10.11 ppm. `matched_peaks` in `results.sage.tsv` matches the actual
+fragment-row count for a random 2,000-PSM sample, zero mismatches. Hand-check
+on one PSM: 5 b-ions + 14 y-ions = 19 rows, and the exact ordinal gaps
+reproduce `matched_peaks=19`, `longest_b=2`, `longest_y=14`,
+`longest_y_pct=0.875` in the main table, so the derived stats are computed
+from the real fragment data, not just self-consistent by construction.
+
+**`results.sage.mzid` and `results.sage.pep.xml` (ours).** Parsed with
+[pyteomics](https://pyteomics.readthedocs.io/) (`mzid` and `pepxml` modules)
+plus `psims`, a codebase independent of both our writer and libxml2. System
+Python here is 3.9.6, too old for pyteomics 5.0 (it uses newer union-type
+syntax); pinned `pyteomics==4.6.3`, which imports fine. `mokapot` 0.10.0 calls
+`np.float_`, removed in NumPy 2.0; pinned `numpy<2` in the same venv. Both
+files were the exact output of a v0.9.0 run made with **q-value source =
+spectrum q, limit = 0.001, decoys included** (the maintainer's own words,
+confirmed against the data: `spectrum_q <= 0.001` on `results.sage.tsv` gives
+9,384 targets + 8 decoys = 9,392, an exact match to both files' entry counts).
+
+- mzIdentML: all 9,392 `SpectrumIdentificationResult` entries parsed, zero
+  errors. `psims` resolved every CV accession to its real name
+  (`X!Tandem:hyperscore`, `PSM-level q-value`, `distinct peptide-level
+  q-value`, and the Sage `userParam`s). With `retrieve_refs=True`, full
+  cross-reference resolution (`DBSequence`/`Peptide`/`PeptideEvidence`) gave
+  17 `isDecoy=True` evidence entries, matching the earlier grep-based count
+  exactly. Traced why 17 entries came from only 8 decoy PSMs: one maps to 9
+  proteins, one to 2, six to 1 each, 17 total, matching `PeptideEvidence`
+  one-for-one.
+- pepXML: all 9,392 `spectrum_query` entries parsed, zero errors. Modification
+  mass check confirmed live: `WCALSHHER` position 2 (the C) reads as total
+  mass 160.03069, matching cysteine (103.00918) plus the +57.0215
+  carbamidomethyl delta from the raw peptide string. Confirms the "total
+  mass, not delta" rule (`mod_aminoacid_mass`, see above) holds on a real,
+  independently-parsed file, not only in our own round-trip test.
+
+**Still open.** No PSI mzIdentML semantic validator, and no actual target tool
+(Scaffold, Skyline, PeptideShaker, TPP) has opened either file. `pyteomics`
+proves the files are well-formed and semantically sane to a second
+implementation; it does not prove a specific downstream tool's importer
+accepts them.
 
 ### Perseus and ProteoPlotter (researched 2026-09-21, parked)
 
