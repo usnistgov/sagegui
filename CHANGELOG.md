@@ -179,7 +179,7 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [0.5.0] - Original Release (jspaezp)
 
-Initial release by Sebastian Paez with:
+Initial release by J. Sebastian Paez with:
 - Basic GUI for Sage search configuration
 - Support for mzML and Bruker .d files
 - LFQ and TMT quantification options

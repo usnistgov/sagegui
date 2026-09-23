@@ -16,7 +16,7 @@ This repository is the NIST-maintained fork of [jspaezp/sagegui](https://github.
 
 SageGUI lets you configure and run Sage searches without the command line. Pick your mzML files and FASTA databases, set search parameters, and hit Run. Results land wherever you point the output directory.
 
-Sebastian's original GUI was pinned to a stale Sage fork. This fork compiles in Sage from source vendored in [`vendor/sage`](vendor/sage/VENDORED.md): upstream `lazear/sage` at commit `d74024d` (10 commits after the v0.15.0-beta.2 release), plus two small additive patches for search progress and the Stop button, listed in [`PATCHES.md`](vendor/sage/PATCHES.md).
+This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VENDORED.md): upstream `lazear/sage` at commit `d74024d` (10 commits after the v0.15.0-beta.2 release), plus three small additive patches (search progress, the Stop button and the database cache), listed in [`PATCHES.md`](vendor/sage/PATCHES.md).
 
 ## Features
 
