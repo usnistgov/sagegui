@@ -1678,6 +1678,13 @@ instead of naming a licence. Add the full Apache-2.0 text to
 
 ### The rename checklist (repo moves to usnistgov and is renamed)
 
+**Superseded 2026-09-23: no rename.** The repository became `usnistgov/sagegui`, a
+GitHub fork of `jspaezp/sagegui`, and kept the name. The fork link credits Sebastian
+Paez, so the shared name reads as "NIST's fork" (Ben's decision). The URL changes
+below were made; the crate, binary and bundle id did not change. Release tags are
+`nist-vX.Y.Z`. See JOURNAL 2026-09-23.
+
+
 Verified by grep 2026-09-08. The repo moves to the `usnistgov` org and is
 renamed, so that J. Sebastian Paez keeps the name "sagegui". Work this list in
 one pass.

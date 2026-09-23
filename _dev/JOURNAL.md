@@ -1,3 +1,34 @@
+## 2026-09-23 (later): Published as usnistgov/sagegui
+
+**Did:** Rewrote `e6ccd69..main` in a scratchpad clone: author and committer
+`Ben Neely <benjamin.neely@nist.gov>` on all 119 commits, the 15
+`Co-Authored-By: Claude` lines removed, Paez's 26 commits untouched. Checks:
+145 commits before and after; trees identical at every commit; subjects,
+author dates and all other message text identical; merge-base with
+`jspaezp/sagegui` `main` still `e6ccd69`. Added `_dev/old-to-new.txt`.
+Ben chose `nist-vX.Y.Z` release tags, because upstream's `v0.6.0` and
+`v0.7.0` are different releases from ours; all seven old tags were renamed
+and `build.yml` now builds on `nist-v*`. Repointed links to usnistgov. With
+Ben's approval: force-pushed `main` over the fork's copy of upstream, pushed
+the tags, recreated seven releases with the original binaries (assets
+byte-count identical), archived `neely/sagegui` with a moved notice,
+protected `main`, and switched the local checkout to track usnistgov (old
+history kept as local branch `pre-publication-main`).
+
+**Found:** the `macos-x64` downloads of v0.6.0, v0.7.0 and v0.7.1 hold arm64
+binaries (checked with `file`). Their release notes now say so.
+
+**Least confident (Q1):** the first CI run on usnistgov. Nothing has built
+this tree on Windows or Linux, and sageRecon needed a fix-up pass when its
+Actions were first enabled. Check: a manual `build.yml` run.
+
+**Improvement (Q5):** this checkout still has 14 local-only tags (Paez's
+`v0.1.0` to `v0.5.0` and alphas, `archive/*`, `backup-*`) and the old
+`v0.6.0` to `v0.9.0` tags. Never run `git push --tags` here; push named tags
+only. Or move those tags into a bundle and delete them locally.
+
+---
+
 ## 2026-09-23: Vendored Sage, database cache, preparation for usnistgov/sagegui
 
 **Did:** Started publishing this repository as `usnistgov/sagegui`, a GitHub
