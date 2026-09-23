@@ -798,7 +798,7 @@ impl From<Config> for Input {
 /// this text, except for the specific "cancelled" text `run_sage` itself
 /// produces or forwards from `Runner::run`) as soon as `cancel` is observed
 /// set. Also injected into the `Runner` via `with_cancel` before `run()`, so
-/// a click during the scoring phase interrupts it too. See NOTES.md "Stop
+/// a click during the scoring phase interrupts it too. See _dev/NOTES.md "Stop
 /// button" and `vendor/sage/PATCHES.md` entry 2 for the Sage patch.
 fn run_sage(
     input: Input,
@@ -1646,7 +1646,7 @@ mod tests {
 
     /// The reason for a separate conversion state: a conversion that fails must
     /// leave the search result exactly as it was. A finished run's message is
-    /// the only record of how it ended (commit f76d608, NOTES "A failed run
+    /// the only record of how it ended (commit f76d608, _dev/NOTES.md "A failed run
     /// reported nothing").
     #[test]
     fn a_failed_conversion_leaves_the_search_status_untouched() {

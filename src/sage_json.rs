@@ -938,7 +938,7 @@ mod tests {
     /// as Sage does, and read the result back through the importer.
     ///
     /// Deriving the fixture this way is deliberate — a hand-authored one gets
-    /// the shape subtly wrong (see NOTES: the prefilter tests had exactly that
+    /// the shape subtly wrong (see _dev/NOTES.md: the prefilter tests had exactly that
     /// problem with `ion_kinds`/`static_mods`), and would keep passing after a
     /// Sage upgrade changed the real layout. This test fails on that upgrade,
     /// which is the point.

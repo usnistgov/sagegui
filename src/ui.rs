@@ -352,7 +352,7 @@ impl From<EnzymeConfig> for EnzymeBuilder {
 /// ship as explicit pairs, so one name never silently picks a reaction
 /// condition.
 ///
-/// A preset sets the cut rule only. See NOTES for why.
+/// A preset sets the cut rule only. See _dev/NOTES.md for why.
 pub struct EnzymePreset {
     /// Display name, matching sageRecon's `--enzyme` values.
     pub name: &'static str,
@@ -1367,7 +1367,7 @@ impl SageLauncher {
     }
 
     /// Load parameters out of a Sage `config.json` or a past run's
-    /// `results.json`. Import-only by design — see NOTES "UI-review feedback #1".
+    /// `results.json`. Import-only by design. See _dev/NOTES.md "UI-review feedback #1".
     fn import_section(&mut self, ui: &mut egui::Ui) {
         ui.group(|ui| {
             ui.heading("Load settings from a Sage file");
@@ -2316,7 +2316,7 @@ impl SageLauncher {
                 });
             } else if let Some(status) = &self.convert.status {
                 // Success is plain theme text. Pure green is hard to read on the
-                // light theme. See NOTES, "Status text colours".
+                // light theme. See _dev/NOTES.md, "Status text colours".
                 let colour = if status.is_error() {
                     Some(egui::Color32::RED)
                 } else if matches!(status, ConvertStatus::Stopped(_)) {
@@ -2944,7 +2944,7 @@ mod tests {
     /// could drift from the actual serde shape of nested types like
     /// `IonKindSelection` or `StaticModConfig`). Must still deserialize once
     /// `prefilter`/`prefilter_chunk_size`/`prefilter_low_memory` exist, falling
-    /// back to Sage's own resolved defaults (see NOTES "Database prefiltering").
+    /// back to Sage's own resolved defaults (see _dev/NOTES.md "Database prefiltering").
     #[test]
     fn old_config_json_without_prefilter_fields_still_loads() {
         let mut value = serde_json::to_value(DatabaseConfig::default())

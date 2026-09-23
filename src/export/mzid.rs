@@ -9,7 +9,7 @@
 //! A decoy keeps its tag, for example `rev_sp|P06727|APOA4_HUMAN`.
 //!
 //! CV accessions were checked against psi-ms.obo (data-version 4.2.2) and the
-//! Unit Ontology on 2026-09-21. The list is in NOTES.md.
+//! Unit Ontology on 2026-09-21. The list is in _dev/NOTES.md.
 //!
 //! Modifications are written as `MS:1001460` "unknown modification" with the
 //! mass. A mass alone does not name a modification (57.0215 fits several

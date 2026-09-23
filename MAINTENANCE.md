@@ -231,22 +231,25 @@ Check the GitHub Actions logs for the failing platform. Common issues:
 ```
 sagegui/
 ├── src/
-│   ├── main.rs          # All GUI code (single file)
-│   └── version.rs       # Sage version constants
-├── assets/
-│   └── sagegui_logo-removebg.png
-├── .github/
-│   ├── workflows/
-│   │   ├── build.yml    # CI/CD pipeline
-│   │   └── update-badges.yml
-│   └── dependabot.yml   # Auto-update dependencies
-├── Cargo.toml           # Dependencies (Sage commit hash here)
-├── AGENTS.md            # Agent/contributor working protocol
+│   ├── main.rs          # App state, the search thread, entry point
+│   ├── ui.rs            # Tab rendering and configuration types
+│   ├── sage_json.rs     # Template and Sage config/results import
+│   ├── index_cache.rs   # Optional on-disk peptide database cache
+│   ├── convert_job.rs   # Background mzIdentML / pepXML conversion
+│   ├── export/          # mzIdentML and pepXML writers
+│   └── version.rs       # Vendored Sage version constants
+├── vendor/sage/         # Vendored Sage source (VENDORED.md, PATCHES.md)
+├── assets/              # Icons, logo, bundled templates (assets/templates/)
+├── docs/                # User documentation, parameter reference, AI_USAGE.md
+├── tests/               # Converter test fixtures and schemas
+├── _dev/                # Development record: PLAN, NOTES, JOURNAL, dev_AGENTS
+├── .github/             # CI (build.yml, actionlint.yml, update-badges.yml), dependabot
+├── Cargo.toml           # Dependencies (Sage as path dependencies)
+├── AGENTS.md            # Agent working protocol (short form)
 ├── CHANGELOG.md         # Release history
 ├── MAINTENANCE.md       # This file
-├── PLAN.md              # Development roadmap
-├── NOTES.md             # Locked decisions, gotchas, reference
-├── JOURNAL.md           # Append-only session history
+├── THIRD_PARTY_LICENSES.md
+├── LICENSE.md           # NIST Software Licensing Statement
 └── README.md            # User-facing documentation
 ```
 

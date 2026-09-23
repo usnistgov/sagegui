@@ -799,5 +799,5 @@ Shows SageGUI version, Sage engine version, author and maintainer, repository li
 
 - **Sage official docs:** https://github.com/lazear/sage[web:59]
 - **SageGUI README:** `../README.md`
-- **NOTES.md:** locked design decisions and known limitations
-- **PLAN.md:** roadmap for future features
+- **_dev/NOTES.md:** locked design decisions and known limitations
+- **_dev/PLAN.md:** roadmap for future features

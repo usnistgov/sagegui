@@ -1,46 +1,27 @@
-# SageGUI — Agent protocol
+# SageGUI: full agent protocol
 
-How to work in this repo. Read this first, every session.
+How to work in this repo. The root [AGENTS.md](../AGENTS.md) is the short
+version (layout, settled decisions, the tolerance rule). This file is the full
+operating protocol. Read both, every session.
+
+This file and its siblings live in `_dev/` (see [README.md](README.md)). Paths
+in them are from the repository root unless a link says otherwise.
 
 ---
 
-## ⛔ STOP — precursor tolerance sign convention
+## ⛔ STOP: precursor tolerance sign convention
 
-**Sage's `precursor_tol` pair is NOT the delta-mass range. It is negated AND
-reversed.** This has been got wrong repeatedly. Read this before writing,
-reviewing, or describing any tolerance value.
-
-Sage searches candidate **theoretical** masses in
-`[experimental + lower, experimental + upper]` (`Tolerance::bounds`,
-`crates/sage/src/mass.rs`; the centre is the *experimental* mass — see
-`db.query(precursor_mass, ...)` in `crates/sage/src/scoring.rs`). Delta mass,
-the modification a PSM carries, is `experimental - theoretical`. So:
-
-```
-delta_range = (-upper_raw,  -lower_raw)    # negate AND swap
-raw_json    = (-delta_high, -delta_low)    # negate AND swap back
-```
-
-| What a person means | What goes in the JSON |
-| ------------------- | --------------------- |
-| delta −1.25 to +3.5 Da | `"da": [-3.5, 1.25]` |
-| delta −100 to +500 Da | `"da": [-500, 100]` |
-| "find a +500 Da modification" | lower bound `-500` |
-
-**Never present a raw JSON pair as if it were the delta-mass range, and never
-present a delta-mass range as if it were raw JSON.** State which convention you
-are using, every time. Symmetric ppm windows (`[-10, 10]`) hide the mistake —
-it only becomes visible on asymmetric and open windows, which is exactly where
-it does damage.
+The rule lives once, at the top of the root [AGENTS.md](../AGENTS.md). Read it
+before writing, reviewing or describing any tolerance value.
 
 ---
 
 ## Reading order (cold start)
 
-1. **AGENTS.md** (this file) — how to work here.
-2. **PLAN.md** — current status block, then the roadmap. Start with the status block at the top; it tells you the phase and the next concrete action.
-3. **NOTES.md** — locked decisions, intentional non-bugs, dead-ends, and reference (domain primer, API quirks, gotchas). Consult before changing anything that looks wrong — it might be intentional.
-4. **JOURNAL.md** — append-only session history. Read the top few entries to see what recently happened and what the last session was least sure about.
+1. **AGENTS.md** (root) and **dev_AGENTS.md** (this file): how to work here.
+2. **_dev/PLAN.md**: current status block, then the roadmap. Start with the status block at the top; it tells you the phase and the next concrete action.
+3. **_dev/NOTES.md**: locked decisions, intentional non-bugs, dead-ends, and reference (domain primer, API quirks, gotchas). Consult before changing anything that looks wrong. It might be intentional.
+4. **_dev/JOURNAL.md**: append-only session history. Read the top few entries to see what recently happened and what the last session was least sure about.
 
 `README.md`, `CHANGELOG.md`, `MAINTENANCE.md`, and `docs/GLOSSARY.md` are **release / user-facing**, not dev context — they aren't part of the startup sequence. Keep them synced with reality, but touch them only on the trigger below.
 
@@ -54,7 +35,7 @@ These exist alongside the dev-context files above. Know they're there and when t
 | ---- | ------------- | -------------- |
 | `README.md` | User-facing landing page: install, quick start, feature list | user-visible behavior, install steps, or the doc list changes |
 | `CHANGELOG.md` | Release history (Keep-a-Changelog format) | Add a one-liner to `[Unreleased]` for each user-visible change as it lands. Move entries to a versioned section when cutting a release. |
-| `MAINTENANCE.md` | Maintainer runbook for syncing the Sage fork to a new version | the update procedure changes, or a new Sage upgrade adds an API-change example |
+| `MAINTENANCE.md` | Maintainer runbook for updating the vendored Sage in `vendor/sage` | the update procedure changes, or a new Sage upgrade adds an API-change example |
 | `docs/GLOSSARY.md` | Definitions of proteomics / MS / Sage terms | a new domain term enters the docs and needs defining |
 
 Rule of thumb: **the four dev-context files (AGENTS, PLAN, NOTES, JOURNAL) are the source of truth for *how we build*; these four are for *what we ship and how to maintain it*.** Don't duplicate content across the two sets — link instead. (E.g. the API-change reference lives once in NOTES; MAINTENANCE points to it.)

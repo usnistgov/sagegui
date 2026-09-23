@@ -313,7 +313,7 @@ roughly ordered:
    this is no longer an open item. **The live console readout is done (2026-08-21):** a "Sage Log"
    group above it shows Sage's own `info`-level log output live, in a
    `stick_to_bottom` scroll area, capped at 500 lines (`MAX_LOG_LINES`), no
-   fork changes. Mechanism: `GuiLogger` ([src/main.rs](src/main.rs)) wraps the
+   fork changes. Mechanism: `GuiLogger` ([src/main.rs](../src/main.rs)) wraps the
    normal `env_logger::Logger` — still prints to stderr exactly as before —
    and additionally forwards any record whose target starts with `sage_` onto
    the same `mpsc` channel already used for run-bar messages, as a new
@@ -354,7 +354,7 @@ roughly ordered:
    separate third-party-notice question for distributed binaries, not
    addressed by this change.
 5. **Run-bar progress bar — ✅ real progress, 2026-08-21.** No longer a
-   placeholder. `total_mzml_spectra()` ([src/main.rs](src/main.rs)) pre-scans
+   placeholder. `total_mzml_spectra()` ([src/main.rs](../src/main.rs)) pre-scans
    each selected mzML/mzML.gz file's `<spectrumList count="N">` tag before
    launch (plain-text scan, not a full XML parse; `None` if any file's count
    can't be found, rather than a misleadingly-low partial sum) for the
@@ -371,7 +371,7 @@ roughly ordered:
    confirmed that changing the Experiment-tab dropdown (Custom / Tryptic LFQ /
    Wide-open / Phospho / Semi-tryptic) does **nothing** to the settings on the
    other tabs. Currently `self.experiment` is only stored + shown as the combo's
-   selected text ([src/ui.rs](src/ui.rs) `page_experiment`); there is **no
+   selected text ([src/ui.rs](../src/ui.rs) `page_experiment`); there is **no
    apply-archetype logic** that writes defaults into `self.config`. Needs: an
    `apply_archetype(&mut self)` that, on selection change, sets the relevant
    Search/Modifications/Quant fields (e.g. Phospho → add S/T/Y phospho variable
@@ -1953,7 +1953,7 @@ searches for theoretical peptides whose mass lands in
 
 **GUI behavior:** SageGUI passes the two DragValues straight through, verbatim —
 first box → `lower`, second box → `upper`, no sign manipulation or reordering
-([src/ui.rs](src/ui.rs) `ToleranceConfig::update_section`, and `From<ToleranceConfig>
+([src/ui.rs](../src/ui.rs) `ToleranceConfig::update_section`, and `From<ToleranceConfig>
 for Tolerance`). So an asymmetric window is preserved exactly as typed. The boxes
 are labelled **Lower / Upper**, carry hover text explaining the convention, and
 show a non-blocking ⚠ warning if `lower > upper`.

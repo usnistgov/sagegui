@@ -4,7 +4,7 @@
 //! Input is one Sage output folder: `results.sage.tsv` and `results.json`.
 //! Output is written next to them: `results.sage.mzid` and
 //! `results.sage.pep.xml`. The decision to build these converters here, and
-//! what they do and do not validate against, is in NOTES.md under
+//! what they do and do not validate against, is in _dev/NOTES.md under
 //! "Downstream tools that read Sage output".
 //!
 //! The functions are pure. They take a folder and options and return the path

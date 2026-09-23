@@ -15,7 +15,7 @@
 //!   value and is not used here.
 //!
 //! `search_engine` is written as `Sage`. The 1.23 schema lists a fixed set of
-//! engines and Sage is not in it. See NOTES.md, "Downstream tools that read
+//! engines and Sage is not in it. See _dev/NOTES.md, "Downstream tools that read
 //! Sage output", for what that means for strict validation.
 
 use std::io::Write;
