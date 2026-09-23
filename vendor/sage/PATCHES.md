@@ -22,3 +22,19 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
 - **Why:** SageGUI clones the `Arc` before calling `run()` and polls it from the
   interface thread, so the progress bar shows real search progress. Stock Sage reports
   progress only as log lines.
+
+## 2. Cooperative cancellation on `Runner`
+
+- **File:** `crates/sage-cli/src/runner.rs` (37 added lines).
+- **Written:** 2026-08-24, by Benjamin A. Neely (NIST). First carried as `neely/sage`
+  commit `ed5f06c`.
+- **What:** a public `cancel: Arc<AtomicBool>` field on `Runner`, off by default, and a
+  `with_cancel(flag)` builder method that replaces it with a flag the caller owns.
+  `run()` checks the flag in three places: before each per-spectrum `score()` call in
+  `search_processed_spectra`, between file chunks in `process_chunk`, and once more after
+  scoring (before FDR, protein grouping, quantification or any output), where it returns
+  the error `"cancelled"`.
+- **Why:** SageGUI's Stop button sets the flag. Without it, a started search could not be
+  interrupted. The last check guarantees that a cancelled run writes no file that looks
+  like a completed search. The stock command-line tool never calls `with_cancel`, so its
+  behaviour is unchanged.
