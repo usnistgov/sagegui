@@ -52,6 +52,8 @@ The cache lives in `~/Library/Caches/gov.nist.sagegui/index-cache` (macOS), `%LO
 
 ## Download
 
+NIST maintains an independent release series from the upstream [jspaezp/sagegui](https://github.com/jspaezp/sagegui) project. NIST releases use Git tags of the form `nist-vX.Y.Z`. Version numbers in the two series do not correspond: upstream's `v0.7.0`, for example, is a different release from our `nist-v0.7.0`. This fork branched from upstream at commit [`e6ccd69`](https://github.com/jspaezp/sagegui/commit/e6ccd69ce52ddebf837edc91d6eb8e194a415229) (2025-08-22), two commits after upstream's `v0.5.0`. Our releases 0.6.0 to 0.9.0 were first published on `neely/sagegui` and are available here as `nist-v0.6.0` to `nist-v0.9.0`, with the same binaries.
+
 Get the latest release from the [Releases page](https://github.com/usnistgov/sagegui/releases/latest):
 
 | Platform | Download |
