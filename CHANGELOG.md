@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Database cache (off by default).** "Cache prepared database" on Files & Database saves the built peptide database and reuses it when the FASTA content and database settings match. Run / Info shows the cache folder and size, with a Clear button. On our test Mac a human proteome database took 9 s to build and 6 s to load, so the gain there is small. Entries over 12 GiB are not written, and prefiltering turns the cache off. A cached run gave the same 32,221 PSMs as a fresh build.
+
 ### Changed
 
 - **Sage is now vendored in `vendor/sage`** instead of built from the `neely/sage` Git fork. The engine code is unchanged: upstream `lazear/sage` commit `d74024d` plus the same progress and cancel patches, now listed in `vendor/sage/PATCHES.md`. A re-run of a 2026-09-22 serum search gave the same 32,221 PSMs with identical scores and q-values. The Info panel now shows the engine as `v0.15.0-beta.2-10-gd74024d (with NIST patches)`, because it is 10 upstream commits past the v0.15.0-beta.2 release.

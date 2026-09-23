@@ -802,6 +802,13 @@ pub struct DatabaseConfig {
     /// Resolved path of the concatenated FASTA written at launch; not persisted.
     #[serde(skip)]
     pub fasta_for_launch: String,
+    /// Load the built peptide database from the on-disk cache when the FASTA
+    /// content and every database setting match an earlier run, and save it
+    /// there after a build. A SageGUI setting, not a Sage parameter, so it
+    /// never reaches `Builder`. Off by default because an entry can take
+    /// several GB. See `src/index_cache.rs`.
+    #[serde(default)]
+    pub reuse_cached_index: bool,
 }
 
 fn default_prefilter_low_memory() -> bool {
@@ -848,6 +855,7 @@ impl Default for DatabaseConfig {
             fasta_paths: Vec::new(),
             fasta: String::new(),
             fasta_for_launch: String::new(),
+            reuse_cached_index: false,
             static_mods: StaticModConfig::default(),
             variable_mods: VariableModConfig::default(),
         }
@@ -1567,6 +1575,23 @@ impl SageLauncher {
                 );
             });
 
+            ui.separator();
+            ui.strong("Database cache (speed)");
+            ui.add_enabled_ui(!prefiltering_enabled, |ui| {
+                ui.checkbox(
+                    &mut self.config.database.reuse_cached_index,
+                    "Cache prepared database",
+                )
+                .on_hover_text(
+                    "Save the built peptide database to disk. A later run with the same \
+                     FASTA and the same database settings loads it and skips the build. \
+                     A human proteome entry is several GB. Run / Info shows the size.",
+                );
+            });
+            if prefiltering_enabled {
+                ui.weak("Not available with prefiltering.");
+            }
+
             egui::CollapsingHeader::new("Advanced")
                 .default_open(false)
                 .show(ui, |ui| {
@@ -2008,6 +2033,10 @@ impl SageLauncher {
 
         ui.add_space(10.0);
 
+        self.database_cache_section(ui);
+
+        ui.add_space(10.0);
+
         self.convert_section(ui);
 
         ui.add_space(10.0);
@@ -2053,6 +2082,75 @@ impl SageLauncher {
                  'Sage: An Open-Source Tool for Fast Proteomics Searching and Quantification at \
                  Scale' https://doi.org/10.1021/acs.jproteome.3c00486",
             );
+        });
+    }
+
+    /// The Database cache group: where the cache is, how much it holds, and a
+    /// two-step Clear. The totals come from `cache_stats`, which reads the
+    /// folder only when it is `None`: at start, after a search, after Clear,
+    /// and on Refresh. Never read the folder on every frame.
+    fn database_cache_section(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.heading("Database cache");
+            let Some(dir) = crate::index_cache::cache_dir() else {
+                ui.weak("No cache folder is available on this computer.");
+                return;
+            };
+            ui.horizontal(|ui| {
+                ui.label("Location:");
+                ui.add(
+                    egui::Label::new(egui::RichText::new(dir.display().to_string()).monospace())
+                        .selectable(true),
+                );
+            });
+            let stats = *self
+                .cache_stats
+                .get_or_insert_with(crate::index_cache::stats);
+            ui.horizontal(|ui| {
+                ui.label(match stats.files {
+                    0 => "Empty.".to_string(),
+                    1 => format!(
+                        "1 database, {}.",
+                        crate::index_cache::size_text(stats.bytes)
+                    ),
+                    n => format!(
+                        "{n} databases, {}.",
+                        crate::index_cache::size_text(stats.bytes)
+                    ),
+                });
+                if ui.small_button("Refresh").clicked() {
+                    self.cache_stats = None;
+                }
+            });
+            ui.weak(format!(
+                "Limit {} in total. The oldest entries are deleted first.",
+                crate::index_cache::size_text(crate::index_cache::MAX_CACHE_BYTES)
+            ));
+            ui.add_enabled_ui(!self.is_running && stats.files > 0, |ui| {
+                ui.horizontal(|ui| {
+                    if !self.cache_clear_armed {
+                        if ui.button("Clear cache").clicked() {
+                            self.cache_clear_armed = true;
+                        }
+                    } else {
+                        ui.label("Delete all cached databases?");
+                        if ui.button("Delete").clicked() {
+                            self.cache_clear_armed = false;
+                            self.cache_stats = None;
+                            self.status_message = match crate::index_cache::clear() {
+                                Ok(freed) => format!(
+                                    "Cleared the database cache ({} freed).",
+                                    crate::index_cache::size_text(freed)
+                                ),
+                                Err(e) => format!("Could not clear the database cache: {e}"),
+                            };
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.cache_clear_armed = false;
+                        }
+                    }
+                });
+            });
         });
     }
 
@@ -2817,6 +2915,23 @@ mod tests {
         assert!(lo > hi);
         let (d_lo, d_hi) = ToleranceConfig::to_delta(lo, hi);
         assert!(d_lo > d_hi, "an empty window must still read as empty");
+    }
+
+    /// Settings saved by v0.9.0 and earlier have no `reuse_cached_index`. They
+    /// must still load, with the cache off. Without `#[serde(default)]` the
+    /// whole saved state would fail to load and every setting would reset.
+    #[test]
+    fn saved_settings_without_the_cache_option_still_load() {
+        let mut value = serde_json::to_value(DatabaseConfig {
+            reuse_cached_index: true,
+            ..DatabaseConfig::default()
+        })
+        .expect("DatabaseConfig must serialize");
+        let obj = value.as_object_mut().expect("an object");
+        assert!(obj.remove("reuse_cached_index").is_some());
+        let db: DatabaseConfig =
+            serde_json::from_value(value).expect("an older config must still deserialize");
+        assert!(!db.reuse_cached_index, "the cache must default to off");
     }
 
     /// Simulates a config JSON saved by v0.7.0, before the prefilter fields

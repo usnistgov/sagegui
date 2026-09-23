@@ -9,6 +9,7 @@
 /// I am more than happy to take PRs and suggestions for improvements!
 mod convert_job;
 mod export;
+mod index_cache;
 mod sage_json;
 mod ui;
 mod version;
@@ -160,6 +161,11 @@ pub struct SageLauncher {
     /// or Refresh is clicked. `None` means read on the next frame. Never read
     /// the folder on every frame.
     pub results_scan: Option<(String, convert_job::ResultsScan)>,
+    /// Database cache totals for Run / Info. `None` means read the folder on
+    /// the next frame. Never read it on every frame.
+    pub cache_stats: Option<index_cache::CacheStats>,
+    /// True after the first click on Clear cache, until Delete or Cancel.
+    pub cache_clear_armed: bool,
 }
 
 impl Default for SageLauncher {
@@ -194,6 +200,8 @@ impl Default for SageLauncher {
             pending_conversion: None,
             run_output_directory: None,
             results_scan: None,
+            cache_stats: None,
+            cache_clear_armed: false,
         }
     }
 }
@@ -436,6 +444,8 @@ impl SageLauncher {
                         self.config.follow_finished_search(result.is_ok(), &run_dir);
                     }
                     self.results_scan = None;
+                    // A search may have written a cache entry.
+                    self.cache_stats = None;
                     self.status_message = match result {
                         Ok(msg) => msg,
                         Err(err) if self.stop_requested && err == "cancelled" => {
@@ -575,6 +585,7 @@ impl SageLauncher {
         info!("Starting search with {} parallel threads", parallel);
         let parquet = false;
         let sage_input: Input = self.config.clone().into();
+        let reuse_cached_index = self.config.database.reuse_cached_index;
 
         self.search_progress = None;
         self.total_spectra = total_mzml_spectra(&self.config.mzml_paths);
@@ -607,7 +618,14 @@ impl SageLauncher {
             // characters), and on Windows `windows_subsystem = "windows"`
             // hides the panic message completely.
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                run_sage(sage_input, parallel, parquet, &sender, &cancel)
+                run_sage(
+                    sage_input,
+                    parallel,
+                    parquet,
+                    &sender,
+                    &cancel,
+                    reuse_cached_index,
+                )
             }));
 
             let result = match outcome {
@@ -788,6 +806,7 @@ fn run_sage(
     parquet: bool,
     sender: &Sender<ThreadMessage>,
     cancel: &Arc<AtomicBool>,
+    reuse_cached_index: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if cancel.load(Ordering::Relaxed) {
         return Err("cancelled".into());
@@ -800,14 +819,52 @@ fn run_sage(
     } else {
         "Building peptide database…"
     };
-    let _ = sender.send(ThreadMessage::Progress(build_msg.to_string()));
     let search = input.build()?;
 
     if cancel.load(Ordering::Relaxed) {
         return Err("cancelled".into());
     }
 
-    let runner = Runner::new(search, parallel.into())?.with_cancel(cancel.clone());
+    // The cache key hashes the FASTA at `search.database.fasta`. For several
+    // FASTAs that is the concatenated temp file, which `cleanup_thread` and
+    // `on_exit` delete only after this thread ends. Keep it that way.
+    let cache = index_cache::IndexCache::for_parameters(&search.database, reuse_cached_index);
+    let runner = match cache.as_ref().and_then(|c| c.load()) {
+        Some(database) => {
+            let _ = sender.send(ThreadMessage::Progress(
+                "Loaded the peptide database from the cache.".to_string(),
+            ));
+            Runner::from_parts(search, database).with_cancel(cancel.clone())
+        }
+        None => {
+            let _ = sender.send(ThreadMessage::Progress(build_msg.to_string()));
+            let runner = Runner::new(search, parallel.into())?.with_cancel(cancel.clone());
+            if let Some(cache) = &cache {
+                let _ = sender.send(ThreadMessage::Progress(
+                    "Saving the peptide database to the cache.".to_string(),
+                ));
+                let note = match cache.store(&runner.database) {
+                    index_cache::StoreOutcome::Stored { bytes } => {
+                        format!(
+                            "Saved the peptide database to the cache ({}).",
+                            index_cache::size_text(bytes)
+                        )
+                    }
+                    index_cache::StoreOutcome::TooLarge { estimate } => format!(
+                        "Peptide database not cached: about {}, over the {} limit.",
+                        index_cache::size_text(estimate),
+                        index_cache::size_text(index_cache::MAX_ENTRY_BYTES)
+                    ),
+                    index_cache::StoreOutcome::Failed(e) => {
+                        format!("Peptide database not cached: {e}")
+                    }
+                };
+                info!("{note}");
+                let _ = sender.send(ThreadMessage::LogLine(note));
+            }
+            runner
+        }
+    };
     let _ = sender.send(ThreadMessage::RunnerReady(runner.progress.clone()));
 
     if cancel.load(Ordering::Relaxed) {
@@ -1400,6 +1457,7 @@ mod tests {
             ],
             fasta: String::new(),
             fasta_for_launch: "/tmp/should-not-persist.fasta".to_string(),
+            reuse_cached_index: true,
         };
 
         let original = PersistedState {
@@ -1490,6 +1548,7 @@ mod tests {
         );
         assert_eq!(rd.prefilter, od.prefilter);
         assert_eq!(rd.prefilter_chunk_size, od.prefilter_chunk_size);
+        assert_eq!(rd.reuse_cached_index, od.reuse_cached_index);
         assert_eq!(rd.prefilter_low_memory, od.prefilter_low_memory);
         assert_eq!(rd.fasta_paths, od.fasta_paths);
         assert_eq!(

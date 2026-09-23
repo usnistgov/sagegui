@@ -325,6 +325,10 @@ Built in its own session, by maintainer decision, 2026-09-08.
 - [ ] Write report option
 - [ ] Bruker configuration (for timsTOF data)
 
+#### Speed
+
+- [x] **Database cache.** "Cache prepared database" on Files & Database (off by default) saves the built peptide database and reuses it when the FASTA and database settings match. Run / Info shows the cache folder and size, with Clear. Measured on the maintainer's Mac: saves about 3 s per repeat run (build 9.0 s, load 6.0 s), so the gain is small there; not timed on Windows. See NOTES → Database cache. *(Landed 2026-09-23.)*
+
 #### sageRecon integration
 
 - [ ] **Port rollup scripts** — The peptide→protein rollup and LFQ aggregation scripts currently live in a separate project (not sageRecon). Action item: locate, read, and refactor them into a form SageGUI can call. (See Phase 6 for the GUI surface.)

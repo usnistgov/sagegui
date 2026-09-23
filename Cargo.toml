@@ -28,6 +28,10 @@ image = { version = "0.24", features = ["png"] }
 env_logger = "0.11.5"
 log = "0.4"
 flate2 = "1.1"
+# Database cache (src/index_cache.rs). `twox-hash` hashes the cache key and
+# checks the cache file. It was already in the tree through timsrust, so this
+# adds no new package.
+twox-hash = { version = "2", default-features = false, features = ["std", "xxhash3_64", "xxhash3_128"] }
 
 [profile.release]
 lto = "thin"

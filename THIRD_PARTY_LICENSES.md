@@ -32,8 +32,10 @@ header at the top of the file:
   progress.
 - 2026-08-24: a public `cancel` flag, a `with_cancel` method, and three cancellation
   checks in `Runner::run`, so SageGUI's Stop button can interrupt a search.
+- 2026-09-23: a `Runner::from_parts` constructor, so SageGUI can run a search on a
+  peptide database loaded from its on-disk cache.
 
-Both changes are additive. The stock Sage command-line tool never uses them, so its
+All three changes are additive. The stock Sage command-line tool never uses them, so its
 behaviour is unchanged. `vendor/sage/PATCHES.md` gives the full list and the reasons,
 and `git log -p -- vendor/sage` shows every changed line. The upstream MIT license text
 is kept at `vendor/sage/LICENSE` and is reproduced below; it applies to the original
