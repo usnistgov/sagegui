@@ -152,7 +152,7 @@ Please also cite Sage, which performs the searches:
 SageGUI incorporates code from two projects:
 
 - **sagegui** (J. Sebastian Paez), Apache License 2.0, https://github.com/jspaezp/sagegui. This repository is a fork of it. The files that derive from it carry a notice that says so, as Apache License 2.0 Section 4(b) requires, and `THIRD_PARTY_LICENSES.md` lists them.
-- **Sage** (Michael Lazear), MIT License, https://github.com/lazear/sage. Its source is vendored in [`vendor/sage`](vendor/sage/VENDORED.md) and compiled into the program. We made three small additive changes to one file, listed in [`vendor/sage/PATCHES.md`](vendor/sage/PATCHES.md). The SageGUI logo and app icons derive from Sage's logo.
+- **Sage** (Michael Lazear), MIT License, https://github.com/lazear/sage. Its source is vendored in [`vendor/sage`](vendor/sage/VENDORED.md) and compiled into the program. We made three small additive changes to one file, listed in [`vendor/sage/PATCHES.md`](vendor/sage/PATCHES.md). The SageGUI logo, made at NIST, and the app icons derive from Sage's logo.
 
 Full licence texts, the list of derived files and the modification notices are in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 

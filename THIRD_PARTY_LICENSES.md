@@ -65,9 +65,10 @@ SOFTWARE.
 
 **Sage logo artwork.** `assets/logo.png` is Sage's logo, `figures/logo.png` in the
 Sage repository, unmodified (fetched by `assets/get_assets.bash`). The SageGUI logo
-(`assets/sagegui_logo.jpg`, `assets/sagegui_logo-removebg.png`) and the app icons
-(`assets/icon-master.png`, `assets/icon-256.png`, `assets/AppIcon.icns`,
-`assets/AppIcon.ico`) are derived from that artwork.
+(`assets/sagegui_logo.jpg`, `assets/sagegui_logo-removebg.png`) was made by Benjamin A.
+Neely (NIST) from that artwork: it reuses the Sage wordmark and crab-wizard figure. The
+app icons (`assets/icon-master.png`, `assets/icon-256.png`, `assets/AppIcon.icns`,
+`assets/AppIcon.ico`) are made from the SageGUI logo.
 
 ---
 
