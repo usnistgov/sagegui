@@ -38,3 +38,19 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   interrupted. The last check guarantees that a cancelled run writes no file that looks
   like a completed search. The stock command-line tool never calls `with_cancel`, so its
   behaviour is unchanged.
+
+## 3. `Runner::from_parts`
+
+- **File:** `crates/sage-cli/src/runner.rs` (one new method, about 15 lines with its
+  documentation).
+- **Written:** 2026-09-23, by Benjamin A. Neely (NIST). This is the first patch made
+  directly in the vendored copy.
+- **What:** a public constructor that takes a `Search` and an `IndexedDatabase` that was
+  already built, and returns a `Runner` without reading or digesting the FASTA. It does
+  not change the `Runner` struct or `Runner::new`. It does not check that the database
+  matches the parameters.
+- **Why:** SageGUI can cache the built peptide database on disk (the "Cache prepared
+  database" option on Files & Database). On a later run with the same FASTA content and
+  the same database settings, SageGUI loads the cached database and passes it here,
+  which skips the database build (about two minutes for a human proteome). SageGUI's
+  cache key covers every parameter that affects the build; see `src/index_cache.rs`.

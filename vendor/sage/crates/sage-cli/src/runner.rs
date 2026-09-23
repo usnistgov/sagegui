@@ -4,6 +4,8 @@
 // `progress` counter on `Runner`.
 // Modified by Benjamin A. Neely (NIST) on 2026-08-24: added the public
 // `cancel` flag, `with_cancel`, and three cancellation checks in `run()`.
+// Modified by Benjamin A. Neely (NIST) on 2026-09-23: added
+// `Runner::from_parts`, so a cached database can skip the build in `new`.
 // Every change is listed in vendor/sage/PATCHES.md.
 use super::input::Search;
 use super::output::SageResults;
@@ -170,6 +172,22 @@ impl Runner {
     pub fn with_cancel(mut self, cancel: std::sync::Arc<std::sync::atomic::AtomicBool>) -> Self {
         self.cancel = cancel;
         self
+    }
+
+    /// Builds a `Runner` from a database that was already built, and skips the
+    /// FASTA read and digest that `new` does. The caller must make sure that
+    /// `database` is what `new` would build from `parameters` (SageGUI keys its
+    /// on-disk database cache on every parameter that affects the build). The
+    /// `progress` and `cancel` fields start at their defaults; call
+    /// `with_cancel` after this, the same as after `new`.
+    pub fn from_parts(parameters: Search, database: IndexedDatabase) -> Self {
+        Self {
+            database,
+            parameters,
+            start: Instant::now(),
+            progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
     }
 
     pub fn prefilter_peptides(self, parallel: usize, fasta: Fasta) -> Vec<Peptide> {
