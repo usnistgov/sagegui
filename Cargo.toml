@@ -13,14 +13,14 @@ egui = "0.29.0"
 rfd = "0.15.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# Pinned to v0.15.0-beta.2 plus our own additive patches (commit ed5f06ca).
-# These are git dependencies, so cargo compiles the fork as part of every build —
-# our CI therefore covers the fork on all four target platforms. Patch inventory
-# and the merge-conflict guide for the next Sage sync live in NOTES.md, under
-# "Custom patch carried on neely/sage". Add any new patch to that list.
-sage-core = { git = "https://github.com/neely/sage.git", rev = "ed5f06caae7305d1599bd877758759112e772d20" }
-sage-cli = { git = "https://github.com/neely/sage.git", rev = "ed5f06caae7305d1599bd877758759112e772d20" }
-sage-cloudpath = { git = "https://github.com/neely/sage.git", rev = "ed5f06caae7305d1599bd877758759112e772d20" }
+# Sage is vendored in vendor/sage: lazear/sage master at d74024d (10 commits
+# after v0.15.0-beta.2) plus our additive patches. The source and base commit are
+# in vendor/sage/VENDORED.md. Every change to Sage is listed in
+# vendor/sage/PATCHES.md. Add any new patch there. To update Sage, see
+# MAINTENANCE.md.
+sage-core = { path = "vendor/sage/crates/sage" }
+sage-cli = { path = "vendor/sage/crates/sage-cli" }
+sage-cloudpath = { path = "vendor/sage/crates/sage-cloudpath" }
 timsrust = "0.4.1"
 num_cpus = "1.13"
 egui_extras = { version = "0.29.1", features = ["all_loaders"] }

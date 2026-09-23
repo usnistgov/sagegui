@@ -4,68 +4,73 @@ This guide explains how to keep SageGUI up-to-date with new Sage releases.
 
 ## Overview
 
-SageGUI depends on a fork of Sage at [neely/sage](https://github.com/neely/sage). When the official [lazear/sage](https://github.com/lazear/sage) releases a new version, follow this guide to update SageGUI.
+SageGUI compiles Sage in from a vendored copy of its source in `vendor/sage/`: upstream
+[lazear/sage](https://github.com/lazear/sage) at a fixed commit, plus a small set of
+additive NIST patches. `vendor/sage/VENDORED.md` names the base commit, and
+`vendor/sage/PATCHES.md` lists every patch. When upstream Sage moves forward, we update
+the copy by hand, following the steps below. We do not track upstream automatically:
+moving to a newer Sage is a deliberate, tested and recorded change.
 
-**Estimated effort:** 1-2 hours per Sage release (assuming no major API changes).
+**Estimated effort:** 1 to 2 hours per Sage update, assuming no major API changes.
 
 ---
 
 ## Updating to a New Sage Version
 
-### Step 1: Sync the Sage Fork
+### Step 1: Copy the new upstream crates as one pristine commit
 
 ```bash
-# Clone your fork if you haven't already
-git clone https://github.com/neely/sage.git
+# Anywhere outside this repository
+git clone https://github.com/lazear/sage.git
 cd sage
+git checkout NEW_COMMIT          # a release tag, or a master commit
+git describe --tags NEW_COMMIT   # for example v0.15.0-beta.2-10-gd74024d
 
-# Add upstream remote (only needed once)
-git remote add upstream https://github.com/lazear/sage.git
-
-# Fetch and merge upstream changes
-git fetch upstream
-git checkout main
-git merge upstream/main
-
-# Push to your fork
-git push origin main
+# In this repository: replace the three crates, keep our docs
+rm -rf vendor/sage/crates
+cp -R /path/to/sage/crates vendor/sage/crates
+cp /path/to/sage/LICENSE vendor/sage/LICENSE
 ```
 
-**Check the custom patch survived the merge.** `neely/sage` carries one
-hand-written addition not from upstream: a `progress` counter on `Runner`
-(see NOTES.md "Custom patch carried on neely/sage" for the full detail and
-exact diff). If `git merge` reports a conflict in `crates/sage-cli/src/runner.rs`,
-that's almost certainly it — resolve by keeping both the upstream change and
-the `progress` field/increment, then confirm with `cargo check`. If the merge
-was clean, spot-check that `pub progress: Arc<AtomicUsize>` is still on the
-`Runner` struct before moving on.
+Update the table in `vendor/sage/VENDORED.md` (base commit, relation to releases, crate
+version string, date vendored). Commit this alone, before any patch. At this point the
+build usually fails, because our patches are gone. That is expected: this commit exists
+so that `git log -p -- vendor/sage` separates upstream code from ours.
 
-### Step 2: Get the New Commit Hash
+### Step 2: Re-apply each patch in PATCHES.md as its own commit
+
+Take the patches in order. For each one, find the commit that last applied it
+(`git log --oneline -- vendor/sage`) and replay its diff:
 
 ```bash
-# Get the commit hash of the version you want
-git log --oneline -1
-# Example output: d74024df Add new feature...
+git show PATCH_COMMIT -- vendor/sage/crates | git apply --3way
 ```
 
-### Step 3: Update SageGUI
+If upstream has rewritten the same lines, `git apply --3way` stops with a conflict.
+Resolve it by hand: keep the upstream change and re-add ours. All patches so far touch
+only `crates/sage-cli/src/runner.rs`: the `Runner` struct, both `Self { ... }` literals in
+`Runner::new` (including the prefilter `mini_runner`), `search_processed_spectra`,
+`process_chunk` and `run()`. Keep the NIST header at the top of `runner.rs`. Commit each
+patch separately with a message that names it, and update its PATCHES.md entry if the
+code moved.
 
-Edit `src/version.rs` with the new version info:
+If upstream has adopted one of our patches, drop it and delete its PATCHES.md entry.
+
+### Step 3: Update SageGUI's record of the Sage version
+
+Edit `src/version.rs`:
 
 ```rust
-pub const SAGE_VERSION: &str = "v0.15.0-beta.2";  // Update this
-pub const SAGE_COMMIT: &str = "d74024df";          // Update this
-pub const SAGE_REPO: &str = "https://github.com/neely/sage";
-pub const SAGE_UPSTREAM: &str = "https://github.com/lazear/sage";
+pub const SAGE_VERSION: &str = "vX.Y.Z";              // nearest release tag (README badge)
+pub const SAGE_DESCRIBE: &str = "vX.Y.Z-N-gABCDEF0";  // git describe of the base commit
+pub const SAGE_COMMIT: &str = "FULL_BASE_COMMIT_SHA";
+pub const SAGE_COMMIT_SHORT: &str = "ABCDEF01";
+// and SAGE_RELEASE_URL, SAGE_COMMIT_URL
 ```
 
-Edit `Cargo.toml` to point to the new commit:
-
-```toml
-[dependencies]
-sage-core = { git = "https://github.com/neely/sage.git", rev = "NEW_COMMIT_HASH" }
-sage-cli = { git = "https://github.com/neely/sage.git", rev = "NEW_COMMIT_HASH" }
-```
+`Cargo.toml` needs no change: the `path` dependencies point at `vendor/sage/crates/`.
+Run `cargo build` so `Cargo.lock` picks up any new version string or new dependency of
+Sage, and review that diff.
 
 ### Step 4: Fix API Changes
 
@@ -76,10 +81,10 @@ cargo check
 ```
 
 Common API changes to watch for:
-- **Input struct** — New fields added (set to `None` or sensible defaults)
-- **Builder struct** — New database configuration options
-- **Runner signature** — Constructor parameter changes
-- **Quantification options** — New LFQ/TMT settings
+- **Input struct**: New fields added (set to `None` or sensible defaults)
+- **Builder struct**: New database configuration options
+- **Runner signature**: Constructor parameter changes
+- **Quantification options**: New LFQ/TMT settings
 
 See [API Changes Fixed](#api-changes-reference) below for examples.
 
@@ -99,6 +104,22 @@ cargo build --release
 # 3. Run a search
 # 4. Verify output files are created
 ```
+
+**Regression check against a past run.** The stock Sage command-line tool builds from
+the vendored source, and it takes a SageGUI `results.json` as its config. Re-running a
+past search with it isolates the engine from the interface. Always pass the telemetry
+flag, or Sage sends a usage report to its author's server:
+
+```bash
+cargo build --release -p sage-cli --bin sage
+./target/release/sage --disable-telemetry-i-dont-want-to-improve-sage \
+    -o /tmp/sage-check /path/to/past/run/results.json
+```
+
+Compare `results.sage.tsv` with the past run, row by row on `filename`, `scannr`,
+`peptide` and `charge`. With no upstream change, every column except `psm_id` should
+match (`psm_id` follows parallel scheduling order). After a real upstream update,
+differences are expected. Explain them in the CHANGELOG before release.
 
 ### Step 6: Update Documentation
 
@@ -146,16 +167,16 @@ The GitHub Actions workflow will automatically build binaries and create the rel
 When updating, compare the Sage source code:
 
 ```bash
-# In your sage fork
+# In a clone of lazear/sage (OLD_COMMIT is the base in vendor/sage/VENDORED.md)
 git diff OLD_COMMIT..NEW_COMMIT -- crates/sage-cli/src/input.rs
-git diff OLD_COMMIT..NEW_COMMIT -- crates/sage-core/src/database.rs
+git diff OLD_COMMIT..NEW_COMMIT -- crates/sage/src/database.rs
 ```
 
 Key files to check:
-- `crates/sage-cli/src/input.rs` — Input struct definition
-- `crates/sage-core/src/database.rs` — Builder struct
-- `crates/sage-core/src/lfq.rs` — LFQ options
-- `crates/sage-cli/src/runner.rs` — Runner implementation
+- `crates/sage-cli/src/input.rs`: Input struct definition
+- `crates/sage/src/database.rs`: Builder struct
+- `crates/sage/src/lfq.rs`: LFQ options
+- `crates/sage-cli/src/runner.rs`: Runner implementation
 
 ---
 
@@ -242,11 +263,11 @@ sagegui/
 
 ### If you're running out of memory:
 
-- **Reduce `max_peaks`** (default 150) — fewer peaks per spectrum = less processing overhead
-- **Enable `prefilter_low_memory`** — process FASTA in smaller chunks during database build
-- **Lower `peptide_q_value`** threshold if using LFQ — only keep high-confidence peptides in RAM
+- **Reduce `max_peaks`** (default 150): fewer peaks per spectrum = less processing overhead
+- **Enable `prefilter_low_memory`**: process FASTA in smaller chunks during database build
+- **Lower `peptide_q_value`** threshold if using LFQ: only keep high-confidence peptides in RAM
 - **Use OS-level limits** (Linux: `ulimit -v`, Windows: Job Objects) to constrain the process
-- **Split large datasets** — run smaller files separately rather than concatenating them
+- **Split large datasets**: run smaller files separately rather than concatenating them
 
 This is by design: Sage trades "set-it-and-forget-it" configuration for speed. The automagic memory management works well for typical proteomics datasets.
 

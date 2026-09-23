@@ -2038,8 +2038,8 @@ impl SageLauncher {
             ui.label("Sage GUI Version:");
             ui.label(env!("CARGO_PKG_VERSION"));
             ui.label(format!(
-                "Sage Engine Version: {}",
-                crate::version::SAGE_VERSION
+                "Sage Engine Version: {} (with NIST patches)",
+                crate::version::SAGE_DESCRIBE
             ));
             ui.add_space(10.0);
             ui.label("Original Author: J.Sebastian Paez");

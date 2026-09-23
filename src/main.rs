@@ -780,8 +780,8 @@ impl From<Config> for Input {
 /// this text, except for the specific "cancelled" text `run_sage` itself
 /// produces or forwards from `Runner::run`) as soon as `cancel` is observed
 /// set. Also injected into the `Runner` via `with_cancel` before `run()`, so
-/// a click during the scoring phase interrupts it too — see NOTES.md "Stop
-/// button" for the fork-patch details (`neely/sage` commit `ed5f06c`).
+/// a click during the scoring phase interrupts it too. See NOTES.md "Stop
+/// button" and `vendor/sage/PATCHES.md` entry 2 for the Sage patch.
 fn run_sage(
     input: Input,
     parallel: u16,

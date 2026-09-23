@@ -13,7 +13,8 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **What:** SageGUI embeds Sage as a Rust library dependency (via our fork `neely/sage`), rather than shelling out to `sage.exe` as a subprocess (that rejected approach is "Option C").
 - **Why:** Tight integration — single-binary distribution and the ability to show real-time progress from inside the process. This was the user's preference.
 - **Rejected:** Option C (subprocess wrapper generating a JSON config and calling `sage.exe`). Would decouple us from Sage's internal API, but loses single-binary distribution and in-process progress. Reconsider only if the fork-sync maintenance burden becomes too high (that's flagged as a possible Phase 9 in PLAN).
-- **Consequence:** We accept the ongoing burden of keeping `neely/sage` in sync with upstream `lazear/sage`. See MAINTENANCE.md.
+- **Consequence:** We accept the ongoing burden of keeping our Sage copy in sync with upstream `lazear/sage`. See MAINTENANCE.md.
+- **Updated 2026-09-23: Sage is vendored, not a Git fork.** The source now lives in `vendor/sage/` (upstream `d74024d` plus our patches) and `Cargo.toml` uses `path` dependencies. `neely/sage` is no longer a build dependency. Why: publication as `usnistgov/sagegui` needs a build that depends on no personal repository, and it puts every Sage change in one reviewable place. Commits before `b09b305` still pin `neely/sage`, so keep that repository public (archive it; do not delete it). Patch list: `vendor/sage/PATCHES.md`. Regression check used: the vendored `sage` CLI re-ran the 2026-09-22 serum search from its `results.json`; all 32,221 PSMs matched in every column except `psm_id`.
 
 ### egui/eframe GUI framework (locked)
 - **What:** The GUI uses egui (immediate-mode) with eframe (native window wrapper).
@@ -28,6 +29,8 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 ### Pin Sage to a commit hash, not a branch (locked)
 - **What:** `Cargo.toml` pins `sage-core`/`sage-cli` to `rev = "ed5f06ca..."` (see `Cargo.toml`), not `branch = "master"`.
 - **Why:** Reproducible builds — prevents unexpected breakage when upstream changes. Update the rev deliberately per MAINTENANCE.md.
+- **Updated 2026-09-23:** vendoring keeps this decision in a stronger form. The pin is now the base commit recorded in `vendor/sage/VENDORED.md` and `src/version.rs` (`SAGE_COMMIT`). Moving it is a manual re-vendor per MAINTENANCE.md.
+- **Upstream warning now visible (intentional, not a bug):** `cargo build` prints one `internal_eq_trait_method_impls` future-incompatibility warning from `vendor/sage/crates/sage/src/enzyme.rs:103`. It is upstream code. As a Git dependency its lints were capped; as a path dependency they are shown. Clippy `-D warnings` applies only to the `sagegui` crate, so CI still passes. Do not patch it locally; it will go when upstream fixes it.
 
 ### Version sync via `src/version.rs` constants (locked)
 - **What:** Sage version info lives in `src/version.rs` constants (`SAGE_VERSION`, `SAGE_COMMIT`, `SAGE_COMMIT_SHORT`, `SAGE_RELEASE_URL`, `SAGE_COMMIT_URL`), consumed at compile time.
@@ -35,6 +38,7 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Rejected:** `build.rs` that auto-detects the version from `Cargo.toml` — removed in favor of the plain constants. Do not re-add it.
 
 ### Custom patch carried on `neely/sage`: `Runner.progress` counter (2026-08-21)
+- **Now vendored (2026-09-23):** this patch is `vendor/sage/PATCHES.md` entry 1, commit `cddfb85`. The detail below is the original record. Where it says `neely/sage` or "merge into the fork", read "re-apply to `vendor/sage`" (MAINTENANCE.md Step 2).
 - **What:** `neely/sage` `master` (merged PR #1, commit `cf20b75b`, on top of
   `d74024df`) carries a small hand-written patch, not from upstream
   `lazear/sage`: a `pub progress: Arc<AtomicUsize>` field on `Runner`
@@ -64,6 +68,7 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
   action needed beyond noting the new commit hash.
 
 ### Custom patch carried on `neely/sage`: `Runner.cancel` cooperative cancellation (2026-08-24)
+- **Now vendored (2026-09-23):** this patch is `vendor/sage/PATCHES.md` entry 2, commit `b6746d3`. The detail below is the original record.
 - **What:** `neely/sage` `master` (commit `ed5f06c`, pushed straight to
   master, on top of `cf20b75b`) carries a second additive patch: a
   `pub cancel: Arc<AtomicBool>` field on `Runner`, defaulted off in both

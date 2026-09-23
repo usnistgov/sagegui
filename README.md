@@ -16,7 +16,7 @@ Based on the original [sagegui](https://github.com/jspaezp/sagegui) by [Sebastia
 
 SageGUI lets you configure and run Sage searches without the command line. Pick your mzML files and FASTA databases, set search parameters, and hit Run. Results land wherever you point the output directory.
 
-Sebastian's original GUI was pinned to a stale Sage fork. This fork updates it to Sage v0.15.0-beta.2 and keeps it current.
+Sebastian's original GUI was pinned to a stale Sage fork. This fork compiles in Sage from source vendored in [`vendor/sage`](vendor/sage/VENDORED.md): upstream `lazear/sage` at commit `d74024d` (10 commits after the v0.15.0-beta.2 release), plus two small additive patches for search progress and the Stop button, listed in [`PATCHES.md`](vendor/sage/PATCHES.md).
 
 ## Features
 

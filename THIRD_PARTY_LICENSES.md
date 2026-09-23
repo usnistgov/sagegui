@@ -9,7 +9,35 @@ license, summarized or reproduced below.
 ## Sage
 
 Source: https://github.com/lazear/sage  
-License: MIT
+License: MIT  
+Vendored: `vendor/sage/`, base commit `d74024df774054fa411a9d5cca6013ce91d26208`
+(`master`, 10 commits after the `v0.15.0-beta.2` tag), vendored 2026-09-23.
+
+**Redistribution notice:** this repository contains the source of three Sage crates
+(`crates/sage`, published as `sage-core`; `crates/sage-cli`; `crates/sage-cloudpath`),
+and SageGUI compiles them into its binary. The copy is **MODIFIED**. One file differs
+from upstream:
+
+| File | State |
+|---|---|
+| `crates/sage/**` | unmodified |
+| `crates/sage-cloudpath/**` | unmodified |
+| `crates/sage-cli/src/runner.rs` | **MODIFIED, see below** |
+| every other file in `crates/sage-cli/` | unmodified |
+
+**Modifications to `runner.rs`,** made by Benjamin A. Neely (NIST) and marked in a
+header at the top of the file:
+
+- 2026-08-21: a public `progress` counter on `Runner`, so SageGUI can show search
+  progress.
+- 2026-08-24: a public `cancel` flag, a `with_cancel` method, and three cancellation
+  checks in `Runner::run`, so SageGUI's Stop button can interrupt a search.
+
+Both changes are additive. The stock Sage command-line tool never uses them, so its
+behaviour is unchanged. `vendor/sage/PATCHES.md` gives the full list and the reasons,
+and `git log -p -- vendor/sage` shows every changed line. The upstream MIT license text
+is kept at `vendor/sage/LICENSE` and is reproduced below; it applies to the original
+files.
 
 MIT License
 

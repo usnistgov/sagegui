@@ -1,6 +1,7 @@
 # Derived from jspaezp/sagegui (Apache 2.0, J. Sebastian Paez).
 # Modified by Benjamin A. Neely (NIST) on 2026-07-13: added Cargo ecosystem and
-# ignore rules for pinned Sage dependencies.
+# ignore rules for pinned Sage dependencies. Modified on 2026-09-23: removed
+# those rules, because Sage is now vendored.
 version: 2
 updates:
   # GitHub Actions
@@ -18,8 +19,5 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
-    # Don't auto-update sage dependencies (we pin to specific commits)
-    ignore:
-      - dependency-name: "sage-core"
-      - dependency-name: "sage-cli"
-      - dependency-name: "sage-cloudpath"
+    # Sage is vendored in vendor/sage as path dependencies, which dependabot
+    # does not update. Update it by hand, following MAINTENANCE.md.

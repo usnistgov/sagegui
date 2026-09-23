@@ -1,3 +1,10 @@
+// This file is from lazear/sage (MIT License, Michael Lazear), vendored at
+// commit d74024d. Source: https://github.com/lazear/sage
+// Modified by Benjamin A. Neely (NIST) on 2026-08-21: added the public
+// `progress` counter on `Runner`.
+// Modified by Benjamin A. Neely (NIST) on 2026-08-24: added the public
+// `cancel` flag, `with_cancel`, and three cancellation checks in `run()`.
+// Every change is listed in vendor/sage/PATCHES.md.
 use super::input::Search;
 use super::output::SageResults;
 use super::telemetry;
@@ -38,7 +45,7 @@ pub struct Runner {
     /// a caller (e.g. a GUI Stop button) interrupt an in-progress search.
     /// Checked in `search_processed_spectra` (skips further scoring), between
     /// file chunks in `process_chunk`, and in `run()` right after scoring,
-    /// before any FDR/grouping/quant/output-writing step — so a cancelled run
+    /// before any FDR/grouping/quant/output-writing step, so a cancelled run
     /// finishes quickly and writes nothing.
     pub cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
@@ -159,7 +166,7 @@ impl Runner {
     /// Replaces the default (never-set) cancellation flag with an
     /// externally-owned one. Call before `run()`. Setting the flag from the
     /// caller's side stops further scoring and output-writing work as soon
-    /// as `run()` next checks it — see the field docs on `Runner::cancel`.
+    /// as `run()` next checks it. See the field docs on `Runner::cancel`.
     pub fn with_cancel(mut self, cancel: std::sync::Arc<std::sync::atomic::AtomicBool>) -> Self {
         self.cancel = cancel;
         self
@@ -549,7 +556,7 @@ impl Runner {
         let mut outputs = self.batch_files(&scorer, parallel);
 
         // Cancelled during (or right after) scoring: stop here, before FDR,
-        // protein grouping, quant, or writing any output — a cancelled run
+        // protein grouping, quant, or writing any output. A cancelled run
         // must leave nothing behind that looks like a completed search.
         if self.cancel.load(std::sync::atomic::Ordering::Relaxed) {
             anyhow::bail!("cancelled");

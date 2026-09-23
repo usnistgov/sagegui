@@ -59,7 +59,7 @@ Provide a user-friendly graphical interface for Sage that:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key dependency:** Our fork of Sage at `github.com/neely/sage` (v0.15.0-beta.2, commit `ed5f06c` — carries two additive hand-written patches on top of upstream `d74024df`: the `Runner.progress` counter and the `Runner.cancel` cooperative-cancellation flag, see NOTES.md).
+**Key dependency:** Sage, vendored in `vendor/sage/` since 2026-09-23: upstream `lazear/sage` commit `d74024df` (10 commits after v0.15.0-beta.2) plus two additive patches, the `Runner.progress` counter and the `Runner.cancel` cooperative-cancellation flag. See `vendor/sage/VENDORED.md` and `PATCHES.md`. Before 2026-09-23 it was the Git fork `github.com/neely/sage` at `ed5f06c`.
 
 ---
 
