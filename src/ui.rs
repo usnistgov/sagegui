@@ -2921,7 +2921,7 @@ mod tests {
         assert!(d_lo > d_hi, "an empty window must still read as empty");
     }
 
-    /// Settings saved by v0.9.0 and earlier have no `reuse_cached_index`. They
+    /// Settings saved by nist-v0.9.0 and earlier have no `reuse_cached_index`. They
     /// must still load, with the cache off. Without `#[serde(default)]` the
     /// whole saved state would fail to load and every setting would reset.
     #[test]

@@ -125,7 +125,8 @@ differences are expected. Explain them in the CHANGELOG before release.
 
 1. Update `CHANGELOG.md` with the new version
 2. Update the README Sage badge if `SAGE_VERSION` changed (by hand, or run the manual `update-badges.yml` workflow)
-3. **Bump `version:` and `date-released:` in `CITATION.cff`.** Nothing checks
+3. **Bump `version:` (the release tag, `"nist-vX.Y.Z"`) and `date-released:` in `CITATION.cff`,
+   and the version in the README Citation section.** Nothing checks
    these against `Cargo.toml`, and a stale value makes the citation point at a
    release nobody ran. Do not automate this in `update-badges.yml`: that
    workflow triggers on `src/version.rs`, which carries the *Sage* version, not

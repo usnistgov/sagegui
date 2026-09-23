@@ -1720,9 +1720,11 @@ At move time, confirm `neely` is a `usnistgov` member with write access, or
 
 ### CITATION.cff maintenance
 
-`version:` and `date-released:` duplicate `Cargo.toml` and the release date.
+`version:` and `date-released:` duplicate the release tag and the release date.
 Nothing checks that they agree. Bump them when cutting a release; the step is
-in MAINTENANCE.md.
+in MAINTENANCE.md. Since 2026-09-23 `version:` is the release tag
+(`"nist-v0.9.0"`), not the bare Cargo version, because NIST releases are tagged
+`nist-vX.Y.Z` (Ben's call). The README Citation section uses the same string.
 
 Do **not** wire this into `.github/workflows/update-badges.yml`. That workflow
 triggers on changes to `src/version.rs`, which carries the **Sage** version,
