@@ -19,11 +19,11 @@ authors:
 # A DOI goes here when one is minted. Add a top-level `doi:` key at this
 # level; nothing else has to change. An empty or placeholder value fails
 # CFF validation, so the key is left out until a real DOI exists.
-repository-code: "https://github.com/neely/sagegui"
-url: "https://github.com/neely/sagegui"
+repository-code: "https://github.com/usnistgov/sagegui"
+url: "https://github.com/usnistgov/sagegui"
 # `license-url:` and not `license:`. The NIST Software Licensing Statement has
 # no SPDX identifier, and `license:` only accepts SPDX values.
-license-url: "https://github.com/neely/sagegui/blob/main/LICENSE.md"
+license-url: "https://github.com/usnistgov/sagegui/blob/main/LICENSE.md"
 keywords:
   - proteomics
   - mass spectrometry

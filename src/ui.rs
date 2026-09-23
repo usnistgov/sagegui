@@ -2073,7 +2073,7 @@ impl SageLauncher {
             ui.add_space(10.0);
             ui.label("Original author: J. Sebastian Paez (jspaezp/sagegui)");
             ui.label("Maintainer: Benjamin A. Neely (NIST)");
-            ui.label("Repository: https://github.com/neely/sagegui");
+            ui.label("Repository: https://github.com/usnistgov/sagegui");
             ui.label(
                 "License: NIST Software Licensing Statement for NIST code. Code from \
                  jspaezp/sagegui is Apache-2.0. Sage is MIT. See LICENSE.md and \

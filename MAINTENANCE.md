@@ -140,20 +140,22 @@ git add -A
 git commit -m "Update to Sage vX.Y.Z"
 git push origin main
 
-# Create release tag
-git tag -a vX.Y.Z -m "Release vX.Y.Z - Updated to Sage vX.Y.Z"
-git push origin vX.Y.Z
+# Create release tag (always nist-vX.Y.Z, see "Upstream sagegui tags")
+git tag -a nist-vX.Y.Z -m "Release nist-vX.Y.Z - Updated to Sage vX.Y.Z"
+git push origin nist-vX.Y.Z
 ```
 
-Pushing a `v*` tag runs the build workflow, which builds the binaries and creates the release. A push to `main` does not run it; use the workflow's manual run to test a build without a tag.
+Pushing a `nist-v*` tag runs the build workflow, which builds the binaries and creates the release. A push to `main` does not run it; use the workflow's manual run to test a build without a tag.
 
 ---
 
 ## Upstream sagegui tags
 
-This repository is a fork of `jspaezp/sagegui`, and both use `v0.x.y` tags. Upstream's
-`v0.6.0` and `v0.7.0` are different releases from ours. Never fetch upstream's tags into
-a working clone:
+This repository is a fork of `jspaezp/sagegui`. Upstream tags its releases `vX.Y.Z`. Our
+releases are tagged `nist-vX.Y.Z`, so the two never clash. Our `nist-v0.6.0` and
+`nist-v0.7.0` are different releases from upstream's `v0.6.0` and `v0.7.0` (our releases
+before 2026-09-23 were tagged `v0.x.y` on `neely/sagegui`). Never fetch upstream's tags
+into a working clone:
 
 ```bash
 git remote add upstream https://github.com/jspaezp/sagegui.git
@@ -161,7 +163,7 @@ git config remote.upstream.tagOpt --no-tags
 git fetch upstream
 ```
 
-Keep new version numbers clear of upstream's.
+The `nist-` prefix keeps our tags apart from upstream's.
 
 ---
 
@@ -294,6 +296,6 @@ This is by design: Sage trades "set-it-and-forget-it" configuration for speed. T
 
 ## Contact
 
-- **Repository:** https://github.com/neely/sagegui
+- **Repository:** https://github.com/usnistgov/sagegui
 - **Sage upstream:** https://github.com/lazear/sage
 - **Original sagegui:** https://github.com/jspaezp/sagegui

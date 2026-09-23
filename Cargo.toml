@@ -11,6 +11,8 @@ edition = "2021"
 # jspaezp/sagegui (Apache-2.0) and vendored Sage (MIT). No single SPDX
 # identifier is true for all of it, so name the file that explains it.
 license-file = "LICENSE.md"
+repository = "https://github.com/usnistgov/sagegui"
+description = "Desktop interface for the Sage proteomics search engine (NIST fork of jspaezp/sagegui)"
 
 [dependencies]
 eframe = { version = "0.29.0", features = ["persistence"] }

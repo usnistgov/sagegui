@@ -5,6 +5,10 @@ All notable changes to SageGUI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
+`jspaezp/sagegui`'s own `vX.Y.Z` tags. Releases 0.6.0 to 0.9.0 were first published on
+`neely/sagegui` as `vX.Y.Z` and recreated here on 2026-09-23 with the same binaries.
+
 ## [Unreleased]
 
 ### Added
@@ -203,5 +207,11 @@ When a new Sage version is released:
 
 4. **Test and release** new sagegui version
 
-[0.6.0]: https://github.com/neely/sagegui/releases/tag/v0.6.0
+[0.9.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.9.0
+[0.8.2]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.8.2
+[0.8.1]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.8.1
+[0.8.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.8.0
+[0.7.1]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.7.1
+[0.7.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.7.0
+[0.6.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.6.0
 [0.5.0]: https://github.com/jspaezp/sagegui/releases/tag/v0.5.0

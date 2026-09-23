@@ -5,8 +5,8 @@ A graphical interface for [Sage](https://github.com/lazear/sage), the proteomics
 This repository is the NIST-maintained fork of [jspaezp/sagegui](https://github.com/jspaezp/sagegui), the original graphical interface by [J. Sebastian Paez](https://github.com/jspaezp). It preserves the upstream project's history and incorporates substantial NIST-developed modifications. The upstream project remains available for general collaboration, while this fork provides NIST-controlled, versioned releases.
 
 [![Sage Version](https://img.shields.io/badge/Sage-v0.15.0--beta.2-blue)](https://github.com/lazear/sage/releases/tag/v0.15.0-beta.2)
-[![Build Status](https://github.com/neely/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/neely/sagegui/actions)
-[![Release](https://img.shields.io/github/v/release/neely/sagegui)](https://github.com/neely/sagegui/releases/latest)
+[![Build Status](https://github.com/usnistgov/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/usnistgov/sagegui/actions)
+[![Release](https://img.shields.io/github/v/release/usnistgov/sagegui)](https://github.com/usnistgov/sagegui/releases/latest)
 
 <p align="center">
   <img src="assets/sagegui_logo-removebg.png" alt="SageGUI Logo" width="400">
@@ -52,14 +52,14 @@ The cache lives in `~/Library/Caches/gov.nist.sagegui/index-cache` (macOS), `%LO
 
 ## Download
 
-Get the latest release from the [Releases page](https://github.com/neely/sagegui/releases/latest):
+Get the latest release from the [Releases page](https://github.com/usnistgov/sagegui/releases/latest):
 
 | Platform | Download |
 |----------|----------|
-| Windows (x64) | [sage-launcher-windows-x64.exe.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-windows-x64.exe.zip) |
-| Linux (x64) | [sage-launcher-linux-x64.tar.gz](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-linux-x64.tar.gz) |
-| macOS (Intel) | [sage-launcher-macos-x64.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-x64.zip) |
-| macOS (Apple Silicon) | [sage-launcher-macos-arm64.zip](https://github.com/neely/sagegui/releases/latest/download/sage-launcher-macos-arm64.zip) |
+| Windows (x64) | [sage-launcher-windows-x64.exe.zip](https://github.com/usnistgov/sagegui/releases/latest/download/sage-launcher-windows-x64.exe.zip) |
+| Linux (x64) | [sage-launcher-linux-x64.tar.gz](https://github.com/usnistgov/sagegui/releases/latest/download/sage-launcher-linux-x64.tar.gz) |
+| macOS (Intel) | [sage-launcher-macos-x64.zip](https://github.com/usnistgov/sagegui/releases/latest/download/sage-launcher-macos-x64.zip) |
+| macOS (Apple Silicon) | [sage-launcher-macos-arm64.zip](https://github.com/usnistgov/sagegui/releases/latest/download/sage-launcher-macos-arm64.zip) |
 
 > **macOS:** the archive contains **Sage Launcher.app**. The app is not notarized by Apple, so after you download it macOS refuses to open it with **"Sage Launcher.app is damaged and can't be opened."** The app is not actually damaged. Unzip it, then run this once in Terminal from the folder containing the app:
 >
@@ -84,7 +84,7 @@ Output goes to the directory set on the Run/Info tab (defaults to the working di
 Requires Rust 1.70+:
 
 ```bash
-git clone https://github.com/neely/sagegui.git
+git clone https://github.com/usnistgov/sagegui.git
 cd sagegui
 cargo build --release
 ```
@@ -131,7 +131,7 @@ If you use SageGUI in published work, please cite the software:
 
 > Neely, B.A. (2026). *SageGUI: a graphical interface for the Sage proteomics
 > search engine* (Version 0.9.0) [Computer software]. National Institute of
-> Standards and Technology. https://github.com/neely/sagegui
+> Standards and Technology. https://github.com/usnistgov/sagegui
 
 Cite the version you ran, not the repository in general. The pinned Sage
 engine version and the bundled templates both move between releases, so two
