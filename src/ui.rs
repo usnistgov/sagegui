@@ -2071,10 +2071,14 @@ impl SageLauncher {
                 crate::version::SAGE_DESCRIBE
             ));
             ui.add_space(10.0);
-            ui.label("Original Author: J.Sebastian Paez");
-            ui.label("Current Maintainer: neely");
+            ui.label("Original author: J. Sebastian Paez (jspaezp/sagegui)");
+            ui.label("Maintainer: Benjamin A. Neely (NIST)");
             ui.label("Repository: https://github.com/neely/sagegui");
-            ui.label("License: Apache-2.0");
+            ui.label(
+                "License: NIST Software Licensing Statement for NIST code. Code from \
+                 jspaezp/sagegui is Apache-2.0. Sage is MIT. See LICENSE.md and \
+                 THIRD_PARTY_LICENSES.md.",
+            );
             ui.add_space(20.0);
             ui.label("Search engine repository: https://github.com/lazear/sage");
             ui.label(

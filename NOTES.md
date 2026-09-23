@@ -1615,7 +1615,26 @@ A handoff for the sageRecon side was written for the maintainer. Its main fix is
 
 ## License and governance
 
-### The license conflict (flagged 2026-09-08, NOT resolved)
+### The license conflict (flagged 2026-09-08, resolved 2026-09-23)
+
+**Resolved 2026-09-23, following the usnistgov/sageRecon pattern.** Ben's
+decision, after sageRecon passed NIST publication with the same shape: keep the
+NIST statement unchanged as `LICENSE.md` (renamed from `LICENSE`; byte-identical
+to sageRecon's), and identify the third-party code in `THIRD_PARTY_LICENSES.md`
+rather than in the licence file. This is close to Option B below, without the
+carve-out paragraph inside `LICENSE.md`. What changed:
+- `Cargo.toml`: `license = "Apache-2.0"` became `license-file = "LICENSE.md"`.
+- `src/ui.rs` Info panel: names all three licences and points at both files.
+- `THIRD_PARTY_LICENSES.md`: lists every file derived from jspaezp/sagegui (fork
+  point `e6ccd69`), adds the full Apache-2.0 terms (closes item 5), and records
+  that the logo and icons derive from Sage's logo artwork.
+- README: the fork statement under the title, and "Third-Party Software" and
+  "License" sections in sageRecon's shape. `CITATION.cff` `license-url` points at
+  `LICENSE.md`.
+- The "Derived from jspaezp/sagegui" file headers stay as they are.
+Not reviewed by NIST OISM or counsel; sageRecon's acceptance is the precedent.
+
+The original record follows.
 
 The repo asserts three different licence answers. This is recorded, not fixed.
 The maintainer chose to flag it rather than change anything licence-bearing,

@@ -2,7 +2,7 @@
 
 A graphical interface for [Sage](https://github.com/lazear/sage), the proteomics search engine by [Michael Lazear](https://github.com/lazear). Unofficial; not affiliated with the Sage project.
 
-Based on the original [sagegui](https://github.com/jspaezp/sagegui) by [Sebastian Paez](https://github.com/jspaezp).
+This repository is the NIST-maintained fork of [jspaezp/sagegui](https://github.com/jspaezp/sagegui), the original graphical interface by [J. Sebastian Paez](https://github.com/jspaezp). It preserves the upstream project's history and incorporates substantial NIST-developed modifications. The upstream project remains available for general collaboration, while this fork provides NIST-controlled, versioned releases.
 
 [![Sage Version](https://img.shields.io/badge/Sage-v0.15.0--beta.2-blue)](https://github.com/lazear/sage/releases/tag/v0.15.0-beta.2)
 [![Build Status](https://github.com/neely/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/neely/sagegui/actions)
@@ -147,35 +147,30 @@ Please also cite Sage, which performs the searches:
 > Quantification at Scale." *Journal of Proteome Research* 2023, 22(11),
 > 3652–3659. doi:10.1021/acs.jproteome.3c00486
 
-## Attribution
+## Third-Party Software
 
-This project is an officially supported NIST fork of Sebastian Paez’s
-sagegui, built on Sage:
+SageGUI incorporates code from two projects:
 
-- **Sage** (Michael Lazear), MIT License — https://github.com/lazear/sage
-- **sagegui** (J. Sebastian Paez), Apache License 2.0 — https://github.com/jspaezp/sagegui
+- **sagegui** (J. Sebastian Paez), Apache License 2.0, https://github.com/jspaezp/sagegui. This repository is a fork of it. The files that derive from it carry a notice that says so, as Apache License 2.0 Section 4(b) requires, and `THIRD_PARTY_LICENSES.md` lists them.
+- **Sage** (Michael Lazear), MIT License, https://github.com/lazear/sage. Its source is vendored in [`vendor/sage`](vendor/sage/VENDORED.md) and compiled into the program. We made three small additive changes to one file, listed in [`vendor/sage/PATCHES.md`](vendor/sage/PATCHES.md). The SageGUI logo and app icons derive from Sage's logo.
 
-Full upstream license texts are provided in
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+Full licence texts, the list of derived files and the modification notices are in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ## Credits
 
-- Michael Lazear — Sage
-- Sebastian Paez — original sagegui
-- egui/eframe — GUI framework
+- Michael Lazear: Sage
+- J. Sebastian Paez: the original sagegui
+- egui/eframe: GUI framework
 
 ## License
 
-NIST-authored portions of this project are distributed under the NIST Software
-Licensing Statement — see [LICENSE](LICENSE). Third-party components
-(Sage and the original sagegui) retain their original licenses; see
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details.
+This software was developed by employees of the National Institute of Standards and Technology. See [LICENSE.md](LICENSE.md) for the NIST Software Licensing Statement. Third-party components retain their original licences: code derived from sagegui remains under the Apache License 2.0, and Sage remains under the MIT License. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 Project FAIR and governance practices are described in
 [fair-software.md](fair-software.md).
 
 ## Contact
 
-Benjamin A. Neely — PI  
+Benjamin A. Neely, PI  
 Data Science and AI Group, Material Data Division, Material Measurement Laboratory, National Institute of Standards and Technology  
 benjamin.neely@nist.gov

@@ -23,7 +23,7 @@ repository-code: "https://github.com/neely/sagegui"
 url: "https://github.com/neely/sagegui"
 # `license-url:` and not `license:`. The NIST Software Licensing Statement has
 # no SPDX identifier, and `license:` only accepts SPDX values.
-license-url: "https://github.com/neely/sagegui/blob/main/LICENSE"
+license-url: "https://github.com/neely/sagegui/blob/main/LICENSE.md"
 keywords:
   - proteomics
   - mass spectrometry
