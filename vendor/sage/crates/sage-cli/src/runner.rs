@@ -29,6 +29,10 @@ pub struct Runner {
     pub database: IndexedDatabase,
     pub parameters: Search,
     start: Instant,
+    /// Count of MSn spectra scored so far, incremented in
+    /// `search_processed_spectra`. Shared so a caller can poll it from
+    /// another thread while `run()` is executing (e.g. for a GUI progress bar).
+    pub progress: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 #[derive(Default)]
@@ -120,6 +124,7 @@ impl Runner {
                         database: IndexedDatabase::default(),
                         parameters: parameters.clone(),
                         start,
+                        progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
                     };
                     let peptides = mini_runner.prefilter_peptides(parallel, fasta);
                     parameters.database.clone().build_from_peptides(peptides)
@@ -137,6 +142,7 @@ impl Runner {
             database,
             parameters,
             start,
+            progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         })
     }
 
@@ -313,6 +319,8 @@ impl Runner {
             .filter(|spec| spec.masses.len() >= self.parameters.min_peaks && spec.level == 2)
             .map(|x| {
                 let prev = counter.fetch_add(1, Ordering::Relaxed);
+                self.progress
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if prev > 0 && prev % 10_000 == 0 {
                     let duration = Instant::now().duration_since(start).as_millis() as usize;
 
