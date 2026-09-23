@@ -1,10 +1,11 @@
+# Manual only (2026-09-23). It used to run on every push that changed
+# src/version.rs and commit the result to main as github-actions[bot]. That
+# puts a commit on main that no maintainer authored, and it would fire as soon
+# as Actions is turned on. The badge is one line of README.md; run this by
+# hand, or edit the badge in the same commit that changes SAGE_VERSION.
 name: Update Version Badges
 
 on:
-  push:
-    paths:
-      - 'src/version.rs'
-    branches: [main]
   workflow_dispatch:
 
 jobs:

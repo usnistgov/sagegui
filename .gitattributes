@@ -1,0 +1,13 @@
+# Keep these files byte-for-byte as committed (LF), whatever `core.autocrlf` says.
+# GitHub's Windows runners check out with autocrlf on, so without this a Windows
+# build sees CRLF copies. usnistgov/sageRecon found exactly that: its Windows
+# release carried a rewritten copy of a file it states it ships unmodified.
+
+# Vendored Sage. THIRD_PARTY_LICENSES.md states which files are unmodified, and
+# the re-vendor runbook in MAINTENANCE.md diffs this tree against upstream. Both
+# need the bytes to match lazear/sage exactly.
+vendor/sage/** -text
+
+# Bundled search templates, compiled into the binary with include_str!. Without
+# this, the Windows binary would embed CRLF copies and differ from the others.
+assets/templates/*.json -text

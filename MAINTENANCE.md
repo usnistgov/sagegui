@@ -124,7 +124,7 @@ differences are expected. Explain them in the CHANGELOG before release.
 ### Step 6: Update Documentation
 
 1. Update `CHANGELOG.md` with the new version
-2. Update README badges if needed (automated via `update-badges.yml`)
+2. Update the README Sage badge if `SAGE_VERSION` changed (by hand, or run the manual `update-badges.yml` workflow)
 3. **Bump `version:` and `date-released:` in `CITATION.cff`.** Nothing checks
    these against `Cargo.toml`, and a stale value makes the citation point at a
    release nobody ran. Do not automate this in `update-badges.yml`: that
@@ -145,7 +145,7 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z - Updated to Sage vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-The GitHub Actions workflow will automatically build binaries and create the release.
+Pushing a `v*` tag runs the build workflow, which builds the binaries and creates the release. A push to `main` does not run it; use the workflow's manual run to test a build without a tag.
 
 ---
 
