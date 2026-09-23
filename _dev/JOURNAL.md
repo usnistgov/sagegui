@@ -1,3 +1,61 @@
+## 2026-09-23: Vendored Sage, database cache, preparation for usnistgov/sagegui
+
+**Did:** Started publishing this repository as `usnistgov/sagegui`, a GitHub
+fork of `jspaezp/sagegui` in the NIST org (plan approved by Ben 2026-09-23).
+The name stays SageGUI: the fork link credits Sebastian Paez, so a shared
+name reads as "NIST's fork". Four steps landed, all as ordinary commits on
+`main`:
+
+1. **Sage vendored in `vendor/sage`.** Four commits: pristine `lazear/sage`
+   at `d74024d`, the progress patch, the cancel patch, then the switch to
+   `path` dependencies. The build no longer uses `neely/sage`. Found that the
+   engine was never plain v0.15.0-beta.2: `d74024d` is 10 upstream commits
+   after that tag. `version.rs` gains `SAGE_DESCRIBE` and the Info panel shows
+   it. Regression: the vendored `sage` CLI re-ran the 2026-09-22 serum search
+   from its `results.json`; all 32,221 PSMs matched in every column except
+   `psm_id`, and sorted `lfq.tsv` was identical.
+2. **Database cache** (design from session "FASTA database build
+   performance"), with `Runner::from_parts` as vendored patch 3. Measured on
+   the serum search: build 9.0 s, save 7.5 s, file 3.0 GB, load 6.0 s. That
+   is a small gain, far from the ~125 s the design assumed. Ben decided to
+   ship it off by default. A cached run gave the same 32,221 PSMs.
+3. **Licence** in the sageRecon shape: `LICENSE.md`, `license-file` in
+   `Cargo.toml`, the full Apache-2.0 terms and the list of derived files in
+   `THIRD_PARTY_LICENSES.md`, the fork statement in the README.
+4. **`_dev/` move** and the sageRecon files: short root `AGENTS.md`,
+   `CLAUDE.md`, `docs/AI_USAGE.md`, `.gitattributes`. CI builds on a tag or a
+   manual run only; `update-badges.yml` is manual only.
+
+**Next:** rewrite `e6ccd69..main` (NIST author address, strip the 15
+`Co-Authored-By: Claude` trailers, keep Paez's commits untouched), then push
+to `usnistgov/sagegui` with Ben's approval and recreate the releases from the
+original `neely/sagegui` binaries. Plan file:
+`~/.claude/plans/i-think-i-am-declarative-mochi.md`.
+
+**Least confident (Q1):** the Windows build. Actions is off, so nothing has
+compiled the vendored Sage or the new cache code on Windows. The cache folder
+code has a Windows branch (`%LOCALAPPDATA%`) that has never run. Check: the
+first manual CI run after Actions is enabled, then tick the cache box on
+Windows and run a search twice.
+
+**Assumed without stating (Q2):** that the cache UI looks right. I built and
+tested it but never saw the Files & Database checkbox or the Run / Info
+panel on screen.
+
+**Might be missing (Q3):** the 2026-08-24 "two minutes of silence" may still
+be real on some machine. If the build there takes minutes, the cache helps
+more than it does here. Nobody has timed a Windows build.
+
+**Could have gone better (Q4):** the cache design was approved on a number
+nobody had measured on a release build. Measuring the build first would
+have taken one minute.
+
+**Improvement (Q5):** keep `index_cache::tests::cached_database_gives_the_same_search_results`
+and the vendored-CLI regression (MAINTENANCE.md Step 5) as the standard
+checks after any change to `vendor/sage`.
+
+---
+
 ## 2026-09-22 (later) — Real-reader verification of the converters
 
 **Did:** After the v0.9.0 cut, checked what the earlier entry left open: whether
