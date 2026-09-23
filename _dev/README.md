@@ -34,3 +34,9 @@ data they name is not in this repository. Those references are not broken links 
 they record where a check was run. Entries written before September 2026 also refer to
 `github.com/neely/sagegui` and `github.com/neely/sage`, the repositories this project
 lived in before it moved to `usnistgov` and before Sage was vendored.
+
+Commit SHAs cited in these files and in code comments, when written before the
+publication on 2026-09-23, refer to the history before it was prepared for
+publication (author address set to NIST, AI co-author trailers removed). The contents
+of every commit are unchanged. `old-to-new.txt` in this directory maps each old SHA to
+its published one.

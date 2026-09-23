@@ -149,6 +149,22 @@ Pushing a `v*` tag runs the build workflow, which builds the binaries and create
 
 ---
 
+## Upstream sagegui tags
+
+This repository is a fork of `jspaezp/sagegui`, and both use `v0.x.y` tags. Upstream's
+`v0.6.0` and `v0.7.0` are different releases from ours. Never fetch upstream's tags into
+a working clone:
+
+```bash
+git remote add upstream https://github.com/jspaezp/sagegui.git
+git config remote.upstream.tagOpt --no-tags
+git fetch upstream
+```
+
+Keep new version numbers clear of upstream's.
+
+---
+
 ## API Changes Reference
 
 ### v0.14.7 → v0.15.0-beta.2 Changes
