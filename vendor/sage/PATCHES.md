@@ -65,3 +65,16 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   (GHSA-g98v-hv3f-hcfr). `env_logger` 0.11 does not use `atty`. SageGUI already
   uses 0.11, so the tree now has one copy.
 - **At the next update:** drop this patch if upstream has moved past 0.8.
+
+## 5. `reqwest` 0.11 to 0.12 in `sage-cloudpath`
+
+- **File:** `crates/sage-cloudpath/Cargo.toml` (one version line).
+- **Written:** 2026-09-24, by Benjamin A. Neely (NIST).
+- **What:** `reqwest` goes from `0.11` to `0.12`. The features stay the same
+  (`json`, `rustls-tls`, no default features). The one call site, `send_data` in
+  `src/util.rs`, compiles unchanged.
+- **Why:** `reqwest` 0.11 uses `rustls` 0.21 and `rustls-webpki` 0.101, which has three
+  advisories and no patched 0.101 release (GHSA-82j2-j2ch-gfr8, GHSA-xgp8-3hg3-c2mh,
+  GHSA-965h-392x-2mh5). `reqwest` 0.12 shares `rustls` 0.23 with `object_store`, so the
+  old TLS stack leaves the tree.
+- **At the next update:** drop this patch if upstream has moved past 0.11.
