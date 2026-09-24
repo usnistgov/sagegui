@@ -6,7 +6,8 @@ This guide explains how to keep SageGUI up-to-date with new Sage releases.
 
 SageGUI compiles Sage in from a vendored copy of its source in `vendor/sage/`: upstream
 [lazear/sage](https://github.com/lazear/sage) at a fixed commit, plus a small set of
-additive NIST patches. `vendor/sage/VENDORED.md` names the base commit, and
+NIST patches: additive code patches, and dependency bumps that clear security
+advisories. `vendor/sage/VENDORED.md` names the base commit, and
 `vendor/sage/PATCHES.md` lists every patch. When upstream Sage moves forward, we update
 the copy by hand, following the steps below. We do not track upstream automatically:
 moving to a newer Sage is a deliberate, tested and recorded change.
@@ -47,7 +48,7 @@ git show PATCH_COMMIT -- vendor/sage/crates | git apply --3way
 ```
 
 If upstream has rewritten the same lines, `git apply --3way` stops with a conflict.
-Resolve it by hand: keep the upstream change and re-add ours. All patches so far touch
+Resolve it by hand: keep the upstream change and re-add ours. All code patches so far touch
 only `crates/sage-cli/src/runner.rs`: the `Runner` struct, both `Self { ... }` literals in
 `Runner::new` (including the prefilter `mini_runner`), `search_processed_spectra`,
 `process_chunk` and `run()`. Keep the NIST header at the top of `runner.rs`. Commit each
@@ -55,6 +56,12 @@ patch separately with a message that names it, and update its PATCHES.md entry i
 code moved.
 
 If upstream has adopted one of our patches, drop it and delete its PATCHES.md entry.
+
+Dependency patches (a version or feature change in a `Cargo.toml`) need a check, not a
+replay. For each one, compare the new upstream `Cargo.toml` with the PATCHES.md entry. If
+upstream is at or past our version, drop the patch. If not, make the same edit again.
+Then run `cargo update -p NAME@OLD_VERSION` and confirm in `Cargo.lock` that each package
+the entry names has left the tree.
 
 ### Step 3: Update SageGUI's record of the Sage version
 

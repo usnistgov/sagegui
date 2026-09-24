@@ -2,9 +2,13 @@
 
 This file lists every change we (NIST) made to the vendored Sage source, relative to the
 upstream base commit named in [VENDORED.md](VENDORED.md). Each entry is one commit in this
-repository, so `git log -p -- vendor/sage` shows the exact lines. All changes so far are
-additive: they add fields and methods that the stock Sage command-line tool never calls,
-and they change no existing behaviour.
+repository, so `git log -p -- vendor/sage` shows the exact lines. There are two kinds:
+
+- **Code patches (1 to 3)** are additive. They add fields and methods that the stock Sage
+  command-line tool never calls, and they change no existing behaviour.
+- **Dependency patches (4 to 6)** change a version or a feature list in a `Cargo.toml`, to
+  remove a package with a security advisory. Each one names the advisories it clears. At
+  each update, check whether upstream has made the same change. If it has, drop the patch.
 
 We keep patches small and confined to `crates/sage-cli/src/runner.rs` where possible, and
 we keep feature logic in SageGUI itself, because every edited line in Sage has to be
@@ -78,3 +82,25 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   GHSA-965h-392x-2mh5). `reqwest` 0.12 shares `rustls` 0.23 with `object_store`, so the
   old TLS stack leaves the tree.
 - **At the next update:** drop this patch if upstream has moved past 0.11.
+
+## 6. `parquet` 50 to 59 and fewer `timsrust` features in `sage-cloudpath`
+
+- **Files:** `crates/sage-cloudpath/Cargo.toml` (two lines). SageGUI's own `Cargo.toml`
+  sets the same `timsrust` features, because Cargo merges the features of both lines.
+- **Written:** 2026-09-24, by Benjamin A. Neely (NIST).
+- **What:** `parquet` goes from `50.0.0` to `59`. `timsrust` loses its default features
+  and keeps `tdf` and `serialize`, so its `minitdf` feature is off. The Parquet writer
+  code in `src/parquet.rs` compiles unchanged.
+- **Why:** `thrift` 0.17 has an advisory (GHSA-2f9f-gq7v-9h6m). It came in twice: through
+  `parquet` 50, and through `parquet` 53, which the `timsrust` `minitdf` feature pulls in.
+  `parquet` 59 does not use the `thrift` crate.
+- **Effect:** Sage can no longer read Bruker miniTDF input. SageGUI does not offer Bruker
+  input (see NOTES, "Scope decision: mzML/.gz only"), so users lose nothing. Bruker `.d`
+  (TDF) reading still compiles.
+- **Checked:** the serum search (2026-09-22 `results.json`) with `--parquet
+  --annotate-matches`, before and after. `results.sage.parquet` (32,221 rows) and
+  `matched_fragments.sage.parquet` (264,036 rows) are identical in every column except
+  `psm_id`. `lfq.parquet` has the same 3,249 rows; its row order changes from run to run
+  even without this patch.
+- **At the next update:** drop this patch if upstream uses a `parquet` without `thrift`
+  0.17. Keep the `timsrust` features unless upstream has moved past `timsrust` 0.4.

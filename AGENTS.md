@@ -41,7 +41,7 @@ does damage.
 
 - `src/`: the application (Rust, egui/eframe).
 - `vendor/sage/`: the Sage source, vendored at a fixed upstream commit, plus our
-  small additive patches. [VENDORED.md](vendor/sage/VENDORED.md) names the base
+  small NIST patches. [VENDORED.md](vendor/sage/VENDORED.md) names the base
   commit; [PATCHES.md](vendor/sage/PATCHES.md) lists every change.
 - `assets/`: icons, logo and the bundled search templates (`assets/templates/`).
 - `docs/`: user documentation and the parameter reference.
@@ -55,8 +55,10 @@ These are locked. [_dev/NOTES.md](_dev/NOTES.md) holds the reasoning and evidenc
 for each one.
 
 - **Sage is vendored, not a Git fork or a subprocess.** It is compiled in from
-  `vendor/sage`. Patches stay additive and, where possible, inside
-  `crates/sage-cli/src/runner.rs`; the feature logic stays in `src/`. Record every
+  `vendor/sage`. Code patches stay additive and, where possible, inside
+  `crates/sage-cli/src/runner.rs`; the feature logic stays in `src/`. A
+  dependency patch (a `Cargo.toml` version or feature change) is allowed to
+  clear a security advisory. Record every
   patch in `vendor/sage/PATCHES.md`. Update Sage only by the re-vendor runbook in
   [MAINTENANCE.md](MAINTENANCE.md).
 - **Never change the `eframe::run_native("Sage Launcher", ...)` string.** eframe

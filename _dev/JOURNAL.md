@@ -1,3 +1,29 @@
+## 2026-09-24 (later): Dependabot alerts cleared in vendored Sage
+
+**Did:** Five Dependabot alerts on usnistgov came from vendored Sage
+dependencies, and upstream `lazear/sage` master pins the same versions. With
+Ben's approval, added three dependency patches (PATCHES.md 4 to 6):
+`env_logger` 0.11 in `sage-cli` (drops `atty`), `reqwest` 0.12 in
+`sage-cloudpath` (drops `rustls-webpki` 0.101), and `parquet` 59 plus
+`timsrust` without `minitdf` (drops `thrift` 0.17). No source line changed. No
+`aws-lc-rs` came in. Amended AGENTS.md: code patches stay additive, and
+dependency patches are allowed for advisories. MAINTENANCE step 2 now says how
+to check them at a re-vendor.
+
+**Checked:** the serum search with `--parquet --annotate-matches`, before and
+after: PSM and fragment files identical except `psm_id`, and LFQ rows identical
+as a set (its order changes between runs of the same binary). `cargo test`: 154
+passed.
+
+**Least confident (Q1):** the Windows and Linux builds of the new lock file.
+Nothing has built this tree there yet.
+
+**Found (Q3):** `cargo clippy --all-targets -D warnings` fails on 6
+`field_reassign_with_default` errors in test code (`src/ui.rs`,
+`src/sage_json.rs`). They predate this work; the lint is newer than the code.
+
+---
+
 ## 2026-09-24: Privacy audit of the public tree
 
 **Did:** Searched the tracked files outside `vendor/` for local paths,

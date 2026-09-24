@@ -15,14 +15,16 @@ Vendored: `vendor/sage/`, base commit `d74024df774054fa411a9d5cca6013ce91d26208`
 
 **Redistribution notice:** this repository contains the source of three Sage crates
 (`crates/sage`, published as `sage-core`; `crates/sage-cli`; `crates/sage-cloudpath`),
-and SageGUI compiles them into its binary. The copy is **MODIFIED**. One file differs
+and SageGUI compiles them into its binary. The copy is **MODIFIED**. Three files differ
 from upstream:
 
 | File | State |
 |---|---|
 | `crates/sage/**` | unmodified |
-| `crates/sage-cloudpath/**` | unmodified |
+| `crates/sage-cloudpath/Cargo.toml` | **MODIFIED, see below** |
+| every other file in `crates/sage-cloudpath/` | unmodified |
 | `crates/sage-cli/src/runner.rs` | **MODIFIED, see below** |
+| `crates/sage-cli/Cargo.toml` | **MODIFIED, see below** |
 | every other file in `crates/sage-cli/` | unmodified |
 
 **Modifications to `runner.rs`,** made by Benjamin A. Neely (NIST) and marked in a
@@ -36,7 +38,12 @@ header at the top of the file:
   peptide database loaded from its on-disk cache.
 
 All three changes are additive. The stock Sage command-line tool never uses them, so its
-behaviour is unchanged. `vendor/sage/PATCHES.md` gives the full list and the reasons,
+behaviour is unchanged.
+
+**Modifications to the two `Cargo.toml` files,** made by Benjamin A. Neely (NIST) on
+2026-09-24: newer versions of `env_logger`, `reqwest` and `parquet`, and fewer `timsrust`
+features. These remove packages with security advisories. The Bruker miniTDF reader is
+off as a result. `vendor/sage/PATCHES.md` gives the full list and the reasons,
 and `git log -p -- vendor/sage` shows every changed line. The upstream MIT license text
 is kept at `vendor/sage/LICENSE` and is reproduced below; it applies to the original
 files.
