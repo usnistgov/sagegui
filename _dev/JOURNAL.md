@@ -1,3 +1,20 @@
+## 2026-09-24: Privacy audit of the public tree
+
+**Did:** Searched the tracked files outside `vendor/` for local paths,
+usernames, e-mail addresses, secrets, intranet links and private repos. Removed
+three items: the Mac and Windows checkout paths in NOTES "External reference
+material", the `/Users/ben/data/` test paths in `src/sage_json.rs` (now
+`/Users/x/data/`), and a local plan filename in the 2026-09-23 entry. Kept the
+`~/Documents/proteomicsTesting/` paths, which `_dev/README.md` explains, and the
+intranet links in `fair-software.md`, which is byte-identical to the
+`usnistgov/opensource-repo` template.
+
+**History (not rewritten):** the published commits still hold the usernames
+`ben` and `ban` in paths, one plan filename and three links to the private
+`neely/sagePreview`. No secrets and no personal e-mail were found.
+
+---
+
 ## 2026-09-23 (later): Published as usnistgov/sagegui
 
 **Did:** Rewrote `e6ccd69..main` in a scratchpad clone: author and committer
@@ -60,8 +77,7 @@ name reads as "NIST's fork". Four steps landed, all as ordinary commits on
 **Next:** rewrite `e6ccd69..main` (NIST author address, strip the 15
 `Co-Authored-By: Claude` trailers, keep Paez's commits untouched), then push
 to `usnistgov/sagegui` with Ben's approval and recreate the releases from the
-original `neely/sagegui` binaries. Plan file:
-`~/.claude/plans/i-think-i-am-declarative-mochi.md`.
+original `neely/sagegui` binaries.
 
 **Least confident (Q1):** the Windows build. Actions is off, so nothing has
 compiled the vendored Sage or the new cache code on Windows. The cache folder

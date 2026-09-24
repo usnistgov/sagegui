@@ -2042,12 +2042,10 @@ The validated reference run — use to sanity-check regressions:
 ### External reference material (from sageRecon)
 
 The project was renamed sagePreview to sageRecon and moved to
-`github.com/usnistgov/sageRecon`. These paths are from the Windows machine and
-predate that move. On the Mac the checkout is
-`/Users/ben/Documents/GitHub/sageRecon`, where this material now lives under
+`github.com/usnistgov/sageRecon`. This material now lives in sageRecon under
 `_dev/reference-notes/`.
 
-Historic location, `C:\Users\ban\Documents\GitHub\sagePreview\reference-notes\`:
+Historic location: `sagePreview\reference-notes\` on the Windows machine.
 
 | File | Content |
 |------|---------|

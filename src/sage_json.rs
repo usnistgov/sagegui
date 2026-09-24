@@ -893,8 +893,8 @@ mod tests {
     #[test]
     fn results_json_file_urls_are_shown_readably() {
         let doc = SageJson::from_str(
-            r#"{"mzml_paths":["file:///Users/ben/data/B.naive%2001steady-state.mzML.gz"],
-                "database":{"fasta":"file:///Users/ben/data/human%20canonical.fasta"}}"#,
+            r#"{"mzml_paths":["file:///Users/x/data/B.naive%2001steady-state.mzML.gz"],
+                "database":{"fasta":"file:///Users/x/data/human%20canonical.fasta"}}"#,
         )
         .expect("must parse");
         let mut config = Config::default();
@@ -903,11 +903,11 @@ mod tests {
 
         let joined = report.needs_reselect.join("\n");
         assert!(
-            joined.contains("/Users/ben/data/B.naive 01steady-state.mzML.gz"),
+            joined.contains("/Users/x/data/B.naive 01steady-state.mzML.gz"),
             "percent-encoding should be decoded: {joined}"
         );
         assert!(
-            joined.contains("/Users/ben/data/human canonical.fasta"),
+            joined.contains("/Users/x/data/human canonical.fasta"),
             "FASTA path should be decoded: {joined}"
         );
         assert!(!joined.contains("file://"), "scheme should be stripped");
