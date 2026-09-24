@@ -54,3 +54,14 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   the same database settings, SageGUI loads the cached database and passes it here,
   which skips the database build (about two minutes for a human proteome). SageGUI's
   cache key covers every parameter that affects the build; see `src/index_cache.rs`.
+
+## 4. `env_logger` 0.8 to 0.11 in `sage-cli`
+
+- **File:** `crates/sage-cli/Cargo.toml` (one version line).
+- **Written:** 2026-09-24, by Benjamin A. Neely (NIST).
+- **What:** `env_logger = "0.8.4"` becomes `env_logger = "0.11"`. The code in
+  `main.rs` compiles unchanged.
+- **Why:** `env_logger` 0.8 depends on `atty`, which has an advisory with no fix
+  (GHSA-g98v-hv3f-hcfr). `env_logger` 0.11 does not use `atty`. SageGUI already
+  uses 0.11, so the tree now has one copy.
+- **At the next update:** drop this patch if upstream has moved past 0.8.
