@@ -2,7 +2,7 @@
 
 A graphical interface for [Sage](https://github.com/lazear/sage), the proteomics search engine by [Michael Lazear](https://github.com/lazear). Unofficial; not affiliated with the Sage project.
 
-This repository is the NIST-maintained fork of [jspaezp/sagegui](https://github.com/jspaezp/sagegui), the original graphical interface by [J. Sebastian Paez](https://github.com/jspaezp). It preserves the upstream project's history and incorporates substantial NIST-developed modifications. The upstream project remains available for general collaboration, while this fork provides NIST-controlled, versioned releases.
+This repository is the NIST-maintained fork of [jspaezp/sagegui](https://github.com/jspaezp/sagegui), the original graphical interface by [J. Sebastian Paez](https://github.com/jspaezp). It preserves the upstream project's history and incorporates substantial NIST-developed modifications. The upstream project remains available for general collaboration, while this fork provides NIST-maintained, versioned releases.
 
 [![Sage Version](https://img.shields.io/badge/Sage-v0.15.0--beta.2-blue)](https://github.com/lazear/sage/releases/tag/v0.15.0-beta.2)
 [![Build Status](https://github.com/usnistgov/sagegui/actions/workflows/build.yml/badge.svg)](https://github.com/usnistgov/sagegui/actions)
@@ -37,7 +37,7 @@ This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VEND
 - Convert results to mzIdentML 1.1.1 and pepXML 1.23 from the Run / Info tab, for any earlier run or automatically after a search. Choose the q-value (spectrum, peptide or protein), the limit and whether to keep decoys
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
 
-### Database cache
+### Database cache (feature currently in development)
 
 On Files & Database, "Cache prepared database" saves the peptide database that Sage builds from the FASTA. A later run with the same FASTA content and the same database settings (enzyme, modifications, mass range, decoys) loads it instead of building it again. Changing only tolerances, charges, quantification or the spectrum files still reuses it. It is off by default, because one entry for a human proteome is about 3 GB, and it is not available with prefiltering.
 
@@ -96,11 +96,11 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 ## Related
 
 - [Sage](https://github.com/lazear/sage) — the search engine
-- [sageRecon](https://github.com/usnistgov/sageRecon) — reconnaissance for unfamiliar data: detects modifications and recommends mass tolerances before a production search
+- [sageRecon](https://github.com/usnistgov/sageRecon) — reconnaissance for unfamiliar data: detects modifications and recommends mass tolerances before a production search; will give you search settings to use for Sage
 
 ## Downstream tools
 
-Tools that read what SageGUI produces. This list grows as support lands.
+Tools that read what Sage/SageGUI produces. This list grows as support is reported.
 
 - [PDV](https://github.com/wenbostar/PDV) — spectrum and PSM viewer. Sage support arrived in
   [v2.7.0](https://github.com/wenbostar/PDV/releases/tag/v2.7.0): open `results.sage.tsv` in the
