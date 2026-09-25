@@ -836,8 +836,10 @@ fn read_payload<R: Read>(r: &mut PayloadReader<R>) -> io::Result<IndexedDatabase
         buf.resize(take * 4, 0);
         r.take(&mut buf)?;
         min_value.extend(
-            buf.chunks_exact(4)
-                .map(|c| f32::from_bits(u32::from_le_bytes(c.try_into().unwrap()))),
+            buf.as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| f32::from_bits(u32::from_le_bytes(*c))),
         );
     }
 
@@ -901,7 +903,7 @@ fn read_payload<R: Read>(r: &mut PayloadReader<R>) -> io::Result<IndexedDatabase
         let take = (n - fragments.len()).min(BLOCK);
         buf.resize(take * 8, 0);
         r.take(&mut buf)?;
-        for c in buf.chunks_exact(8) {
+        for c in buf.as_chunks::<8>().0 {
             let ix = u32::from_le_bytes(c[0..4].try_into().unwrap());
             if ix as usize >= peptide_count {
                 return Err(bad("fragment peptide index"));
