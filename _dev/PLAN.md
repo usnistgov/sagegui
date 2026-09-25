@@ -10,7 +10,7 @@
 
 - **Current phase:** Published as `usnistgov/sagegui` (2026-09-23), a GitHub fork of `jspaezp/sagegui`. Releases are tagged `nist-vX.Y.Z`. Actions is on (2026-09-25). On `main` but not yet in a release: vendored Sage with six patches (three code, three dependency), the reworked Info / Help block, the database cache (hidden by `index_cache::ENABLED`), the licence files and the `_dev/` move.
 - **Last updated:** 2026-09-25
-- **Next action (next session):** (1) Check the result of the first manual `build.yml` run on usnistgov (see JOURNAL 2026-09-25). (2) Cut the first NIST-hosted release as `nist-vX.Y.Z` (version not chosen). Decide first whether the cache ships in it. (3) Then the open items in Handoff below. Keep `neely/sage` public: commits before the vendoring still pin it.
+- **Next action (next session):** (1) Cut the first NIST-hosted release as `nist-vX.Y.Z` (version not chosen). Decide first whether the cache ships in it. The manual `build.yml` run on usnistgov passed on all four targets on 2026-09-25 (run 36175713918). (2) Then the open items in Handoff below. Keep `neely/sage` public: commits before the vendoring still pin it.
 - **Released:** `nist-v0.9.0` (2026-09-22): Convert results to mzIdentML and pepXML, a Results location, Write HTML report, a pre-run output-folder check, a Combine Charge States hover note. Earlier releases are in CHANGELOG.md.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.

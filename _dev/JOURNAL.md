@@ -1,3 +1,51 @@
+## 2026-09-25: First usnistgov build, Info / Help block, cache hidden
+
+**Did:** Session-start check found PLAN stale (status date, "two patches",
+the rename checkbox, a Handoff list that disagreed with the status block).
+Ben chose the work. (1) Hid the database cache: `index_cache::ENABLED` is
+false, the UI is not drawn, and a saved `reuse_cached_index` has no effect.
+The README and CHANGELOG text moved to NOTES for later. (2) Reworked Info /
+Help as one block: versions, fork statement, maintainer, issues link,
+licence, and how to cite. `sagegui_citation()` builds the tag from the Cargo
+version, and a test checks it against `CITATION.cff`. Ben checked it on
+screen. (3) Fixed 7 clippy errors in test code; CI clippy now uses
+`--all-targets`. (4) Trimmed PLAN from 496 to about 300 lines, fixed stale
+repository facts in NOTES, and removed em dashes from import messages and
+user docs.
+
+**CI:** Actions is on. The first manual `build.yml` run failed on all four
+targets at Clippy. CI uses the latest stable Rust (1.98.1), which adds the
+lint `chunks_exact_to_as_chunks`; two loops in `src/index_cache.rs` hit it.
+This was not caused by today's changes: the local toolchain was Homebrew
+Rust 1.97.1, which does not have the lint. Fixed with `as_chunks` and
+checked with clippy 1.98.1. The second run (36175713918) passed on all
+four. The macOS artifacts hold an x86_64 and an arm64 binary, checked with
+`file`. No release was made (the release step runs only on a tag).
+
+**Least confident (Q1):** the cache reader after the `as_chunks` change. The
+unit tests round-trip a database, but the end-to-end cache test is ignored
+by default and was not run. It matters only when the cache is turned back
+on. Check: run `cached_database_gives_the_same_search_results` with
+`SAGEGUI_CACHE_E2E` before setting `ENABLED` to true.
+
+**Assumed (Q2):** that Ben wanted the README cache section removed along
+with the UI. It now says "hidden until ready" under To be added.
+
+**Missing (Q3):** CI tracks the latest stable Rust, so a new clippy lint can
+break a release build with no code change. The vendored
+`internal_eq_trait_method_impls` warning will also become a hard error in a
+future Rust release.
+
+**Could have gone better (Q4):** the local checks used Homebrew Rust 1.97.1,
+not the rustup 1.98.1 that CI uses, so the lint was found only in CI. Clippy
+and rustfmt are now installed in the rustup stable toolchain.
+
+**Improvement (Q5):** run the local checks with the rustup toolchain (put
+`~/.rustup/toolchains/stable-*/bin` ahead of Homebrew on `PATH`, or remove
+the Homebrew Rust), so local clippy matches CI.
+
+---
+
 ## 2026-09-24 (later): Dependabot alerts cleared in vendored Sage
 
 **Did:** Five Dependabot alerts on usnistgov came from vendored Sage
