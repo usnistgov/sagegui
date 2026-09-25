@@ -2067,27 +2067,42 @@ impl SageLauncher {
 
         ui.group(|ui| {
             ui.heading("Info / Help");
-            ui.label("Sage GUI Version:");
-            ui.label(env!("CARGO_PKG_VERSION"));
             ui.label(format!(
-                "Sage Engine Version: {} (with NIST patches)",
+                "SageGUI {} (release nist-v{})",
+                env!("CARGO_PKG_VERSION"),
+                env!("CARGO_PKG_VERSION")
+            ));
+            ui.label(format!(
+                "Sage engine {} (with NIST patches)",
                 crate::version::SAGE_DESCRIBE
             ));
-            ui.add_space(10.0);
-            ui.label("Original author: J. Sebastian Paez (jspaezp/sagegui)");
-            ui.label("Maintainer: Benjamin A. Neely (NIST)");
-            ui.label("Repository: https://github.com/usnistgov/sagegui");
-            ui.label(
-                "License: NIST Software Licensing Statement for NIST code. Code from \
-                 jspaezp/sagegui is Apache-2.0. Sage is MIT. See LICENSE.md and \
-                 THIRD_PARTY_LICENSES.md.",
+            ui.add_space(8.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.label("SageGUI is the NIST fork of");
+                ui.hyperlink_to("jspaezp/sagegui", "https://github.com/jspaezp/sagegui");
+                ui.label("by J. Sebastian Paez.");
+            });
+            ui.label("Maintainer: Benjamin A. Neely (NIST).");
+            ui.hyperlink_to(
+                "Report a problem or ask a question",
+                format!("{SAGEGUI_REPO}/issues"),
             );
-            ui.add_space(20.0);
-            ui.label("Search engine repository: https://github.com/lazear/sage");
-            ui.label(
-                "If you use Sage in a scientific publication, please cite the following paper: \
-                 'Sage: An Open-Source Tool for Fast Proteomics Searching and Quantification at \
-                 Scale' https://doi.org/10.1021/acs.jproteome.3c00486",
+            ui.horizontal_wrapped(|ui| {
+                ui.label(
+                    "Licence: NIST code is under the NIST Software Licensing Statement. \
+                     Code from jspaezp/sagegui is Apache-2.0. Sage is MIT.",
+                );
+                ui.hyperlink_to("LICENSE.md", format!("{SAGEGUI_REPO}/blob/main/LICENSE.md"));
+            });
+            ui.add_space(8.0);
+            ui.strong("How to cite");
+            ui.label("Cite the SageGUI release you ran:");
+            ui.add(egui::Label::new(sagegui_citation()).selectable(true));
+            ui.label("Also cite Sage, which does the search:");
+            ui.add(egui::Label::new(SAGE_CITATION).selectable(true));
+            ui.hyperlink_to(
+                "doi:10.1021/acs.jproteome.3c00486",
+                "https://doi.org/10.1021/acs.jproteome.3c00486",
             );
         });
     }
@@ -2410,9 +2425,43 @@ impl SageLauncher {
     }
 }
 
+/// The published repository. Info / Help links to its issues and licence.
+const SAGEGUI_REPO: &str = "https://github.com/usnistgov/sagegui";
+
+/// The Sage paper, as the README "Citation" section gives it.
+const SAGE_CITATION: &str = "Lazear, M.R. \"Sage: An Open-Source Tool for Fast Proteomics \
+     Searching and Quantification at Scale.\" Journal of Proteome Research 2023, 22(11), \
+     3652-3659.";
+
+/// The SageGUI citation for this build. Same text as the README "Citation"
+/// section, with the release tag taken from the Cargo version, so it always
+/// names the release the user ran.
+fn sagegui_citation() -> String {
+    format!(
+        "Neely, B.A. (2026). SageGUI: a graphical interface for the Sage proteomics \
+         search engine (Version nist-v{}) [Computer software]. National Institute of \
+         Standards and Technology. {SAGEGUI_REPO}",
+        env!("CARGO_PKG_VERSION")
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The in-app citation must name the release tag of this build and the
+    /// published repository, as README "Citation" and CITATION.cff do.
+    #[test]
+    fn the_citation_names_this_release_and_the_repository() {
+        let c = sagegui_citation();
+        assert!(c.contains(&format!("(Version nist-v{})", env!("CARGO_PKG_VERSION"))));
+        assert!(c.contains("https://github.com/usnistgov/sagegui"));
+        let cff = include_str!("../CITATION.cff");
+        assert!(
+            cff.contains(&format!("version: \"nist-v{}\"", env!("CARGO_PKG_VERSION"))),
+            "CITATION.cff version must match Cargo.toml"
+        );
+    }
 
     /// Every bundled template must name a known enzyme after going through
     /// the real import path. Catches a template edit that silently changes
