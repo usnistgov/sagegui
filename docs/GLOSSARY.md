@@ -1,4 +1,4 @@
-# Glossary — SageGUI
+# SageGUI glossary
 
 Terms and concepts used in this project.
 

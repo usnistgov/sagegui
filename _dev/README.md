@@ -19,6 +19,7 @@ lost.
 | `NOTES.md` | Settled decisions (marked `(locked)`), discovered facts, dead ends, entries marked "intentional, not a bug", and reference material. The main record |
 | `JOURNAL.md` | Dated session debriefs, newest first: what was done, what was least certain, what to do differently |
 | `feedback-2026-07-24.md` | Feature requests from a collaborator, kept verbatim |
+| `old-to-new.txt` | Map from each commit SHA before the 2026-09-23 publication to its published SHA |
 
 ## Reading it honestly
 

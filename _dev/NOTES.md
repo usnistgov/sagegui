@@ -9,8 +9,8 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 
 ## Design decisions (locked)
 
-### Option A — fork Sage, don't wrap it (locked)
-- **What:** SageGUI embeds Sage as a Rust library dependency (via our fork `neely/sage`), rather than shelling out to `sage.exe` as a subprocess (that rejected approach is "Option C").
+### Option A: embed Sage, don't wrap it (locked)
+- **What:** SageGUI embeds Sage as a Rust library dependency (vendored in `vendor/sage` since 2026-09-23; before that, the Git fork `neely/sage`), rather than shelling out to `sage.exe` as a subprocess (that rejected approach is "Option C").
 - **Why:** Tight integration — single-binary distribution and the ability to show real-time progress from inside the process. This was the user's preference.
 - **Rejected:** Option C (subprocess wrapper generating a JSON config and calling `sage.exe`). Would decouple us from Sage's internal API, but loses single-binary distribution and in-process progress. Reconsider only if the fork-sync maintenance burden becomes too high (that's flagged as a possible Phase 9 in PLAN).
 - **Consequence:** We accept the ongoing burden of keeping our Sage copy in sync with upstream `lazear/sage`. See MAINTENANCE.md.
@@ -22,7 +22,7 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Rejected:** Rewriting in another framework — no reason to.
 
 ### Single `main.rs` (locked, revisit-able)
-- **What:** The GUI started as one `src/main.rs`. It is now split: `src/main.rs` (app state, run thread), `src/ui.rs` (tab rendering), `src/sage_json.rs` (template and config import), `src/export/` (mzIdentML and pepXML converters, no UI yet) and `src/version.rs` (Sage version constants). The UI was extracted to `ui.rs` in the 2026-08-13 restructure. The last line below allows a split.
+- **What:** The GUI started as one `src/main.rs`. It is now split: `src/main.rs` (app state, run thread), `src/ui.rs` (tab rendering), `src/sage_json.rs` (template and config import), `src/export/` (mzIdentML and pepXML converters), `src/convert_job.rs` (runs a conversion on a thread), `src/index_cache.rs` (database cache) and `src/version.rs` (Sage version constants). The UI was extracted to `ui.rs` in the 2026-08-13 restructure. The last line below allows a split.
 - **Why:** Keeps Sebastian's original structure; no need to refactor while it's working.
 - Not deeply locked — fine to split if a feature makes the single file unwieldy.
 
@@ -33,11 +33,11 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Upstream warning now visible (intentional, not a bug):** `cargo build` prints one `internal_eq_trait_method_impls` future-incompatibility warning from `vendor/sage/crates/sage/src/enzyme.rs:103`. It is upstream code. As a Git dependency its lints were capped; as a path dependency they are shown. Clippy `-D warnings` applies only to the `sagegui` crate, so CI still passes. Do not patch it locally; it will go when upstream fixes it.
 
 ### Version sync via `src/version.rs` constants (locked)
-- **What:** Sage version info lives in `src/version.rs` constants (`SAGE_VERSION`, `SAGE_COMMIT`, `SAGE_COMMIT_SHORT`, `SAGE_RELEASE_URL`, `SAGE_COMMIT_URL`), consumed at compile time.
+- **What:** Sage version info lives in `src/version.rs` constants (`SAGE_VERSION`, `SAGE_DESCRIBE`, `SAGE_COMMIT`, `SAGE_COMMIT_SHORT`, `SAGE_RELEASE_URL`, `SAGE_COMMIT_URL`), consumed at compile time.
 - **Why:** Simpler than the originally-considered `build.rs` auto-detection.
 - **Rejected:** `build.rs` that auto-detects the version from `Cargo.toml` — removed in favor of the plain constants. Do not re-add it.
 
-### Custom patch carried on `neely/sage`: `Runner.progress` counter (2026-08-21)
+### Sage patch 1: `Runner.progress` counter (2026-08-21; first on `neely/sage`, now vendored)
 - **Now vendored (2026-09-23):** this patch is `vendor/sage/PATCHES.md` entry 1, commit `cddfb85`. The detail below is the original record. Where it says `neely/sage` or "merge into the fork", read "re-apply to `vendor/sage`" (MAINTENANCE.md Step 2).
 - **What:** `neely/sage` `master` (merged PR #1, commit `cf20b75b`, on top of
   `d74024df`) carries a small hand-written patch, not from upstream
@@ -67,7 +67,7 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
   re-verify with `cargo check` before re-pinning `sagegui`. If it's clean, no
   action needed beyond noting the new commit hash.
 
-### Custom patch carried on `neely/sage`: `Runner.cancel` cooperative cancellation (2026-08-24)
+### Sage patch 2: `Runner.cancel` cooperative cancellation (2026-08-24; first on `neely/sage`, now vendored)
 - **Now vendored (2026-09-23):** this patch is `vendor/sage/PATCHES.md` entry 2, commit `b6746d3`. The detail below is the original record.
 - **What:** `neely/sage` `master` (commit `ed5f06c`, pushed straight to
   master, on top of `cf20b75b`) carries a second additive patch: a
@@ -180,6 +180,15 @@ web-LLM proposal live in `docs/ui-spec.md`; the porter's handoff (ASCII mockups
    internet to display: Sage builds it with `report-builder` 0.1.1 (locked in
    `Cargo.lock`), whose `lib.rs` loads plotly, jQuery and DataTables from CDNs.
    Checked in the crate source 2026-09-21.
+   **Info / Help (reworked 2026-09-25):** one group with the SageGUI version
+   and release tag, the Sage engine version, the fork statement (link to
+   `jspaezp/sagegui`), the maintainer, a link to `usnistgov/sagegui` issues,
+   the licence line (link to `LICENSE.md`) and how to cite SageGUI and Sage.
+   The SageGUI citation is built by `sagegui_citation()` from the Cargo
+   version. A test checks it against `CITATION.cff`. When the citation year
+   or author changes, change README "Citation", `CITATION.cff` and
+   `sagegui_citation()` together. The database cache group sits between
+   Search output and Results when `index_cache::ENABLED` is true.
 
 Pinned **Run Bar** (`TopBottomPanel::bottom`) renders every frame regardless of
 active tab — the single most important structural change (today's Launch button
@@ -604,8 +613,8 @@ places — right before the expensive per-spectrum `scorer.score()` call,
 between file chunks, and once more in `run()` right after scoring completes,
 before any FDR/grouping/quant/write step. Full technical detail (why it's
 shaped as an opt-in builder rather than a constructor-signature change, what
-it touches for the next Sage merge) lives in "Custom patch carried on
-`neely/sage`: `Runner.cancel` cooperative cancellation" above — this section
+it touches for the next Sage merge) lives in "Sage patch 2: `Runner.cancel` cooperative
+cancellation" above — this section
 just covers the Stop-button-specific history. `sagegui`'s `run_sage` now
 threads the *same* `Arc<AtomicBool>` used for the pre-search checkpoints into
 `Runner::new(...).with_cancel(cancel.clone())`, so one flag covers the whole
@@ -1777,9 +1786,9 @@ and should land in both at once.
 
 **SageGUI** is a graphical front-end for [Sage](https://github.com/lazear/sage), a fast Rust proteomics search engine. It lets users configure and run Sage searches without the command line: file selection (mzML + FASTA), parameter configuration, search execution with progress, and a basic results summary.
 
-- **Original author:** Sebastian Paez (`jspaezp/sagegui`)
-- **Our fork:** `neely/sagegui`
-- **Sage engine fork:** `neely/sage` (from `lazear/sage`)
+- **Original author:** J. Sebastian Paez (`jspaezp/sagegui`)
+- **This repository:** `usnistgov/sagegui`, a GitHub fork of `jspaezp/sagegui` (was `neely/sagegui`, now archived)
+- **Sage engine:** vendored from `lazear/sage` in `vendor/sage` (was the Git fork `neely/sage`)
 
 **What Sage does:** takes MS data (mzML) + a protein database (FASTA), matches experimental spectra to theoretical peptide fragmentation, and outputs peptide-spectrum matches (PSMs) with confidence scores. Known for being 10–100× faster than comparable tools at high sensitivity.
 
@@ -1823,22 +1832,24 @@ Also removed: the `BrukerSpectrumProcessor` import (no longer needed).
 | **`Kind` not hashable** | `sage_core::ion_series::Kind` doesn't implement `Hash`/`Eq` in official Sage — relevant if you touch ion-series collections. |
 | **timsrust API drift** | `timsrust::readers::SpectrumReaderConfig` doesn't exist in newer versions — watch for this when touching Bruker/timsTOF paths. |
 
-### Key files in the Sage fork
+### Key files in the vendored Sage (`vendor/sage/`)
 
 | File | Purpose |
 |------|---------|
 | `crates/sage-cli/src/lib.rs` | Exports `input`, `output`, `runner`, `telemetry` |
 | `crates/sage-cli/src/input.rs` | `Input`, `LfqOptions`, `QuantOptions`, etc. |
 | `crates/sage-cli/src/runner.rs` | `Runner::new()`, `Runner::run()` |
-| `crates/sage-core/src/database.rs` | `Builder`, `EnzymeBuilder` |
-| `crates/sage-core/src/lfq.rs` | LFQ options |
+| `crates/sage/src/database.rs` | `Builder`, `EnzymeBuilder` (crate name `sage-core`) |
+| `crates/sage/src/lfq.rs` | LFQ options |
+| `crates/sage/src/mass.rs` | `Tolerance::bounds` (see the AGENTS.md STOP section) |
 
 ### Sage versions
 
 | Version | Status | Notes |
 |---------|--------|-------|
 | v0.14.7 | old (Sebastian's) | what the original GUI used |
-| v0.15.0-beta.2 | current | our version, commit `ed5f06ca` (with our patches) |
+| v0.15.0-beta.2 | previous | the `neely/sage` Git fork at `ed5f06ca`, until 2026-09-23 |
+| v0.15.0-beta.2-10-gd74024d | current | vendored `lazear/sage` commit `d74024df` plus NIST patches (`vendor/sage/PATCHES.md`) |
 
 ### Divergent `v0.7.0-alpha.*` tags (not our work — deleted locally)
 
@@ -2050,9 +2061,9 @@ The validated reference run — use to sanity-check regressions:
 |---------|---------|----------|
 | sageRecon | Reconnaissance tool using Sage: detects modifications and recommends mass tolerances before a production search. Renamed from sagePreview and moved to the NIST org. | `github.com/usnistgov/sageRecon` |
 | sage (official) | The search engine | `github.com/lazear/sage` |
-| sage (our fork) | Modified/pinned Sage | `github.com/neely/sage` |
+| sage (vendored) | Upstream Sage plus NIST patches, compiled in | `vendor/sage/` (was `github.com/neely/sage`, still public: old commits pin it) |
 | sagegui (Sebastian's) | Original GUI | `github.com/jspaezp/sagegui` |
-| sagegui (ours) | This project | `github.com/neely/sagegui` |
+| sagegui (ours) | This project | `github.com/usnistgov/sagegui` (was `github.com/neely/sagegui`, archived) |
 
 ### External reference material (from sageRecon)
 

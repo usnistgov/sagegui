@@ -31,7 +31,7 @@ This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VEND
 - Starting templates on the Experiment tab (tryptic wide MS1/tight MS2, tight, open, biofluid, TMT 11-plex)
 - Load search parameters from any Sage `config.json` or a past run's `results.json`
 - Tolerance windows entered as a delta-mass range, so a +500 Da modification is set as +500
-- Stop button — cancels a run, including one already scoring spectra
+- Stop button: cancels a run, including one already scoring spectra
 - Search output: write a Percolator `.pin` file, an HTML QC report, or per-fragment match detail alongside the results
 - Convert results to mzIdentML 1.1.1 and pepXML 1.23 from the Run / Info tab, for any earlier run or automatically after a search. Choose the q-value (spectrum, peptide or protein), the limit and whether to keep decoys
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
@@ -87,34 +87,34 @@ Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
 
 ## Related
 
-- [Sage](https://github.com/lazear/sage) — the search engine
-- [sageRecon](https://github.com/usnistgov/sageRecon) — reconnaissance for unfamiliar data: detects modifications and recommends mass tolerances before a production search; will give you search settings to use for Sage
+- [Sage](https://github.com/lazear/sage) is the search engine
+- [sageRecon](https://github.com/usnistgov/sageRecon): reconnaissance for unfamiliar data: detects modifications and recommends mass tolerances before a production search; will give you search settings to use for Sage
 
 ## Downstream tools
 
 Tools that read what Sage/SageGUI produces. This list grows as support is reported.
 
-- [PDV](https://github.com/wenbostar/PDV) — spectrum and PSM viewer. Sage support arrived in
+- [PDV](https://github.com/wenbostar/PDV): spectrum and PSM viewer. Sage support arrived in
   [v2.7.0](https://github.com/wenbostar/PDV/releases/tag/v2.7.0): open `results.sage.tsv` in the
   Database Searching dialog together with the mzML or mgf files the search used. Gzipped spectrum
   files work, and decoys and hits above 1% q-value can be filtered on import.
-- [MSstats](https://github.com/Vitek-Lab/MSstatsConvert) — statistical analysis. A Sage converter is
+- [MSstats](https://github.com/Vitek-Lab/MSstatsConvert): statistical analysis. A Sage converter is
   [in development](https://github.com/Vitek-Lab/MSstatsConvert/issues/143) and will read `lfq.tsv`,
   which carries the MS1 areas MSstats wants. **If you plan to use it, turn off Combine Charge States
   on the Quant tab.** With it on, which is the default, Sage writes a charge of -1 and
   `PrecursorCharge` is meaningless downstream.
-- Tools that read mzIdentML or pepXML — use the **Results** group on the Run / Info tab. It writes
+- Tools that read mzIdentML or pepXML: use the **Results** group on the Run / Info tab. It writes
   `results.sage.mzid` (mzIdentML 1.1.1) and `results.sage.pep.xml` (pepXML 1.23) next to the Sage
   output. The mzIdentML file passes strict schema validation. The pepXML file does not, because the
   pepXML 1.23 schema does not list Sage as a search engine and the file names it as `Sage`. Both
   files were parsed with zero errors by [pyteomics](https://pyteomics.readthedocs.io/), an
   independent Python reader, on a real 9,392-entry run. No specific target tool (Scaffold, Skyline,
   PeptideShaker, TPP) has opened either file yet.
-- [Percolator](https://github.com/percolator/percolator) or [mokapot](https://mokapot.readthedocs.io/)
-  — PSM rescoring. Tick **Write PIN file** under Search output on the Run / Info tab to write
+- [Percolator](https://github.com/percolator/percolator) or [mokapot](https://mokapot.readthedocs.io/):
+  PSM rescoring. Tick **Write PIN file** under Search output on the Run / Info tab to write
   `results.sage.pin`. Verified: mokapot loads it with the exact target and decoy counts from the
   search and completes a full semi-supervised rescoring run.
-- Spectral-library builders and manual QC tools that read per-fragment match detail — tick
+- Spectral-library builders and manual QC tools that read per-fragment match detail: tick
   **Annotate Matches** under Search output to write `matched_fragments.sage.tsv` (ion type, ordinal,
   charge, calculated and observed m/z, intensity). Verified against a real run: every fragment row
   traces to a real PSM, and `results.sage.tsv`'s match-quality columns reproduce correctly from it.

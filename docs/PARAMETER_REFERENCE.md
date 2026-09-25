@@ -89,7 +89,7 @@ Prefiltering trades CPU time for peak memory. It is off by default and most sear
 
 **What happens at defaults (prefiltering off)**
 
-Sage reads the whole FASTA, digests every protein, and builds one fragment index covering every peptide. Peak memory scales with the size of that index. The index grows with database size, missed cleavages, and variable modifications — and most sharply with semi-enzymatic or non-specific digestion, which yields many more peptides per protein.
+Sage reads the whole FASTA, digests every protein, and builds one fragment index covering every peptide. Peak memory scales with the size of that index. The index grows with database size, missed cleavages, and variable modifications. It grows most sharply with semi-enzymatic or non-specific digestion, which yields many more peptides per protein.
 
 All three fields below are inert at defaults. `prefilter` is `false`, so the prefiltering pass never runs. `prefilter_chunk_size` is `0` and `prefilter_low_memory` is `true`, but neither is read while `prefilter` is `false`.
 
@@ -133,7 +133,7 @@ Leave it off for normal tryptic searches at normal database sizes. The pass cost
 
   How many FASTA sequences are digested and scored per chunk. Larger values mean fewer chunks and less repeated work, but higher peak memory.
 
-  `0` lets Sage choose. It estimates total peptide count from the digest, the variable-mod count and `max_variable_mods`, and targets about 8.4 million peptides per chunk. If the whole search space already fits inside one chunk, Sage skips prefiltering entirely — so auto is safe to leave on. Set a positive value for reproducible chunking or to force more aggressive splitting.
+  `0` lets Sage choose. It estimates total peptide count from the digest, the variable-mod count and `max_variable_mods`, and targets about 8.4 million peptides per chunk. If the whole search space already fits inside one chunk, Sage skips prefiltering entirely. So auto is safe to leave on. Set a positive value for reproducible chunking or to force more aggressive splitting.
 
   Ignored when `prefilter = false`.
 
@@ -141,8 +141,8 @@ Leave it off for normal tryptic searches at normal database sizes. The pass cost
 
   Controls how aggressively each chunk is filtered.
 
-  - `true` — score every preliminary hit and keep only the top `report_psms + 1` per spectrum per chunk. Fewest peptides retained, lowest memory, most CPU. This is Sage's own default.
-  - `false` — keep every preliminary hit without scoring it. More peptides retained, more memory, less CPU, and FDR behaviour closer to a non-prefiltered search.
+  - `true`: score every preliminary hit and keep only the top `report_psms + 1` per spectrum per chunk. Fewest peptides retained, lowest memory, most CPU. This is Sage's own default.
+  - `false`: keep every preliminary hit without scoring it. More peptides retained, more memory, less CPU, and FDR behaviour closer to a non-prefiltered search.
 
   Set this to `false` only if you have memory to spare and want results as close as possible to a non-prefiltered run.
 

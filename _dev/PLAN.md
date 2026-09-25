@@ -1,17 +1,17 @@
-# SageGUI — Development Plan
+# SageGUI development plan
 
 **Goal:** A maintainable GUI for Sage that can stay up-to-date with official Sage releases.
 
-**Approach:** Fork Sage, add library exports, maintain sync with upstream (Option A). *(locked — see NOTES.md.)*
+**Approach:** Compile Sage in as a library, vendored in `vendor/sage` (Option A). *(Locked. See NOTES.md.)*
 
 ---
 
 ## Status
 
-- **Current phase:** Published as `usnistgov/sagegui` (2026-09-23), a GitHub fork of `jspaezp/sagegui`. History from the fork point on was rewritten to the NIST author address without AI trailers (`_dev/old-to-new.txt`). Releases nist-v0.6.0 to nist-v0.9.0 were recreated from the original `neely/sagegui` binaries. `neely/sagegui` is archived with a moved notice. `main` is protected against force-push and deletion. Actions is OFF. On `main` but not yet in a release: vendored Sage, the optional database cache, the licence files, the `_dev/` move.
-- **Last updated:** 2026-09-23
-- **Next action (next session):** (1) Ben enables Actions on `usnistgov/sagegui`; run `build.yml` by hand (workflow_dispatch) to prove the Windows, Linux and both macOS builds of vendored Sage and the cache. (2) Clean up the Info / Help group on Run / Info (one block: fork statement, maintainer, the usnistgov repository for issues, licence pointer, how to cite SageGUI and Sage); Ben checks it on screen. (3) Cut the first NIST-hosted release as `nist-vX.Y.Z` (version not chosen). Then the older open items: a target tool reading the converter output, Windows SmartScreen, the Intel GUI app, the SageGUI versus Sage defaults audit. Keep `neely/sage` public: commits before the vendoring still pin it.
-- **Released:** `v0.9.0` (2026-09-22) — Convert results to mzIdentML and pepXML, its own Results location, Write HTML report, a pre-run output-folder check, and a Combine Charge States hover note. Previous: `v0.8.2` — macOS: seals the app bundle, verifies the downloaded archive in CI, and corrects the README's Gatekeeper instructions. `v0.8.1` — a failed run now shows its error, and missing files are caught before the run. `v0.8.0` — experiment templates, Sage config/results import, enzyme presets, delta-mass tolerance display, NIST FAIR governance files, and the macOS Intel binary that was actually Apple Silicon.
+- **Current phase:** Published as `usnistgov/sagegui` (2026-09-23), a GitHub fork of `jspaezp/sagegui`. Releases are tagged `nist-vX.Y.Z`. Actions is on (2026-09-25). On `main` but not yet in a release: vendored Sage with six patches (three code, three dependency), the reworked Info / Help block, the database cache (hidden by `index_cache::ENABLED`), the licence files and the `_dev/` move.
+- **Last updated:** 2026-09-25
+- **Next action (next session):** (1) Check the result of the first manual `build.yml` run on usnistgov (see JOURNAL 2026-09-25). (2) Cut the first NIST-hosted release as `nist-vX.Y.Z` (version not chosen). Decide first whether the cache ships in it. (3) Then the open items in Handoff below. Keep `neely/sage` public: commits before the vendoring still pin it.
+- **Released:** `nist-v0.9.0` (2026-09-22): Convert results to mzIdentML and pepXML, a Results location, Write HTML report, a pre-run output-folder check, a Combine Charge States hover note. Earlier releases are in CHANGELOG.md.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
 
@@ -27,7 +27,7 @@ Provide a user-friendly graphical interface for Sage that:
 
 ---
 
-## Non-Goals (Do NOT Build)
+## Non-goals (do not build)
 
 - Not a full proteomics pipeline (just search configuration and execution)
 - Not a results viewer beyond basic summary (use downstream tools)
@@ -51,7 +51,7 @@ Provide a user-friendly graphical interface for Sage that:
 │                            │                                 │
 │                            ▼                                 │
 │  ┌─────────────────────────────────────────────────────────┐│
-│  │              sage-core / sage-cli (our fork)            ││
+│  │              sage-core / sage-cli (vendored)            ││
 │  │  - Input struct (search parameters)                     ││
 │  │  - Runner (search execution)                            ││
 │  │  - Output (results)                                     ││
@@ -59,329 +59,139 @@ Provide a user-friendly graphical interface for Sage that:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key dependency:** Sage, vendored in `vendor/sage/` since 2026-09-23: upstream `lazear/sage` commit `d74024df` (10 commits after v0.15.0-beta.2) plus two additive patches, the `Runner.progress` counter and the `Runner.cancel` cooperative-cancellation flag. See `vendor/sage/VENDORED.md` and `PATCHES.md`. Before 2026-09-23 it was the Git fork `github.com/neely/sage` at `ed5f06c`.
+**Key dependency:** Sage, vendored in `vendor/sage/` since 2026-09-23: upstream `lazear/sage` commit `d74024df` (10 commits after v0.15.0-beta.2) plus six patches. Three are additive code patches (`Runner.progress`, `Runner.cancel`, `Runner::from_parts`). Three are dependency updates that clear security advisories. See `vendor/sage/VENDORED.md` and `PATCHES.md`. Before 2026-09-23 it was the Git fork `github.com/neely/sage` at `ed5f06c`.
 
 ---
 
 ## Phases
 
-### Phase 0 — Bug Fixes & Organization ✅ Complete
+### Phases 0 to 4: done
 
-**Goals:**
-- Fix known bugs in Sebastian's GUI
-- Set up project documentation structure
-- Push fixes to our fork
-
-**Completed:**
-- [x] Fixed TMT 16/18-plex selection bug
-- [x] Fixed fragment tolerance type switching bug
-- [x] Pushed to `neely/sagegui`
-- [x] Created CONTEXT.md, GLOSSARY.md, PLAN.md, NOTES.md
+- **Phase 0, bug fixes (done):** TMT 16/18-plex selection and the fragment tolerance type switch. Both in Sebastian's original code.
+- **Phase 1, Sage v0.15.0-beta.2 (done):** API changes are in NOTES "API changes reference".
+- **Phase 2, test on real data (done):** 60,672 PSMs and LFQ from one mzML file. TMT quantification is still untested (no TMT data).
+- **Phase 3, CI and release (done):** fmt, clippy, test and release builds for Windows, Linux and macOS (Intel and Apple Silicon). `src/version.rs` holds the Sage version. Dependabot is on.
+- **Phase 4, documentation (done):** README quick start, MAINTENANCE.md, macOS Gatekeeper instructions.
 
 ---
 
-### Phase 1 — Fork Sage & Update to v0.15.0-beta.2 ✅ Complete
+### Phase 5: core UX and input (largely done)
 
-**Goals:**
-- Fork `lazear/sage` to `neely/sage`
-- Update sagegui to use our fork with latest Sage version
-- Fix all API compatibility issues
-
-**Completed:**
-- [x] Forked `lazear/sage` to `neely/sage`
-- [x] Discovered `lib.rs` already exists in v0.15.0-beta.2 (no modifications needed!)
-- [x] Updated `sagegui/Cargo.toml` to use our fork
-- [x] Fixed API compatibility issues (see below)
-- [x] Pinned to specific commit hash for reproducibility
-- [x] Added Sage version display in GUI
-- [x] Created CHANGELOG.md
-
-**API Changes Fixed:**
-
-| Issue | Fix Applied |
-|-------|-------------|
-| `restrict` type changed | `Option<char>` → `Option<String>` via `.map(\|c\| c.to_string())` |
-| `Builder` missing fields | Added `prefilter: None`, `prefilter_chunk_size: None`, `prefilter_low_memory: None` |
-| `LfqOptions` missing fields | Added `mobility_pct_tolerance: None`, `peptide_q_value: None` |
-| `Input` field renamed | Changed `bruker_spectrum_processor` → `bruker_config: None` |
-| `Input` new fields | Added `protein_grouping: None`, `protein_grouping_peptide_fdr: None`, `write_report: None` |
-| `Runner::new` signature | Changed from `Runner::new(search)` to `Runner::new(search, parallel)` |
-
-**Checkpoint:** ✅ `cargo check` passes, GUI launches successfully.
-
----
-
-### Phase 2 — Test & Validate ✅ Complete
-
-**Goals:**
-- Run the GUI and verify all features work
-- Test on real data
-- Fix any runtime issues
-
-**Test Cases:**
-1. [x] Load mzML files
-2. [x] Load FASTA database
-3. [x] Configure search parameters
-4. [x] Run search
-5. [x] View results summary
-6. [ ] TMT quantification (all plex sizes) — not tested (needs TMT data)
-7. [x] LFQ quantification
-
-**Test Results:**
-- **60,672 PSMs** identified from single mzML file
-- **LFQ quantification** working correctly
-- Output files generated: `results.sage.tsv`, `lfq.tsv`, `results.json`
-
-**Checkpoint:** ✅ Core functionality verified. TMT testing deferred.
-
----
-
-### Phase 3 — CI/CD & Release ✅ Complete
-
-**Goals:**
-- Verify GitHub Actions builds work
-- Create first release from our fork
-- Document release process
-- Add version tracking and badges
-
-**Completed:**
-- [x] Push all changes
-- [x] Add automated testing to CI (`cargo fmt`, `cargo clippy`, `cargo test`, `cargo build --release`)
-- [x] Verify CI builds pass on all platforms (Windows, Linux, macOS x64/ARM64)
-- [x] Create tag `v0.6.0`
-- [x] Verify release artifacts are created
-- [x] Add version badge to README (Sage version, build status, release)
-- [x] Add links to release binaries in README (download table)
-- [x] Document how to update Sage version in future (CHANGELOG.md)
-- [x] Implement version sync (simplified to `src/version.rs` constants)
-- [x] Configure Dependabot for Cargo and GitHub Actions
-- [x] Add automatic release notes generation
-- [x] Add version badge automation workflow
-- [x] Add structured logging (`log` crate)
-
-**Implementation Details (v0.6.0):**
-- Simplified version sync: `src/version.rs` contains all Sage version constants (removed `build.rs`)
-- Dependabot configured to auto-update dependencies (except pinned Sage)
-- GitHub Actions `generate_release_notes: true` for automatic release notes
-- New workflow `update-badges.yml` auto-updates README badge when `version.rs` changes
-- Added `log` crate for structured logging (replacing `println!`)
-
-**Checkpoint:** ✅ Release `v0.6.0` available with binaries for Windows, macOS, Linux. README shows current Sage version badge.
-
----
-
-### Phase 4 — Documentation & Handoff ✅ Complete
-
-**Goals:**
-- Update README with installation instructions
-- Document maintenance process
-- Create "How to update Sage" guide
-
-**Completed:**
-- [x] Updated README.md with Quick Start guide
-- [x] Created MAINTENANCE.md (how to sync with upstream Sage)
-- [x] Added macOS Gatekeeper bypass instructions
-- [x] Linked MAINTENANCE.md from README documentation section
-- [x] Release notes (auto-generated via GitHub)
-
-**Checkpoint:** ✅ Documentation complete. Project ready for handoff.
-
----
-
----
-
-### Phase 5 — Core UX & Input Improvements (Largely done)
-
-**Goals:** Address the blocking usability pain points before adding features. Async execution is highest priority — long searches currently freeze the GUI.
+**Goals:** Address the blocking usability pain points before adding features. Async execution came first, because long searches froze the GUI.
 
 #### UI/UX (priority order)
 
-- [x] **Async execution + progress display** — Run search on a background thread so the GUI stays responsive; show current step, elapsed time, real progress. *(2026-08-21: real spectra-scored / pre-scanned-total percentage during search, via `neely/sage`'s `Runner.progress` — see NOTES.md. Named-step text and a live Sage-log panel added the same session. 2026-08-24 live test: confirmed working — phase text is described as "good" even while the bar isn't moving, and the log panel fills in real time once the search starts. Confirmed gap, not a bug: both the bar and the log panel stay silent for the first ~1-2 min during database build on a large FASTA — Sage itself only logs that phase at `trace` level. Two small issues found: the green "Processing" label reads poorly (color/contrast fix flagged, then reconsidered and dropped the same session — see below), and no estimated-remaining-time readout exists.)*
-- [x] **Remember settings between sessions** — `Config`, the tolerance-type selections, experiment archetype, and active tab persist through eframe's `persistence` feature. *(Landed 2026-08-21. 2026-08-24 live test found modifications don't survive a restart. Root-caused and fixed same day: `StaticModConfig`/`VariableModConfig` keep a `#[serde(skip)]` live map alongside a serializable shadow map, and the `sync_from_ser()` method meant to rebuild the live map after deserializing was simply never called — the mods were saved correctly, just never rebuilt into the form the UI reads. Fixed in `SageLauncher::new`, live-tested and confirmed same day. Followed by a full field-by-field audit (same session, requested explicitly): a new test round-trips a `PersistedState` with every single field — not just mods — set to a non-default value through the real serde types and the real restore logic, sanity-checked by confirming it fails without the fix. All fields pass; no other gap exists. **New consequence, not a bug:** mods now correctly carrying over between sessions means a stale mod from an unrelated prior search can silently apply to the next one — raises the priority of the still-open "Experiment templates" item below as the planned reset-to-defaults mechanism.)*
-- [x] **Stop button** — Cancels a run from the run bar. *(Landed 2026-08-21 for the pre-search phase. 2026-08-24 live test found a real bug: clicking Stop **during** an active search didn't stop it and falsely reported "No output files were written" even though the run completed and wrote output normally. Message bug fixed and live-tested same day. That test also surfaced that non-interruption itself was unacceptable, not just the message — so real cooperative cancellation was built the same day via a `neely/sage` fork patch (commit `ed5f06c`, see NOTES "Stop button" and "Custom patch carried on neely/sage: Runner.cancel"), then live-tested and confirmed: a mid-scoring Stop click aborted after 2.2s (vs. 60s+ to finish) and wrote zero output files. Both halves of the original bug are now fixed and confirmed.)*
-- [x] **macOS: a terminal window opens alongside the GUI** — found in live testing 2026-08-24, fixed same day. Root cause confirmed: `build.yml` shipped the raw Mach-O binary in a `.tar.gz`, with no `.app` bundle structure — Finder/LaunchServices treats an unbundled executable as a plain Unix binary and runs it via Terminal.app. Fixed by adding a "Create macOS App Bundle" CI step that packages `target/release/sagegui` into `Sage Launcher.app` (`Contents/MacOS`, `Contents/Resources/AppIcon.icns`, a generated `Info.plist` with `CFBundlePackageType=APPL`) before archiving, for both macOS matrix legs. **Verified locally, not just built**: constructed the exact bundle by hand from the real release binary on this Mac, launched it with `open` (the same mechanism Finder uses), and confirmed zero Terminal windows opened before/after (`osascript -e 'tell application "Terminal" to count windows'` stayed at 0) while the process ran correctly. README's macOS Gatekeeper-bypass instructions need a follow-up check (`xattr -d com.apple.quarantine` on a `.app` may need `-r` for the bundle) — see NOTES.
-- [x] **Run-bar "Processing" label color** — flagged in live testing 2026-08-24, briefly dropped the same session on a miscommunication (maintainer thought a different colored text was meant), then reopened and actually fixed after live-testing v0.7.1 on Windows and seeing the hardcoded `egui::Color32::GREEN` still looked wrong. Changed to a plain `ui.label(...)` so it inherits the theme's normal text color instead of a hardcoded pure green — matches the plain elapsed-time label already sitting right next to it. Not yet re-verified live (the fix landed after v0.7.1 shipped); low risk since it's identical to an adjacent already-correct label, but worth a glance next run.
-- [x] **App icon** — was a placeholder (eframe's own default: a white "e" on black, per live-test feedback 2026-08-24). Fixed same day: cropped the crab-wizard mascot out of `assets/sagegui_logo-removebg.png` (flood-fill background removal from the corners, so enclosed white bits like the hat's stars survive), padded to a square `assets/icon-master.png` (1024×1024), derived `assets/icon-256.png` (runtime window/taskbar icon, wired via `eframe::ViewportBuilder::with_icon` in `src/main.rs`), `assets/AppIcon.icns` (macOS bundle icon, built with `iconutil`), and `assets/AppIcon.ico` (Windows, built but not yet wired into the `.exe` file icon — see NOTES). **Verified, not just built**: launched the debug binary and screenshotted the Dock — the crab wizard renders correctly, not the default "e".
-- ~~**Sage Log panel: selectable/copyable text**~~ and ~~**Sage Log panel: confirm no real emptiness bug**~~ — dropped 2026-08-24. The panel was built as a debugging aid during the async-execution work, not a feature end users need; maintainer decided to keep it as-is (it works) but not invest further polish time. Not dead code, just no longer an active backlog item — see NOTES if it needs picking back up.
-- [x] **Reset-to-defaults on numeric controls** — maintainer request 2026-09-09, from live testing: "in case I hit the slider and forget what it should be at". *(Landed 2026-09-09 as the cheapest form: each numeric control's hover text names its default, and the Experiment tab notes that re-applying a template restores everything it covers. A per-control reset button was considered and rejected: "default" is ambiguous here, because SageGUI's defaults and the bundled templates disagree on Min Length (5 vs 7), Min Matched Peaks (6 vs 4) and Max Variable Mods (2 vs 3), so a reset button after a template would silently move the search away from the template's values. Re-applying the template is the exact reset, and it is now order-independent and tested. Reopen if the tooltips prove not to be enough.)*
-- [ ] **Session resilience / auto-recovery** — If the GUI is closed or crashes during a run, persist enough state to resume or at least report results.
-- [ ] **Results summary panel** — After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI. *(Placeholder slot reserved on Run/Info tab.)*
-- [ ] **Configuration export (save)** — Save the current config as JSON. *(Not built. It needs an exporter from `Config` back to Sage's schema. The import half is done: see "Load configuration from a Sage JSON file" below. Remembering last-used settings across sessions is also done: see "Remember settings between sessions" above.)*
-- [ ] **Smarter output directory** — Default to timestamped subfolder near mzML files instead of current working directory.
-- [x] **Expanded modifications preset library** — Modifications tab redesigned as a two-box (Static/Variable) list-picker with a curated "Common modifications" master list + transfer arrows and a "+ Custom…" escape hatch. Multi-residue presets insert as separate rows; Static/Variable mutually exclusive. *(Landed 2026-08-13. Presets are hardcoded in `src/ui.rs` `MOD_PRESETS`; masses are Unimod monoisotopic deltas.)*
-- [x] **Parameter documentation in the GUI** — Inline `on_hover_text` tooltips on controls (copy sourced from `docs/ui-spec.md` §3 / NOTES).
-- [x] Parameter presets — **done 2026-09-08 as Experiment templates.** Five bundled templates replaced the inert archetype dropdown. See "Experiment templates" below. There is no semi-enzymatic template.
-- [x] Load configuration from a Sage JSON file — **done 2026-09-08**, import-only, as scoped in NOTES UI-review #1. Reads both a Sage `config.json` and a past run's `results.json`; reports anything it could not apply, and lists the file paths it deliberately ignored. Export back to Sage schema is not built.
+- [x] **Async execution and progress display.** Real percentage during scoring, named phases, a live Sage Log panel. The database build phase is silent for 1 to 2 minutes on a large FASTA, because Sage logs it only at `trace`. No time-remaining estimate. See NOTES "Sage patch 1".
+- [x] **Remember settings between sessions.** Every field round-trips, checked by a test. Mods now carry over, so a stale mod can apply to the next search; re-applying a template resets it. See NOTES "Settings persistence".
+- [x] **Stop button.** Cooperative cancellation, also during scoring (2.2 s to stop in the live test). See NOTES "Stop button".
+- [x] **macOS terminal window.** Fixed with a real `.app` bundle. See NOTES "macOS terminal window + app icon".
+- [x] **Run-bar "Processing" label colour.** Uses the theme text colour.
+- [x] **App icon.** Crab-wizard mascot. `AppIcon.ico` is not yet wired into the Windows `.exe`. See NOTES.
+- ~~**Sage Log panel polish**~~: dropped 2026-08-24. The panel works; no further work planned.
+- [x] **Reset to defaults on numeric controls.** Hover text names each default; re-applying a template is the exact reset. A per-control reset button was rejected (see NOTES "A template is a complete state").
+- [ ] **Session resilience / auto-recovery**: If the GUI is closed or crashes during a run, persist enough state to resume or at least report results.
+- [ ] **Results summary panel**: After search completes, show PSM/peptide/protein counts at specified FDR threshold directly in GUI. *(Placeholder slot reserved on Run/Info tab.)*
+- [ ] **Configuration export (save)**: Save the current config as JSON. *(Not built. It needs an exporter from `Config` back to Sage's schema. The import half is done: see "Load configuration from a Sage JSON file" below. Remembering last-used settings across sessions is also done: see "Remember settings between sessions" above.)*
+- [ ] **Smarter output directory**: Default to timestamped subfolder near mzML files instead of current working directory.
+- [x] **Modifications preset library.** Static and Variable boxes with a curated list (`MOD_PRESETS` in `src/ui.rs`, Unimod masses).
+- [x] **Parameter hover text** on controls.
+- [x] **Parameter presets.** Done as Experiment templates (see below).
+- [x] **Load configuration from a Sage JSON file.** Import only, from `config.json` or `results.json`. Reports what it could not apply.
 - [ ] Better error messages and validation
-- [x] **Delta-mass framing for the tolerance windows — DONE 2026-09-08.** Built in the shape this item specified as preferred: display-only. The widget shows a delta-mass range; `Config` and everything sent to Sage stay in the raw convention. Applied to ppm and Da, precursor and fragment, since a partial re-framing would be worse than none. The stored raw pair is printed under the control so a Sage config file can still be cross-checked. Original caveats and the reasoning are kept below for the record. — Optionally let the user enter the precursor Da window in **delta-mass / modification space** (type `+500` for "find IDs carrying a +500 Da mod") instead of Sage's raw `(lower, upper)` relative to the experimental mass, where a `-500` lower bound is what actually finds a +500 Da mod. This is the sign-flip Michael flagged. **Currently NOT done** — the GUI passes the two boxes through verbatim as Sage's `(lower, upper)`, and we added Lower/Upper labels + hover text + an inverted-window warning to explain the raw convention (see NOTES → "Precursor/fragment tolerance window — sign & delta-mass convention"). **Caveats before building this:**
-  - **Divergence from Sage.** Every Sage `config.json`, the CLI, and the docs use the raw `(center + lower, center + upper)` convention. A delta-mass GUI would flip signs, so a value shown in SageGUI would not match the number in a Sage config file — confusing for users who cross-reference, and a Save/Load Config round-trip would need to convert both ways without drift.
-  - **Only the Da precursor window has an intuitive delta-mass reading.** ppm and fragment tolerances don't; a partial re-framing (Da-precursor only) risks being *more* confusing than a consistent raw convention.
-  - **Two-number asymmetry doesn't collapse to one.** Delta-mass framing is cleanest for a single offset, but the window is still a `(lower, upper)` pair — a delta-mass UI still has to present two bounds, so the win is mainly sign intuition, not simplicity.
-  - **Preferred shape if pursued:** a display-only toggle ("show as delta mass") that flips signs/labels in the widget but keeps `Config`/serialization in Sage's raw convention — never store the flipped values. Decide dedup/round-trip semantics first. Lower priority than the labels+hover already shipped.
-- ~~**High-contrast "Y2K" theme**~~ — dropped 2026-08-24. Originally flagged 2026-08-13 as "the default grey-on-grey is too faint," read at the time as wanting a dedicated flat-light theme. The dark-theme contrast pass landed 2026-08-21 (`dark_visuals()`, sage-green accent) fixed the actual complaint — the maintainer confirmed 2026-08-24 the original faintness was their system being in dark mode against egui's low-contrast default, not a request for a separate light theme. No further theme work needed. See NOTES → UI-review feedback #7 for the full history.
+- [x] **Delta-mass display of the tolerance windows.** Display only: `Config` and everything sent to Sage keep the raw convention. The raw pair is printed under the control. See the STOP section in AGENTS.md and NOTES "Tolerance display is delta mass".
+- ~~**High-contrast theme**~~: dropped 2026-08-24. The dark-theme contrast pass fixed the actual complaint. See NOTES UI-review feedback #7.
 
-**UI restructure (landed 2026-08-13):** sidebar-nav + pinned run-bar, 6 tabs, UI extracted to `src/ui.rs`, the 6 previously-hidden Sage params surfaced, native `.d`/Bruker support dropped (mzML/.gz only). See NOTES → "UI redesign" and CHANGELOG [Unreleased].
+**UI restructure (landed 2026-08-13):** sidebar-nav + pinned run-bar, 6 tabs, UI extracted to `src/ui.rs`, the 6 previously-hidden Sage params surfaced, native `.d`/Bruker support dropped (mzML/.gz only). See NOTES "UI redesign".
 
-#### Input: multi-FASTA & contaminants — **done, shipped in v0.7.0**
+#### Input: multi-FASTA and contaminants (done, v0.7.0)
 
-The spec below is kept for the record. cRAP is just another FASTA, so both share one
-concat mechanism. Concrete spec:
+- [x] **Multi-FASTA list**, concatenated to one temp file before the run. No header dedup. cRAP is added as a normal FASTA.
 
-- [x] **Multi-FASTA selection** — replace the single `fasta: String` text/browse
-  box on Files & Database with an **add/select list**: "Add FASTA…" (multi-pick
-  append), a list showing each picked file with a per-row remove, in selection
-  order (target organism + contaminants + spike-ins). Data model: change
-  `DatabaseConfig.fasta: String` → `fasta_paths: Vec<PathBuf>` (keep a serde
-  migration path / default so old config JSONs still load). *(Landed 2026-08-13.)*
-- [x] **On-the-fly concatenation** — before launching Sage, concatenate all
-  selected FASTAs into a **single temp file**, pass its path as Sage's `fasta`.
-  Sage takes one DB. Clean up the temp file after the run. Single-file case
-  bypasses the copy. *(Landed 2026-08-13. No dedup of identical headers — just
-  concatenate; documented decision in NOTES.)*
-- ~~**Built-in cRAP toggle**~~ — dropped in favour of **just more FASTA slots**;
-  user adds their cRAP file like any other FASTA (decision 2026-08-13).
+#### Experiment templates (done 2026-09-08)
 
-#### Experiment templates (JSON-file approach) — done 2026-09-08
-
-Chosen 2026-08-13 over hardcoded `apply_archetype`. **A template *is* a saved
-config JSON** — reuse the existing Save/Load Config plumbing:
-
-- [x] Ship bundled example templates in `assets/templates/`. *(2026-09-08:
-  five shipped — `tryptic-wide-ms1`, `tryptic-tight`, `tryptic-open`,
-  `tryptic-biofluid`, `tmt11`. Built from settings Michael Lazear supplied
-  directly, plus sageRecon's validated 20 ppm Orbitrap MS2 number. Stored in
-  Sage's own schema, so each file is also valid Sage CLI input. Names and
-  descriptions set by the maintainer 2026-09-08. No phospho template, and no
-  separate "wide" template — Sage models no neutral losses, and "wide" was a
-  misnomer. See NOTES "The bundled set".)*
-- [x] Replace the inert Experiment dropdown with a **Templates** dropdown that
-  loads a bundled JSON into `self.config`. *(2026-09-08.)* **"Save current as
-  template" is NOT built** — it needs an exporter from `Config` back to Sage's
-  schema, which is the reverse direction and was not part of what the
-  maintainer asked for. Still open if wanted.
-- [x] Removed the need for hardcoded archetype values entirely. *(2026-09-08.
-  `apply_archetype` was never written, as intended. The old `ExperimentType`
-  enum is retained in `PersistedState` only, so existing saved settings still
-  load — removing it would make eframe drop the whole saved blob.)*
+- [x] Five bundled templates in `assets/templates/`, in Sage's own schema. See NOTES "The bundled set".
+- [x] A Templates dropdown replaced the inert Experiment dropdown. `ExperimentType` stays in `PersistedState` so old settings load.
+- [ ] **"Save current as template".** Needs an exporter from `Config` to Sage's schema (same as Configuration export above).
 
 #### Governance and licensing
 
-NIST FAIR governance files landed 2026-09-08 (`CITATION.cff`, `CODEMETA.yaml`,
-`CODEOWNERS`, `fair-software.md`, README Citation section), matching
-`usnistgov/sageRecon` exactly. The licensing question was deliberately left
-open. See NOTES → License and governance for the five conflicting facts and
-what each option would have to change.
+NIST FAIR governance files landed 2026-09-08. The licence is resolved (2026-09-23): NIST `LICENSE.md`, derived files listed in `THIRD_PARTY_LICENSES.md`. See NOTES "License and governance".
 
-- [x] **Decide the licence question.** Option A (whole tree Apache-2.0) or
-  Option B (NIST statement plus an Apache carve-out). May need NIST OISM or
-  counsel review. Nothing licence-bearing was changed pending this.
-  *(Resolved 2026-09-23 in the usnistgov/sageRecon shape: NIST `LICENSE.md`,
-  derived files listed in `THIRD_PARTY_LICENSES.md`. See NOTES.)*
-- [x] **Ship the full Apache-2.0 text in `THIRD_PARTY_LICENSES.md`.** Only the
-  boilerplate stanza is there now. Apache §4(a) wants a copy of the Licence.
-  True under either option, so it can be done first.
-- [x] **Fix the GUI licence label.** `src/ui.rs` says "License: Apache-2.0",
-  which contradicts `LICENSE` and is wrong for a mixed tree under both options.
-- [ ] **Mint a DOI**, then add a top-level `doi:` to `CITATION.cff`. Neither
-  this repo nor sageRecon has a persistent identifier, which is step 3 of
-  sageRecon's own `fair-software.md` checklist.
-- [ ] **Confirm the CODEMETA `themes` nesting** with the code.nist.gov
-  maintainers. It parses to flat strings today. Fix sageRecon and this repo
-  together, not separately.
-- [ ] **Work the rename checklist** when the repo moves to `usnistgov`. NOTES
-  carries the verified list, including the things that must NOT be renamed.
+- [ ] **Mint a DOI**, then add a top-level `doi:` to `CITATION.cff`, README "Citation" and `sagegui_citation()` in `src/ui.rs`.
+- [ ] **Confirm the CODEMETA `themes` nesting** with the code.nist.gov maintainers. Fix sageRecon and this repo together.
+- ~~**Rename checklist**~~: superseded 2026-09-23. The repository kept the name as `usnistgov/sagegui`. See NOTES.
 
 #### Enzyme presets (from sageRecon)
 
-Built in its own session, by maintainer decision, 2026-09-08.
-
-- [x] **Port the 14 enzyme presets from [sageRecon](https://github.com/usnistgov/sageRecon)**
-  into an enzyme dropdown on the Search tab, filling `cleave_at`,
-  the restrict character, `c_terminal` and `semi_enzymatic`. The table is the
-  maintainer's own curated work: Trypsin, Trypsin/P, Arg-C, Asp-N, Asp-N/Ambic,
-  Chymotrypsin, CNBR, Glu-C, Glu-C/DE, Lys-C, Lys-C/P, Lys-N, Pepsin-A,
-  Trypchymo. **Asp-N, Asp-N/Ambic and Lys-N cleave N-terminally**
-  (`c_terminal: false`) — today the GUI exposes that as a bare checkbox with no
-  guidance, which is a live footgun. sageRecon also refuses to assume a default
-  enzyme at all, on the grounds that assuming trypsin "would silently mis-report
-  every digestion number"; worth deciding whether SageGUI should say the same.
-  *(Landed 2026-09-08. Maintainer decided to keep trypsin as the default: a GUI
-  must render something on first launch, and the picker now names the enzyme
-  out loud, which is the actual fix for the silent-assumption problem. The
-  cut-side control became a labelled radio pair, so the N-terminal proteases
-  are visible. See NOTES → Enzyme presets.)*
-- [ ] While there: sageRecon's **MS2 tolerance by analyzer class** (Orbitrap /
-  FT-ICR 20 ppm — validated on real data; Astral 20 ppm; legacy TOF/QTOF
-  100 ppm; ion trap / quadrupole 1.0 Da) would make good hover text on the
-  fragment-tolerance control.
+- [x] **14 enzyme presets from sageRecon.** Trypsin stays the default; the picker names the enzyme, and the cut side is a labelled radio pair. See NOTES "Enzyme presets".
+- [ ] sageRecon's **MS2 tolerance by analyzer class** (Orbitrap / FT-ICR 20 ppm, Astral 20 ppm, TOF/QTOF 100 ppm, ion trap 1.0 Da) as hover text on the fragment-tolerance control.
 
 #### Input: Thermo .raw conversion
 
-- [ ] **ThermoRawFileParser integration** — Bundle or detect [ThermoRawFileParser](https://github.com/compomics/ThermoRawFileParser) and invoke it automatically when `.raw` files are selected, converting to mzML before the search. Saves users up to 1hr of manual conversion per batch.
-- **Before implementing:** verify ThermoRawFileParser license compatibility with our Apache-2.0 (it's Apache-2.0 itself — confirm no distribution constraints for bundling a .NET binary).
+- [ ] **ThermoRawFileParser integration**: Bundle or detect [ThermoRawFileParser](https://github.com/compomics/ThermoRawFileParser) and invoke it automatically when `.raw` files are selected, converting to mzML before the search. Saves users up to 1hr of manual conversion per batch.
+- **Before implementing:** verify ThermoRawFileParser license compatibility with our Apache-2.0 (it is Apache-2.0 itself; confirm no distribution constraints for bundling a .NET binary).
 
 #### New Sage v0.15 features to expose
 
-- [x] **Prefilter options (for large databases)** — Surfaced `prefilter`, `prefilter_chunk_size` and `prefilter_low_memory` on Files & Database, between the FASTA list and the Advanced block, with a contextual hint when semi-enzymatic digestion is on. Defaults all three to what Sage resolves to on its own (`false` / `0` / `true`), so a SageGUI run matches a Sage CLI run with the same visible config. The run bar shows a distinct "Prefiltering database in chunks…" phase message (no percentage — see NOTES → Database prefiltering, the pass has no progress signal). `docs/PARAMETER_REFERENCE.md` rewritten with the corrected `prefilter_low_memory` default. *(Landed 2026-08-21.)*
+- [x] **Prefilter options.** Defaults match what Sage resolves on its own. See `docs/PARAMETER_REFERENCE.md`.
 - [ ] Protein grouping settings
 - [ ] Write report option
 - [ ] Bruker configuration (for timsTOF data)
 
 #### Speed
 
-- [x] **Database cache.** "Cache prepared database" on Files & Database (off by default) saves the built peptide database and reuses it when the FASTA and database settings match. Run / Info shows the cache folder and size, with Clear. Measured on the maintainer's Mac: saves about 3 s per repeat run (build 9.0 s, load 6.0 s), so the gain is small there; not timed on Windows. See NOTES → Database cache. *(Landed 2026-09-23.)*
+- [x] **Database cache (built, hidden).** Saves about 3 s per repeat run on the maintainer's Mac (build 9.0 s, load 6.0 s); not timed on Windows. Hidden from the UI since 2026-09-25 by `index_cache::ENABLED`. See NOTES "Database cache" for how to ship it.
 
 #### sageRecon integration
 
-- [ ] **Port rollup scripts** — The peptide→protein rollup and LFQ aggregation scripts currently live in a separate project (not sageRecon). Action item: locate, read, and refactor them into a form SageGUI can call. (See Phase 6 for the GUI surface.)
-- [ ] **Digestion Efficiency Report** — Port from [sageRecon](https://github.com/usnistgov/sageRecon): missed cleavages, semi-tryptic peptides, N/C ragged ratio.
-- [ ] **Delta Mass Explorer** — Port from sageRecon: modification distribution from open search.
-- [ ] **Link to sageRecon** — "Analyze with sageRecon" button for deeper analysis. The repo moved to `usnistgov/sageRecon` and was renamed from sagePreview.
+- [ ] **Port rollup scripts**: The peptide→protein rollup and LFQ aggregation scripts currently live in a separate project (not sageRecon). Action item: locate, read, and refactor them into a form SageGUI can call. (See Phase 6 for the GUI surface.)
+- [ ] **Digestion Efficiency Report**: Port from [sageRecon](https://github.com/usnistgov/sageRecon): missed cleavages, semi-tryptic peptides, N/C ragged ratio.
+- [ ] **Delta Mass Explorer**: Port from sageRecon: modification distribution from open search.
+- [ ] **Link to sageRecon**: "Analyze with sageRecon" button for deeper analysis. The repo moved to `usnistgov/sageRecon` and was renamed from sagePreview.
 
 ---
 
-### Phase 6 — Output Formatting & Downstream Export (Planned)
+### Phase 6: output formatting and downstream export (planned)
 
 **Goals:** Let users get FDR-filtered protein/peptide tables and export to the formats their downstream tools expect. The rollup logic (peptide→protein at a specified FDR) comes from the scripts ported in Phase 5.
 
 #### FDR-filtered rollup export
 
-- [ ] **Peptide-level export at specified FDR** — User sets FDR threshold (default 1%); export filtered `results.sage.tsv`.
-- [ ] **Protein-level rollup export** — Apply rollup scripts to produce a protein-level intensity table at the specified FDR.
+- [ ] **Peptide-level export at specified FDR**: User sets FDR threshold (default 1%); export filtered `results.sage.tsv`.
+- [ ] **Protein-level rollup export**: Apply rollup scripts to produce a protein-level intensity table at the specified FDR.
 
 #### Format spoofing for downstream tools
 
-*(Reconciled 2026-08-24 against README.md's "To be added" list — README had
+*(Reconciled 2026-08-24 against README.md's "To be added" list. README had
 several targets PLAN didn't yet track. This is now the complete list; keep
 both in sync going forward, per AGENTS.md.)*
 
 Each of these requires understanding the target format and confirming Sage's output contains the required fields. Research is an action item per format before implementing.
 
-- [ ] **pepXML / mzIdentML export** — **decided 2026-09-21: build both inside SageGUI** (not psm-utils, not shic). Reasons are in NOTES → "Built here: mzIdentML 1.1.1 and pepXML 1.23 converters". **Status: shipped in `v0.9.0` (2026-09-22).** The Results group is on the Run / Info tab (it has its own Results location, see NOTES): two buttons, a q-value source and limit, a decoys switch, and two run-after-search checkboxes. It runs on its own thread with progress and Cancel. `src/export/` turns `results.sage.tsv` and `results.json` into `results.sage.mzid` and `results.sage.pep.xml`. mzIdentML 1.1.1 passes `xmllint` against the published XSD on the fixture and on both full real outputs. pepXML 1.23 passes except for one attribute: `search_engine="Sage"` is not in the schema's list (deliberate, see NOTES). The maintainer used the UI directly and confirmed Convert works, both by hand and after a search. **Verified 2026-09-22 against a real 9,392-entry output:** [pyteomics](https://pyteomics.readthedocs.io/) + `psims` (a codebase independent of our writer and of libxml2) parsed every entry in both files with zero errors, resolved every CV accession correctly, and confirmed the pepXML total-mass modification rule on a live example. Details in NOTES → "Independent-reader verification". **Still to do:** a test with an actual target tool (Scaffold, Skyline, PeptideShaker or TPP), which nobody has done — `pyteomics` proves the files are well-formed, not that a specific importer accepts them. Open questions: whether readers accept `MS:1001412` and `MS:1001413` written in delta-mass terms (see NOTES), and multi-file and multi-rank runs, which only hand-made rows cover.
-- [ ] **MSstats** — **being built upstream, not by us.** The preferred path worked: [MSstatsConvert #143](https://github.com/Vitek-Lab/MSstatsConvert/issues/143) is in active development by @swaraj-neu, reading `lfq.tsv` rather than `results.sage.tsv` (Sage's `ms2_intensity` is a discriminant feature, not a quant channel). Planned defaults: `spectrum_q` at 0.01, `rank == 1`, drop `label == -1`, `ProteinName` from `proteins`, keep inline modification tags. **Done on our side:** SageGUI defaults `combine_charge_states` to true, which makes Sage write charge -1 and `PrecursorCharge` meaningless for MSstats. Documented in README → Downstream tools, and the Quant tab checkbox has a hover note (commit de1452b, 2026-09-21).
-- [ ] **three-layer-ms1 report (idea, 2026-09-21)** — sageRecon's `_dev/extracted/three-layer-ms1` splits MS1 signal into non-peptidic, never sampled, sampled but not identified, and identified. Verified: it needs the mzML files, and Sage's HTML report has no MS1 TIC, so it cannot extend that report. Sage makes the report only during a search, from in-memory data, and there is no standalone function to remake it from `results.sage.tsv`. So this would be a port that reads `results.sage.tsv`, `results.json` and the mzML files, and writes its own page. Not started.
-- [ ] **Perseus-format export** — for [Perseus](https://maxquant.net/perseus/) and [ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter). **Parked by maintainer decision (2026-09-21).** Researched: ProteoPlotter needs a Perseus-processed `.txt` with `#!{Type}` and `#!{C:Grouping}` rows and t-test columns, so a raw Sage table cannot feed it. A reformat-only peptide table from `lfq.tsv` is the safe first step. Unverified until test-loaded in Perseus: `#!{Type}` handling on a generic upload, and NaN and 0 handling. Details in NOTES → "Perseus and ProteoPlotter".
-- [ ] **DIAgui-compatible export** — for [DIAgui](https://github.com/mgerault/DIAgui). Format/column requirements not yet researched.
-- [ ] **FragPipe Analyst / LFQ-Analyst / *-Analyst export** — [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst), FragPipe-Analyst, and the other tools under the [*-Analyst suite](https://analyst-suites.org/) likely share a common input shape. Identify required format; map Sage output columns.
-- [x] **PDV import** — **done upstream, not by us.** [PDV v2.7.0](https://github.com/wenbostar/PDV/releases/tag/v2.7.0) (2026-08-14) reads `results.sage.tsv` with its mzML/mgf files, handles gzipped spectra, and can filter decoys and hits above 1% q-value on import. Nothing to build here. Listed under README → Downstream tools.
-- [ ] **Scaffold-compatible export (?)** — Scaffold ingests pepXML or mzIdentML (see above), so this may fall out of that work rather than needing a dedicated exporter. Still marked uncertain (README: "Scaffold (?)") — confirm Scaffold's actual import requirements before committing effort here.
+- [x] **pepXML and mzIdentML export.** Built in SageGUI (not psm-utils, not shic) and shipped in `nist-v0.9.0`. mzIdentML 1.1.1 passes `xmllint` against the XSD. pepXML 1.23 passes except `search_engine="Sage"`, which the schema does not list (deliberate). pyteomics and psims read a real 9,392-entry output with zero errors. **Still open:** a test in a real target tool (Scaffold, Skyline, PeptideShaker or TPP); whether readers accept `MS:1001412` and `MS:1001413` in delta-mass terms; multi-file and multi-rank runs. See NOTES "Built here: mzIdentML 1.1.1 and pepXML 1.23 converters" and "Independent-reader verification"
+- [ ] **MSstats**: **being built upstream, not by us.** The preferred path worked: [MSstatsConvert #143](https://github.com/Vitek-Lab/MSstatsConvert/issues/143) is in active development by @swaraj-neu, reading `lfq.tsv` rather than `results.sage.tsv` (Sage's `ms2_intensity` is a discriminant feature, not a quant channel). Planned defaults: `spectrum_q` at 0.01, `rank == 1`, drop `label == -1`, `ProteinName` from `proteins`, keep inline modification tags. **Done on our side:** SageGUI defaults `combine_charge_states` to true, which makes Sage write charge -1 and `PrecursorCharge` meaningless for MSstats. Documented in README → Downstream tools, and the Quant tab checkbox has a hover note (commit de1452b, 2026-09-21).
+- [ ] **three-layer-ms1 report (idea, 2026-09-21)**: sageRecon's `_dev/extracted/three-layer-ms1` splits MS1 signal into non-peptidic, never sampled, sampled but not identified, and identified. Verified: it needs the mzML files, and Sage's HTML report has no MS1 TIC, so it cannot extend that report. Sage makes the report only during a search, from in-memory data, and there is no standalone function to remake it from `results.sage.tsv`. So this would be a port that reads `results.sage.tsv`, `results.json` and the mzML files, and writes its own page. Not started.
+- [ ] **Perseus-format export**: for [Perseus](https://maxquant.net/perseus/) and [ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter). **Parked by maintainer decision (2026-09-21).** Researched: ProteoPlotter needs a Perseus-processed `.txt` with `#!{Type}` and `#!{C:Grouping}` rows and t-test columns, so a raw Sage table cannot feed it. A reformat-only peptide table from `lfq.tsv` is the safe first step. Unverified until test-loaded in Perseus: `#!{Type}` handling on a generic upload, and NaN and 0 handling. Details in NOTES "Perseus and ProteoPlotter".
+- [ ] **DIAgui-compatible export**: for [DIAgui](https://github.com/mgerault/DIAgui). Format/column requirements not yet researched.
+- [ ] **FragPipe Analyst / LFQ-Analyst / *-Analyst export**: [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst), FragPipe-Analyst, and the other tools under the [*-Analyst suite](https://analyst-suites.org/) likely share a common input shape. Identify required format; map Sage output columns.
+- [x] **PDV import**: **done upstream, not by us.** [PDV v2.7.0](https://github.com/wenbostar/PDV/releases/tag/v2.7.0) (2026-08-14) reads `results.sage.tsv` with its mzML/mgf files, handles gzipped spectra, and can filter decoys and hits above 1% q-value on import. Nothing to build here. Listed under README → Downstream tools.
+- [ ] **Scaffold-compatible export (?)**: Scaffold ingests pepXML or mzIdentML (see above), so this may fall out of that work rather than needing a dedicated exporter. Still marked uncertain (README: "Scaffold (?)"). Confirm Scaffold's actual import requirements before committing effort here.
 
-**Note on scope:** Format export is "spoof where we have the data, document gaps where we don't." We won't invent data that Sage doesn't produce. Where an upstream tool already has an open feature request for Sage support (MSstatsConvert #143, PDV #110), **contributing there may be less total work and more durable than a parallel SageGUI-side exporter** — worth a real "build vs. contribute upstream" decision per format before implementing, not just defaulting to building our own.
+**Note on scope:** Format export is "spoof where we have the data, document gaps where we don't." We won't invent data that Sage doesn't produce. Where an upstream tool already has an open feature request for Sage support (MSstatsConvert #143, PDV #110), **contributing there may be less total work and more durable than a parallel SageGUI-side exporter**: worth a real "build vs. contribute upstream" decision per format before implementing, not just defaulting to building our own.
 
 #### iBAQ and other LFQ options
 
-Not yet in PLAN before this session (added from README's "To be added" list,
-2026-08-24). **Concrete starting point found during the settings-persistence
+Added 2026-08-24 from README's "To be added" list. **Concrete starting point found during the settings-persistence
 audit the same day:** `sage_core::lfq::LfqSettings` (used internally by
 `QuantType::Lfq`) already has `peak_scoring`, `integration`,
 `mobility_pct_tolerance`, and `peptide_q_value` fields, but only
 `ppm_tolerance`, `spectral_angle`, and `combine_charge_states` have UI
-widgets (`QuantType::update_section`, `src/ui.rs`) — the other four are
+widgets (`QuantType::update_section`, `src/ui.rs`). The other four are
 never user-editable. Worse, `peak_scoring`/`integration` aren't even read
 from the stored `LfqSettings` at launch: `From<QuantType> for QuantOptions`
 (`src/ui.rs`) hardcodes `PeakScoringStrategy::Hybrid` and
 `IntegrationStrategy::Sum` regardless of what's in the struct. iBAQ itself
-(intensity-based absolute quantification — sum of peptide intensities
+(intensity-based absolute quantification: sum of peptide intensities
 divided by the number of theoretically observable tryptic peptides for a
 protein) isn't a `LfqSettings` field at all; check whether Sage computes it
 internally anywhere, or whether this needs a rollup-script-style post-
@@ -393,7 +203,7 @@ whether iBAQ is a Sage-side computation or a downstream one.
 
 ---
 
-## Future Phases (Not Planned Yet)
+## Future phases (not planned yet)
 
 ### Distribution Improvements (Future)
 
@@ -438,59 +248,31 @@ When Sage releases a new version, sync the fork, bump the pinned commit, fix any
 
 ## Decision Log
 
-Locked decisions and their rationale have moved to **NOTES.md → Design decisions (locked)**. That is now the single source of truth — don't duplicate them here. For the dated sequence of when things were decided, see **JOURNAL.md**.
+Locked decisions and their rationale have moved to **NOTES.md → Design decisions (locked)**. That is now the single source of truth. Do not duplicate them here. For the dated sequence of when things were decided, see **JOURNAL.md**.
 
 ---
 
-## Handoff — for the next session
+## Handoff for the next session
 
-**Start here:** read AGENTS.md, then this status block, then NOTES.md (locked decisions + dead-ends), then the top of JOURNAL.md.
+**Start here:** AGENTS.md, `_dev/dev_AGENTS.md`, this status block, NOTES.md (locked decisions and dead-ends), then the top of JOURNAL.md.
 
-**State:** Phases 0-4 done. `v0.9.0` released 2026-09-22. `v0.7.1` was confirmed on Windows, macOS
-and Linux. Phase 5 is well advanced: async execution, real progress, the Stop
-button, settings persistence, the app icon, the macOS `.app` bundle, multi-FASTA,
-prefilter controls, experiment templates, Sage-JSON import, enzyme presets, and
-Convert results (mzIdentML and pepXML) have all landed.
-Phase 6 is planned but untouched.
+**State:** Phases 0 to 4 done. `nist-v0.9.0` is the latest release (2026-09-22). Phase 5 is largely done. Phase 6 has the mzIdentML and pepXML converters; the rest is planned.
 
-**Immediate next actions (in order):**
+**Open items, in order (after the status-block next actions):**
 
-1. **Open the converter output in an actual target tool** (Skyline,
-   PeptideShaker, TPP or Scaffold). `results.sage.pin` and
-   `matched_fragments.sage.tsv` from the v0.9.0 test run are now fully
-   inspected (see NOTES), and an independent parser plus a real rescoring tool
-   confirm both converter files are well-formed and semantically sane (see
-   NOTES → "Independent-reader verification") — no specific downstream
-   importer has opened either file yet.
-2. **Check the three unchecked release items** (see the status block). Windows
-   SmartScreen on the unsigned `.exe`. The Intel GUI app on Intel hardware or
-   under Rosetta. The macOS dialog text after sealing.
-3. **SageGUI versus Sage defaults audit.** Assert it as an invariant over an
-   empty Sage config. (The persisted output directory check is done.)
-4. **Locate rollup scripts** — they exist in a separate project (not sageRecon).
-   Find them, read them, record language + structure in NOTES before Phase 6 can
-   be scoped accurately.
-5. **Phase 6 format survey** — find a sample input file for MSstats, LFQ-analyst
-   and Scaffold; identify which columns Sage already produces vs. what needs
-   synthesizing; record the gap analysis in NOTES.
-5. **Licence decision and rename checklist** — scoped and waiting. See
-   Governance and licensing above.
+1. **Open the converter output in a target tool** (Skyline, PeptideShaker, TPP or Scaffold). An independent parser and a rescoring tool confirm both files are well-formed (NOTES "Independent-reader verification"). No specific importer has opened them yet.
+2. **Release checks not yet done:** Windows SmartScreen on the unsigned `.exe`; the Intel macOS app on Intel hardware or under Rosetta; the macOS dialog text after sealing.
+3. **SageGUI versus Sage defaults audit.** Assert it as an invariant over an empty Sage config.
+4. **Locate the rollup scripts.** They are in a separate project (not sageRecon). Record language and structure in NOTES before Phase 6 is scoped.
+5. **Phase 6 format survey.** Sample inputs for MSstats, LFQ-Analyst and Scaffold; which columns Sage already writes; record the gap analysis in NOTES.
 
 **Watch out for:**
-- **The precursor window is written backwards.** Read the STOP section at the top
-  of AGENTS.md before touching any tolerance value. Raw JSON `[lower, upper]` is
-  the delta-mass range negated and swapped.
-- Don't re-add `build.rs` version detection, don't add `lib.rs` to sage-cli, don't
-  switch the Sage dep back to a branch — all dead-ends (NOTES.md).
-- Don't remove `ExperimentType` from `PersistedState`. It is unused by the UI now,
-  but dropping a field makes eframe fail to deserialize the whole saved blob, and
-  the user silently loses every setting.
-- ThermoRawFileParser: license is clear (Apache-2.0), but the .NET runtime
-  dependency on Linux/macOS is an open question. Do the cross-platform spike
-  before committing to that design.
-- Rollup scripts may be R, not Python — changes the end-user dependency story.
-- TMT quant is still untested (no TMT data). LFQ is the only validated path. The
-  bundled `tmt11.json` template says so in its own description.
-- Any behavior change must sync README / CHANGELOG / MAINTENANCE in the same session.
+- **The precursor window is written backwards.** Read the STOP section at the top of AGENTS.md before touching any tolerance value. Raw JSON `[lower, upper]` is the delta-mass range negated and swapped.
+- Do not re-add `build.rs` version detection or switch Sage to a branch or Git dependency. Both are dead-ends (NOTES).
+- Do not remove `ExperimentType` or `reuse_cached_index` from saved state. Dropping a field makes eframe fail to load the whole saved blob, and the user loses every setting.
+- `cargo build` prints one `internal_eq_trait_method_impls` future-incompatibility warning from `vendor/sage/crates/sage/src/enzyme.rs`. It is upstream code (NOTES "Pin Sage to a commit hash"). A future Rust release makes it a hard error; then it needs a vendored patch or a re-vendor.
+- ThermoRawFileParser: the licence is clear (Apache-2.0), but the .NET runtime on Linux and macOS is an open question. Do the cross-platform spike first.
+- TMT quantification is still untested. LFQ is the only validated path. `tmt11.json` says so in its description.
+- A behaviour change must update README, CHANGELOG and MAINTENANCE in the same session.
 
-**Key files:** `src/main.rs` (app state, run thread), `src/ui.rs` (all tab rendering), `src/sage_json.rs` (template + config/results import), `src/export/` (mzIdentML + pepXML converters), `src/convert_job.rs` (runs a conversion on a thread for the UI), `assets/templates/` (bundled starting configs), `src/version.rs` (Sage version constants), `Cargo.toml` (pinned Sage commit), `.github/workflows/` (build + badges).
+**Key files:** `src/main.rs` (app state, run thread), `src/ui.rs` (all tab rendering, Info / Help), `src/sage_json.rs` (template and config import), `src/export/` (mzIdentML and pepXML converters), `src/convert_job.rs` (runs a conversion on a thread), `src/index_cache.rs` (database cache, hidden), `assets/templates/` (bundled configs), `src/version.rs` (Sage version constants), `vendor/sage/` (vendored Sage, with VENDORED.md and PATCHES.md), `.github/workflows/` (build, badges, actionlint).

@@ -201,7 +201,7 @@ impl ImportReport {
             )
         };
         if !self.needs_reselect.is_empty() {
-            summary.push_str(" Search parameters only — file selections need picking again.");
+            summary.push_str(" Search parameters only. Pick the files again.");
         }
         summary
     }
@@ -268,7 +268,7 @@ impl SageJson {
                     format!("{found} of {} still on disk", pretty.len())
                 };
                 report.needs_reselect.push(format!(
-                    "{} spectrum file{} listed ({detail}) — re-select them on Files & Database. \
+                    "{} spectrum file{} listed ({detail}). Select them again on Files & Database. \
                      First: {}",
                     pretty.len(),
                     if pretty.len() == 1 { "" } else { "s" },
@@ -286,7 +286,7 @@ impl SageJson {
                     "not found on this machine"
                 };
                 report.needs_reselect.push(format!(
-                    "FASTA listed ({state}) — re-select it on Files & Database: {pretty}"
+                    "FASTA listed ({state}). Select it again on Files & Database: {pretty}"
                 ));
             }
         }
@@ -294,7 +294,7 @@ impl SageJson {
         if let Some(dir) = &self.output_directory {
             if !dir.is_empty() {
                 report.needs_reselect.push(format!(
-                    "Output folder listed — set it on Run / Info if you want it: {}",
+                    "Output folder listed. Set it on Run / Info if you want it: {}",
                     pretty_path(dir)
                 ));
             }
