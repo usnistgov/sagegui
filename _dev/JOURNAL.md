@@ -24,6 +24,9 @@ four. The macOS artifacts hold an x86_64 and an arm64 binary, checked with
 out: I read the request as builds and Info / Help only, and did not ask.
 Ben chose `nist-v0.10.0`. Version bumped in `Cargo.toml`, `Cargo.lock`,
 `CITATION.cff`, README "Citation" and CHANGELOG; tag pushed on its own.
+The tag build (36184870354) passed on all four targets and published the
+release with four assets. The two macOS zips, downloaded from the release
+page, hold an x86_64 and an arm64 binary.
 
 **Least confident (Q1):** the cache reader after the `as_chunks` change. The
 unit tests round-trip a database, but the end-to-end cache test is ignored
@@ -43,9 +46,16 @@ future Rust release.
 not the rustup 1.98.1 that CI uses, so the lint was found only in CI. Clippy
 and rustfmt are now installed in the rustup stable toolchain.
 
-**Improvement (Q5):** run the local checks with the rustup toolchain (put
-`~/.rustup/toolchains/stable-*/bin` ahead of Homebrew on `PATH`, or remove
-the Homebrew Rust), so local clippy matches CI.
+**Toolchain (done this session, on Ben's Mac):** Homebrew Rust removed;
+`~/.zshenv` sources `~/.cargo/env`, and `~/.zprofile` puts
+`~/.cargo/bin` first. Local clippy now matches CI (1.98.1). Run
+`rustup update stable` before a release so the versions stay the same.
+
+**Improvement (Q5):** add a release checklist to MAINTENANCE.md: the files
+that carry the version (`Cargo.toml`, `Cargo.lock`, `CITATION.cff`,
+README "Citation", CHANGELOG), `rustup update stable` and local clippy
+first, a manual `build.yml` run, then push the one tag. This session had to
+work the list out by hand.
 
 ---
 
