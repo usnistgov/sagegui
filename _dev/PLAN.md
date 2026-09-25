@@ -8,10 +8,10 @@
 
 ## Status
 
-- **Current phase:** Published as `usnistgov/sagegui` (2026-09-23), a GitHub fork of `jspaezp/sagegui`. Releases are tagged `nist-vX.Y.Z`. Actions is on (2026-09-25). On `main` but not yet in a release: vendored Sage with six patches (three code, three dependency), the reworked Info / Help block, the database cache (hidden by `index_cache::ENABLED`), the licence files and the `_dev/` move.
+- **Current phase:** Published as `usnistgov/sagegui` (2026-09-23), a GitHub fork of `jspaezp/sagegui`. Releases are tagged `nist-vX.Y.Z`. Actions is on (2026-09-25). The database cache is on `main` but hidden by `index_cache::ENABLED`.
 - **Last updated:** 2026-09-25
-- **Next action (next session):** (1) Cut the first NIST-hosted release as `nist-vX.Y.Z` (version not chosen). Decide first whether the cache ships in it. The manual `build.yml` run on usnistgov passed on all four targets on 2026-09-25 (run 36175713918). (2) Then the open items in Handoff below. Keep `neely/sage` public: commits before the vendoring still pin it.
-- **Released:** `nist-v0.9.0` (2026-09-22): Convert results to mzIdentML and pepXML, a Results location, Write HTML report, a pre-run output-folder check, a Combine Charge States hover note. Earlier releases are in CHANGELOG.md.
+- **Next action (next session):** (1) Check the `nist-v0.10.0` release assets and download one on each platform. (2) Decide when the cache ships. (3) Then the open items in Handoff below. Keep `neely/sage` public: commits before the vendoring still pin it.
+- **Released:** `nist-v0.10.0` (2026-09-25), the first release built on usnistgov: vendored Sage with six patches (three code, three dependency), the reworked Info / Help block, the licence files. Previous: `nist-v0.9.0` (2026-09-22), Convert results to mzIdentML and pepXML. Earlier releases are in CHANGELOG.md.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
 
@@ -256,7 +256,7 @@ Locked decisions and their rationale have moved to **NOTES.md → Design decisio
 
 **Start here:** AGENTS.md, `_dev/dev_AGENTS.md`, this status block, NOTES.md (locked decisions and dead-ends), then the top of JOURNAL.md.
 
-**State:** Phases 0 to 4 done. `nist-v0.9.0` is the latest release (2026-09-22). Phase 5 is largely done. Phase 6 has the mzIdentML and pepXML converters; the rest is planned.
+**State:** Phases 0 to 4 done. `nist-v0.10.0` is the latest release (2026-09-25). Phase 5 is largely done. Phase 6 has the mzIdentML and pepXML converters; the rest is planned.
 
 **Open items, in order (after the status-block next actions):**
 

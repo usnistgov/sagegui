@@ -20,7 +20,10 @@ This was not caused by today's changes: the local toolchain was Homebrew
 Rust 1.97.1, which does not have the lint. Fixed with `as_chunks` and
 checked with clippy 1.98.1. The second run (36175713918) passed on all
 four. The macOS artifacts hold an x86_64 and an arm64 binary, checked with
-`file`. No release was made (the release step runs only on a tag).
+`file`. After that, Ben asked why no release was cut. The plan had left it
+out: I read the request as builds and Info / Help only, and did not ask.
+Ben chose `nist-v0.10.0`. Version bumped in `Cargo.toml`, `Cargo.lock`,
+`CITATION.cff`, README "Citation" and CHANGELOG; tag pushed on its own.
 
 **Least confident (Q1):** the cache reader after the `as_chunks` change. The
 unit tests round-trip a database, but the end-to-end cache test is ignored

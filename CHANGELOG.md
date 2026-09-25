@@ -11,8 +11,14 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-25
+
+The first release built on `usnistgov/sagegui`.
+
 ### Changed
 
+- **Info / Help on the Run / Info tab is one block.** It shows the SageGUI release and the Sage engine version, the fork statement, the maintainer, a link to report a problem, the licence, and how to cite SageGUI and Sage. The citation text can be selected and copied.
+- **Import messages are shorter.** Loading a Sage `config.json` or `results.json` now says which files to select again in plain sentences.
 - **Dependency updates in the vendored Sage clear five security advisories** (`atty`, `rustls-webpki` three times, `thrift`). `env_logger` goes to 0.11, `reqwest` to 0.12 and `parquet` to 59, and the `timsrust` miniTDF reader is off. SageGUI takes mzML input only, so no feature changes. Parquet output from a serum search is identical before and after. See `vendor/sage/PATCHES.md`, entries 4 to 6.
 - **Sage is now vendored in `vendor/sage`** instead of built from the `neely/sage` Git fork. The engine code is unchanged: upstream `lazear/sage` commit `d74024d` plus the same progress and cancel patches, now listed in `vendor/sage/PATCHES.md`. A re-run of a 2026-09-22 serum search gave the same 32,221 PSMs with identical scores and q-values. The Info panel now shows the engine as `v0.15.0-beta.2-10-gd74024d (with NIST patches)`, because it is 10 upstream commits past the v0.15.0-beta.2 release.
 
@@ -204,6 +210,7 @@ When a new Sage version is released:
 
 4. **Test and release** new sagegui version
 
+[0.10.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.10.0
 [0.9.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.9.0
 [0.8.2]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.8.2
 [0.8.1]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.8.1
