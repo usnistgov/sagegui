@@ -2671,11 +2671,13 @@ mod tests {
     /// trypsin/p as trypsin, which is a different digest.
     #[test]
     fn trypsin_p_matches_with_a_stale_restrict_char() {
-        let mut e = EnzymeConfig::default();
-        e.cleave_at = "KR".to_string();
-        e.enable_restrict = false;
-        e.restrict_char = "P".to_string(); // stale, not in force
-        e.c_terminal = true;
+        let e = EnzymeConfig {
+            cleave_at: "KR".to_string(),
+            enable_restrict: false,
+            restrict_char: "P".to_string(), // stale, not in force
+            c_terminal: true,
+            ..Default::default()
+        };
 
         let matched = e.matching_preset().expect("should match a preset");
         assert_eq!(ENZYME_PRESETS[matched].name, "trypsin/p");
@@ -2709,8 +2711,10 @@ mod tests {
     #[test]
     fn cleave_at_order_and_case_do_not_change_the_match() {
         for spelling in ["KR", "RK", "kr", "KRK"] {
-            let mut e = EnzymeConfig::default();
-            e.cleave_at = spelling.to_string();
+            let e = EnzymeConfig {
+                cleave_at: spelling.to_string(),
+                ..Default::default()
+            };
             let matched = e.matching_preset().expect("{spelling} should match");
             assert_eq!(
                 ENZYME_PRESETS[matched].name, "trypsin",
@@ -2775,8 +2779,10 @@ mod tests {
     /// valid configurations: empty means non-specific, "$" means no digestion.
     #[test]
     fn the_validator_allows_sages_two_special_cases() {
-        let mut e = EnzymeConfig::default();
-        e.cleave_at = String::new();
+        let mut e = EnzymeConfig {
+            cleave_at: String::new(),
+            ..Default::default()
+        };
         assert!(validate_enzyme_residues(&e).is_ok(), "empty = non-specific");
         e.cleave_at = "$".to_string();
         assert!(validate_enzyme_residues(&e).is_ok(), "$ = no digestion");
@@ -2786,8 +2792,10 @@ mod tests {
     /// It is only checked when the restriction is actually in force.
     #[test]
     fn the_validator_checks_restrict_only_when_it_applies() {
-        let mut e = EnzymeConfig::default();
-        e.restrict_char = "B".to_string();
+        let mut e = EnzymeConfig {
+            restrict_char: "B".to_string(),
+            ..Default::default()
+        };
 
         e.enable_restrict = true;
         assert!(
@@ -2829,9 +2837,11 @@ mod tests {
             (true, "", None),
             (true, "KR", None),
         ] {
-            let mut e = EnzymeConfig::default();
-            e.enable_restrict = enable;
-            e.restrict_char = ch.to_string();
+            let e = EnzymeConfig {
+                enable_restrict: enable,
+                restrict_char: ch.to_string(),
+                ..Default::default()
+            };
             let builder: EnzymeBuilder = e.clone().into();
             assert_eq!(
                 builder.restrict, want,
@@ -2896,7 +2906,8 @@ mod tests {
     #[test]
     fn every_bundled_template_shows_the_intended_delta_window() {
         // (file, precursor shown as delta, fragment shown as delta)
-        let expected: &[(&str, (f32, f32), (f32, f32))] = &[
+        type DeltaWindow = (f32, f32);
+        let expected: &[(&str, DeltaWindow, DeltaWindow)] = &[
             // Wide MS1, tight MS2. Stored [-3.5, 1.25]. The +3.5 delta side is
             // what absorbs monoisotopic peak misassignment.
             ("tryptic-wide-ms1.json", (-1.25, 3.5), (-10.0, 10.0)),

@@ -860,10 +860,12 @@ mod tests {
                 "database":{"fasta":"/not/my/db.fasta"}}"#,
         )
         .expect("must parse");
-        let mut config = Config::default();
-        config.mzml_paths = vec!["/my/real.mzML".into()];
+        let mut config = Config {
+            mzml_paths: vec!["/my/real.mzML".into()],
+            output_directory: "/my/output".to_string(),
+            ..Default::default()
+        };
         config.database.fasta_paths = vec!["/my/real.fasta".into()];
-        config.output_directory = "/my/output".to_string();
 
         let (mut p, mut f) = (ToleranceType::Ppm, ToleranceType::Ppm);
         let report = doc.apply(&mut config, &mut p, &mut f, "test");

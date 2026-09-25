@@ -20,6 +20,8 @@
 # runs the 4-target matrix, and the unused pull_request trigger is gone.
 # Release tags are nist-vX.Y.Z (2026-09-23), because the upstream
 # jspaezp/sagegui uses vX.Y.Z tags for different releases.
+# Modified by Benjamin A. Neely (NIST) on 2026-09-25: clippy now lints test
+# code too (--all-targets).
 
 name: Build and Release
 
@@ -98,7 +100,7 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Run Tests
         run: cargo test --verbose --target ${{ matrix.target }}
