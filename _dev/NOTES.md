@@ -1495,6 +1495,21 @@ accepts them.
 
 ### Database cache (landed 2026-09-23)
 
+- **Hidden from the UI since 2026-09-25 (Ben's decision: not ready to ship).** `index_cache::ENABLED` is `false`. The Files & Database checkbox and the Run / Info group are not drawn, and `launch_application` ignores a saved `reuse_cached_index: true`. The code, the `DatabaseConfig` field and the tests stay. To ship it: set `ENABLED` to `true`, put back the README feature bullet and section and the CHANGELOG entry below, and remove the README "To be added" line.
+  - README feature bullet: `- Optional database cache: save the built peptide database and reuse it on a later run with the same FASTA and database settings (off by default; see below)`
+  - README section, verbatim:
+
+    > ### Database cache (feature currently in development)
+    >
+    > On Files & Database, "Cache prepared database" saves the peptide database that Sage builds from the FASTA. A later run with the same FASTA content and the same database settings (enzyme, modifications, mass range, decoys) loads it instead of building it again. Changing only tolerances, charges, quantification or the spectrum files still reuses it. It is off by default, because one entry for a human proteome is about 3 GB, and it is not available with prefiltering.
+    >
+    > On our test Mac the gain is small: the human proteome database took 9 s to build and 6 s to load from the cache. It may help more on slower computers. It does not help semi-enzymatic or non-specific searches, whose databases are too large to cache (the limit is 12 GiB per entry).
+    >
+    > The cache lives in `~/Library/Caches/gov.nist.sagegui/index-cache` (macOS), `%LOCALAPPDATA%\SageGUI\index-cache` (Windows) or `~/.cache/sagegui/index-cache` (Linux). Run / Info shows its size and has a Clear button. It holds at most 20 GiB and deletes the least recently used entries first.
+
+  - CHANGELOG `### Added` entry, verbatim:
+
+    > - **Database cache (off by default).** "Cache prepared database" on Files & Database saves the built peptide database and reuses it when the FASTA content and database settings match. Run / Info shows the cache folder and size, with a Clear button. On our test Mac a human proteome database took 9 s to build and 6 s to load, so the gain there is small. Entries over 12 GiB are not written, and prefiltering turns the cache off. A cached run gave the same 32,221 PSMs as a fresh build.
 - **What:** "Cache prepared database" on Files & Database, off by default. On a build, SageGUI saves Sage's `IndexedDatabase` to `sage-index-<key>.bin` in the OS cache folder. A later run with the same FASTA content and the same database settings loads it and skips the build. Code: `src/index_cache.rs`. Sage side: `Runner::from_parts`, `vendor/sage/PATCHES.md` entry 3. Run / Info shows the folder, the total size, and a two-step Clear.
 - **Measured speed-up is small on the maintainer's Mac (2026-09-23), stated plainly.** Serum search, human FASTA (`UniProt-Human-UP000005640_canonical-2023_05`), trypsin, 2 missed cleavages, M+15.9949, bucket 8192, release build: build **9.0 s**, save **7.5 s**, file **3.0 GB**, load **6.0 s**. So a repeat run saves about 3 s, and the first run costs 7.5 s more. The design (from session "FASTA database build performance", 2026-09-09) assumed about 125 s per build. That figure was the "~2 minutes of silence" from the 2026-08-24 live test, which also covers reading the spectra and may have been a debug build. Nobody has timed a build on Windows. Ben decided to ship it anyway (2026-09-23): it is off by default, tested, and may help on slower machines.
 - **Limitation, by design:** the searches whose build is really slow (semi-enzymatic, non-specific, many variable mods) make databases 10 to 20 times larger. An entry estimated over `MAX_ENTRY_BYTES` (12 GiB) is not written, and prefiltering turns the cache off, so the cache does not help those searches.

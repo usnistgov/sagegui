@@ -585,7 +585,7 @@ impl SageLauncher {
         info!("Starting search with {} parallel threads", parallel);
         let parquet = false;
         let sage_input: Input = self.config.clone().into();
-        let reuse_cached_index = self.config.database.reuse_cached_index;
+        let reuse_cached_index = index_cache::ENABLED && self.config.database.reuse_cached_index;
 
         self.search_progress = None;
         self.total_spectra = total_mzml_spectra(&self.config.mzml_paths);

@@ -11,10 +11,6 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
-### Added
-
-- **Database cache (off by default).** "Cache prepared database" on Files & Database saves the built peptide database and reuses it when the FASTA content and database settings match. Run / Info shows the cache folder and size, with a Clear button. On our test Mac a human proteome database took 9 s to build and 6 s to load, so the gain there is small. Entries over 12 GiB are not written, and prefiltering turns the cache off. A cached run gave the same 32,221 PSMs as a fresh build.
-
 ### Changed
 
 - **Dependency updates in the vendored Sage clear five security advisories** (`atty`, `rustls-webpki` three times, `thrift`). `env_logger` goes to 0.11, `reqwest` to 0.12 and `parquet` to 59, and the `timsrust` miniTDF reader is off. SageGUI takes mzML input only, so no feature changes. Parquet output from a serum search is identical before and after. See `vendor/sage/PATCHES.md`, entries 4 to 6.

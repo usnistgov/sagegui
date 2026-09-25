@@ -37,6 +37,13 @@
 //! reorder anything here, because a cache-only reordering would make a cached
 //! run differ from a fresh one.
 
+/// Shows the cache in the UI and lets a search use it. Off since 2026-09-25:
+/// the code is complete and tested, but the maintainer is not ready to ship
+/// it. While this is false, the checkbox and the Run / Info group are hidden,
+/// and a saved `reuse_cached_index: true` has no effect. See NOTES, Database
+/// cache, for what else to restore when this goes back to true.
+pub const ENABLED: bool = false;
+
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::hash::Hasher as _;

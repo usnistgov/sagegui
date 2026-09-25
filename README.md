@@ -27,7 +27,6 @@ This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VEND
 - Enzyme presets: 14 curated proteases, including the Asp-N and Lys-N cases that cut before their residue
 - TMT (6/10/11/16/18-plex) and LFQ quantification
 - Database prefiltering (chunked FASTA processing) to bound peak memory on semi-enzymatic and non-specific searches
-- Optional database cache: save the built peptide database and reuse it on a later run with the same FASTA and database settings (off by default; see below)
 - Settings remembered between sessions (parameters, file picks, active tab, and modifications)
 - Starting templates on the Experiment tab (tryptic wide MS1/tight MS2, tight, open, biofluid, TMT 11-plex)
 - Load search parameters from any Sage `config.json` or a past run's `results.json`
@@ -37,16 +36,9 @@ This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VEND
 - Convert results to mzIdentML 1.1.1 and pepXML 1.23 from the Run / Info tab, for any earlier run or automatically after a search. Choose the q-value (spectrum, peptide or protein), the limit and whether to keep decoys
 - Builds for Windows, macOS (Intel + Apple Silicon), and Linux
 
-### Database cache (feature currently in development)
-
-On Files & Database, "Cache prepared database" saves the peptide database that Sage builds from the FASTA. A later run with the same FASTA content and the same database settings (enzyme, modifications, mass range, decoys) loads it instead of building it again. Changing only tolerances, charges, quantification or the spectrum files still reuses it. It is off by default, because one entry for a human proteome is about 3 GB, and it is not available with prefiltering.
-
-On our test Mac the gain is small: the human proteome database took 9 s to build and 6 s to load from the cache. It may help more on slower computers. It does not help semi-enzymatic or non-specific searches, whose databases are too large to cache (the limit is 12 GiB per entry).
-
-The cache lives in `~/Library/Caches/gov.nist.sagegui/index-cache` (macOS), `%LOCALAPPDATA%\SageGUI\index-cache` (Windows) or `~/.cache/sagegui/index-cache` (Linux). Run / Info shows its size and has a Clear button. It holds at most 20 GiB and deletes the least recently used entries first.
-
 ## To be added
 
+- Database cache: save the built peptide database and reuse it on a later run with the same FASTA and database settings. The code is in place but hidden in the UI until it is ready.
 - Export options: Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), Scaffold (?). PDV and MSstats are covered under Downstream tools instead: both read Sage output directly, so no exporter is needed here.
 - iBAQ and other LFQ options
 

@@ -1575,21 +1575,23 @@ impl SageLauncher {
                 );
             });
 
-            ui.separator();
-            ui.strong("Database cache (speed)");
-            ui.add_enabled_ui(!prefiltering_enabled, |ui| {
-                ui.checkbox(
-                    &mut self.config.database.reuse_cached_index,
-                    "Cache prepared database",
-                )
-                .on_hover_text(
-                    "Save the built peptide database to disk. A later run with the same \
-                     FASTA and the same database settings loads it and skips the build. \
-                     A human proteome entry is several GB. Run / Info shows the size.",
-                );
-            });
-            if prefiltering_enabled {
-                ui.weak("Not available with prefiltering.");
+            if crate::index_cache::ENABLED {
+                ui.separator();
+                ui.strong("Database cache (speed)");
+                ui.add_enabled_ui(!prefiltering_enabled, |ui| {
+                    ui.checkbox(
+                        &mut self.config.database.reuse_cached_index,
+                        "Cache prepared database",
+                    )
+                    .on_hover_text(
+                        "Save the built peptide database to disk. A later run with the same \
+                         FASTA and the same database settings loads it and skips the build. \
+                         A human proteome entry is several GB. Run / Info shows the size.",
+                    );
+                });
+                if prefiltering_enabled {
+                    ui.weak("Not available with prefiltering.");
+                }
             }
 
             egui::CollapsingHeader::new("Advanced")
@@ -2033,9 +2035,10 @@ impl SageLauncher {
 
         ui.add_space(10.0);
 
-        self.database_cache_section(ui);
-
-        ui.add_space(10.0);
+        if crate::index_cache::ENABLED {
+            self.database_cache_section(ui);
+            ui.add_space(10.0);
+        }
 
         self.convert_section(ui);
 
