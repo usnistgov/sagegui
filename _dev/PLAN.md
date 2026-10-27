@@ -265,7 +265,8 @@ Locked decisions and their rationale have moved to **NOTES.md → Design decisio
 3. **SageGUI versus Sage defaults audit.** Assert it as an invariant over an empty Sage config.
 4. **Locate the rollup scripts.** They are in a separate project (not sageRecon). Record language and structure in NOTES before Phase 6 is scoped.
 5. **Phase 6 format survey.** Sample inputs for MSstats, LFQ-Analyst and Scaffold; which columns Sage already writes; record the gap analysis in NOTES.
-6. **Better user guides (Ben, 2026-10-27).** The README Quick start is five steps. `docs/` holds reference material (`PARAMETER_REFERENCE.md`, `GLOSSARY.md`), not a task guide. A guide could walk through a first search from start to finish. The scope is not decided. Do sageRecon's guide at the same time.
+6. **Keep `github.com/neely/sage` (noted 2026-10-27).** Ben plans to delete the sageRecon private archives. `neely/sage` must not go with them, because commits from before the vendoring (2026-09-23) pin it.
+7. **Better user guides (Ben, 2026-10-27).** The README Quick start is five steps. `docs/` holds reference material (`PARAMETER_REFERENCE.md`, `GLOSSARY.md`), not a task guide. A guide could walk through a first search from start to finish. The scope is not decided. Do sageRecon's guide at the same time.
 
 **Watch out for:**
 - **The precursor window is written backwards.** Read the STOP section at the top of AGENTS.md before touching any tolerance value. Raw JSON `[lower, upper]` is the delta-mass range negated and swapped.
