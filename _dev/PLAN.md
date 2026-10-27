@@ -9,7 +9,7 @@
 ## Status
 
 - **Current phase:** Published as `usnistgov/sagegui` (2026-09-23), a GitHub fork of `jspaezp/sagegui`. Releases are tagged `nist-vX.Y.Z`. Actions is on (2026-09-25). The database cache is on `main` but hidden by `index_cache::ENABLED`.
-- **Last updated:** 2026-09-25
+- **Last updated:** 2026-10-27. Documentation only, from a NIST review and the NIST software documentation checklist: README disclaimers (`7f49eda`), and status and support, requirements and build provenance in the README (`c78b990`). Problem reports now go by email, because Issues is off on this repository. Ben can enable Issues in Settings > Features. That change reaches users only in the next release. NOTES and JOURNAL were not updated.
 - **Next action (next session):** (1) Download `nist-v0.10.0` and run it on Windows, Linux and macOS (the assets exist and the macOS architectures are checked; nobody has run them yet). (2) Decide when the cache ships. (3) Then the open items in Handoff below. Keep `neely/sage` public: commits before the vendoring still pin it.
 - **Released:** `nist-v0.10.0` (2026-09-25), the first release built on usnistgov: vendored Sage with six patches (three code, three dependency), the reworked Info / Help block, the licence files. Previous: `nist-v0.9.0` (2026-09-22), Convert results to mzIdentML and pepXML. Earlier releases are in CHANGELOG.md.
 
@@ -135,8 +135,8 @@ NIST FAIR governance files landed 2026-09-08. The licence is resolved (2026-09-2
 
 - [x] **Prefilter options.** Defaults match what Sage resolves on its own. See `docs/PARAMETER_REFERENCE.md`.
 - [ ] Protein grouping settings
-- [ ] Write report option
-- [ ] Bruker configuration (for timsTOF data)
+- [x] **Write report option.** The "Write HTML report" checkbox, shipped in `nist-v0.9.0` (CHANGELOG). Ticked 2026-10-27; the box was stale.
+- [ ] Bruker configuration (for timsTOF data). **Blocked (noted 2026-10-27):** SageGUI takes mzML only since 2026-08-13, and the `timsrust` reader is off since `nist-v0.10.0` (CHANGELOG). Ben decides whether this item stays.
 
 #### Speed
 
@@ -265,6 +265,7 @@ Locked decisions and their rationale have moved to **NOTES.md → Design decisio
 3. **SageGUI versus Sage defaults audit.** Assert it as an invariant over an empty Sage config.
 4. **Locate the rollup scripts.** They are in a separate project (not sageRecon). Record language and structure in NOTES before Phase 6 is scoped.
 5. **Phase 6 format survey.** Sample inputs for MSstats, LFQ-Analyst and Scaffold; which columns Sage already writes; record the gap analysis in NOTES.
+6. **Better user guides (Ben, 2026-10-27).** The README Quick start is five steps. `docs/` holds reference material (`PARAMETER_REFERENCE.md`, `GLOSSARY.md`), not a task guide. A guide could walk through a first search from start to finish. The scope is not decided. Do sageRecon's guide at the same time.
 
 **Watch out for:**
 - **The precursor window is written backwards.** Read the STOP section at the top of AGENTS.md before touching any tolerance value. Raw JSON `[lower, upper]` is the delta-mass range negated and swapped.
