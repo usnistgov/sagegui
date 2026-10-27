@@ -11,6 +11,16 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+### Changed
+
+- **Report a problem now opens an email** to benjamin.neely@nist.gov. The link on the Run / Info tab went to GitHub Issues, which is not enabled on this repository.
+
+### Added
+
+- **NIST disclaimers in the README.** A generative AI disclaimer, which links to `docs/AI_USAGE.md`, and the NIST commercial product disclaimer.
+- **Status and support in the README.** SageGUI is under active development. Support is best effort, by email.
+- **Requirements in the README**, a link to the parameter reference and the glossary, and a note that release binaries are built by GitHub Actions.
+
 ## [0.10.0] - 2026-09-25
 
 The first release built on `usnistgov/sagegui`.

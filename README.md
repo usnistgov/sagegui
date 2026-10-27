@@ -63,6 +63,12 @@ Get the latest release from the [Releases page](https://github.com/usnistgov/sag
 >
 > Then open it normally. Right-clicking and choosing Open does **not** work for this message. If you clicked **Move to Trash**, open the Trash in Finder, right-click the app and choose **Put Back**, or download it again.
 
+### Requirements
+
+- Windows x64, macOS (Intel or Apple Silicon), or Linux x64, as in the table above.
+- No Sage install. Sage is compiled into SageGUI.
+- Memory: peak memory depends on the search space (database size, missed cleavages, variable modifications, and above all semi-enzymatic or non-specific digestion). If a search runs out of memory, see [Database prefiltering](docs/PARAMETER_REFERENCE.md#database-prefiltering-fasta-chunking).
+
 ## Quick start
 
 1. Download and extract the archive for your platform
@@ -72,6 +78,8 @@ Get the latest release from the [Releases page](https://github.com/usnistgov/sag
 5. Click **Run** at the bottom of any tab
 
 Output goes to the directory set on the Run/Info tab (defaults to the working directory).
+
+[docs/PARAMETER_REFERENCE.md](docs/PARAMETER_REFERENCE.md) explains every control in the interface. [docs/GLOSSARY.md](docs/GLOSSARY.md) defines the terms.
 
 ## Building from source
 
@@ -84,6 +92,8 @@ cargo build --release
 ```
 
 Binary is at `target/release/sagegui` (or `sagegui.exe` on Windows).
+
+The release binaries are built by GitHub Actions with [`.github/workflows/build.yml`](.github/workflows/build.yml) when a `nist-vX.Y.Z` tag is pushed. This applies from `nist-v0.10.0`. Releases `nist-v0.6.0` to `nist-v0.9.0` carry the binaries first published on `neely/sagegui`.
 
 ## Related
 
@@ -118,6 +128,10 @@ Tools that read what Sage/SageGUI produces. This list grows as support is report
   **Annotate Matches** under Search output to write `matched_fragments.sage.tsv` (ion type, ordinal,
   charge, calculated and observed m/z, intensity). Verified against a real run: every fragment row
   traces to a real PSM, and `results.sage.tsv`'s match-quality columns reproduce correctly from it.
+
+## Status and support
+
+SageGUI is under active development. We want feedback on its performance and usability. Report a problem or ask a question by email to benjamin.neely@nist.gov. Issues is not enabled on this fork. We answer on a best-effort basis and cannot promise a response time.
 
 ## Citation
 

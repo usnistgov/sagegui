@@ -2084,8 +2084,8 @@ impl SageLauncher {
             });
             ui.label("Maintainer: Benjamin A. Neely (NIST).");
             ui.hyperlink_to(
-                "Report a problem or ask a question",
-                format!("{SAGEGUI_REPO}/issues"),
+                "Report a problem or ask a question: benjamin.neely@nist.gov",
+                "mailto:benjamin.neely@nist.gov",
             );
             ui.horizontal_wrapped(|ui| {
                 ui.label(
