@@ -131,7 +131,7 @@ Tools that read what Sage/SageGUI produces. This list grows as support is report
 
 ## Status and support
 
-SageGUI is under active development. We want feedback on its performance and usability. Report a problem or ask a question by email to benjamin.neely@nist.gov. Issues is not enabled on this fork. We answer on a best-effort basis and cannot promise a response time.
+SageGUI is under active development. We want feedback on its performance and usability. Report a problem or ask a question in [GitHub Issues](https://github.com/usnistgov/sagegui/issues), or by email to the contact below. We answer on a best-effort basis and cannot promise a response time.
 
 ## Citation
 
