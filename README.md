@@ -164,6 +164,16 @@ This software was developed by employees of the National Institute of Standards 
 Project FAIR and governance practices are described in
 [fair-software.md](fair-software.md).
 
+## Disclaimers
+
+### Use of generative AI
+
+This software was developed with the assistance of Claude Code, running Claude models, developed by Anthropic. Claude Code was used to write code and tests, draft documentation, and take part in design discussions, in accordance with the author's instructions. All content, scientific claims, and conclusions have been reviewed and verified by the author to ensure accuracy and originality. [docs/AI_USAGE.md](docs/AI_USAGE.md) gives the detail.
+
+### Commercial products
+
+Certain instruments, software, or materials are identified in this repository and its documentation in order to specify the experimental procedure adequately. Such identification is not intended to imply recommendation or endorsement of any product or service by NIST, nor is it intended to imply that the instruments, software, or materials identified are necessarily the best available for the purpose.
+
 ## Contact
 
 Benjamin A. Neely, PI  

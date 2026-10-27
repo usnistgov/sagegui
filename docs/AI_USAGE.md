@@ -17,9 +17,9 @@ models) working alongside a human author, under continuous human review.
   running real searches and comparing their output (see the test baseline and the
   regression checks in `_dev/NOTES.md`).
 
-This is a plain factual record, not a policy statement. NIST and GitHub do not yet have
-a standard disclosure format for AI-assisted development, so this file states what was
-actually done rather than following a template.
+This is a plain factual record. The formal disclosure, in the format NIST requires for
+generative AI use, is in the [README](../README.md#use-of-generative-ai). This file gives
+the detail behind it.
 
 The code in `src/` that derives from J. Sebastian Paez's `jspaezp/sagegui`, and the
 vendored Sage source by Michael Lazear, were written by those authors. See
