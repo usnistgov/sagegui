@@ -11,19 +11,23 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+### Added
+
+- **Step-by-step progress.** Run / Info has a Progress card with one row per step: Read FASTA, Digest proteins, Build fragment index, Read spectra, Search, Score and FDR, Quantify, Write results. Each row shows its state, a bar, its time and a summary such as the number of proteins, peptides, fragments, spectra or PSMs. The database build is no longer silent. The run bar shows the step that is running.
+- **NIST disclaimers in the README.** A generative AI disclaimer, which links to `docs/AI_USAGE.md`, and the NIST commercial product disclaimer.
+- **Status and support in the README.** SageGUI is under active development. Support is best effort, through GitHub Issues or email.
+- **Requirements in the README**, a link to the parameter reference and the glossary, and a note that release binaries are built by GitHub Actions.
+
 ### Changed
 
+- **The Search bar reaches 100%.** Its total is now the exact number of MS2 spectra that Sage searches. The old total came from the mzML file header and counted MS1 spectra too.
+- **SageGUI runs Sage's search steps itself** (`src/pipeline.rs`, a copy of Sage's `Runner` pipeline), so it can report and stop each step. Sage's own writers still write every file. Tests run stock Sage and the copy on the same data and compare every output file.
+- **Stop works in more places.** A search can now stop between the database steps, between prefilter chunks, and after scoring, before any file is written.
 - **Sage engine updated to upstream `4a051b2`** (`v0.15.0-beta.2-28-g4a051b2`), 18 commits newer. Upstream changes that can alter results: a fix to candidate score ordering, two LFQ fixes, a fix to MS1 picked-precursor FDR, and a neutral NH3 mass in c, x and z ions. See the upstream CHANGELOG.
 - **Radical z ions.** The ion picker has a new `Z•` choice for ETD and ECD.
 - **Named modifications load.** A Sage JSON with a mod object (`{"mass": 15.9949, "name": "UNIMOD:35", "max_count": 1}`) now loads. SageGUI keeps the mass and warns that it dropped the name and `max_count`. The mzIdentML and pepXML converters read a peptide that shows a mod name.
 - **The database cache format changed** (format 2). Entries written by `nist-v0.10.0` are not used. They are rebuilt on the next run.
 - **Vendored Sage patches.** The `reqwest` patch is gone, because upstream made the same change. The `parquet` patch stays. `timsrust` 0.6 brings back three advisories through its Bruker file reader. SageGUI offers no Bruker input, so they are not reachable. See `vendor/sage/PATCHES.md`, entry 6.
-
-### Added
-
-- **NIST disclaimers in the README.** A generative AI disclaimer, which links to `docs/AI_USAGE.md`, and the NIST commercial product disclaimer.
-- **Status and support in the README.** SageGUI is under active development. Support is best effort, through GitHub Issues or email.
-- **Requirements in the README**, a link to the parameter reference and the glossary, and a note that release binaries are built by GitHub Actions.
 
 ## [0.10.0] - 2026-09-25
 

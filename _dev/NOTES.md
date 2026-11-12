@@ -37,7 +37,44 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Why:** Simpler than the originally-considered `build.rs` auto-detection.
 - **Rejected:** `build.rs` that auto-detects the version from `Cargo.toml` — removed in favor of the plain constants. Do not re-add it.
 
+### Own search pipeline in `src/pipeline.rs` (locked, 2026-11-12)
+- **What:** SageGUI runs Sage's search steps itself. `src/pipeline.rs` is a copy of
+  `Runner::new`, `Runner::run` and their private helpers from `runner.rs` at `4a051b2`,
+  with progress events (`pipeline::Event`), cancel checks and Sage's own log target
+  added. The writers stay Sage's: a `Runner` made by `from_parts` (patch 3) writes every
+  file, and `write_report` is public by patch 7. `src/progress.rs` turns the events into
+  the step card on Run / Info and the step line in the run bar.
+- **Why:** Michael Lazear's web Sage (sage.lazear.org/search) shows a progress row per
+  step and needs no Sage patch. His advice: Sage is a library, so drive the pipeline from
+  the app and put hooks where you need them. SageGUI already compiled Sage in, but
+  called `new` and `run` as two closed blocks, so every hook had to be a Sage patch
+  (patches 1 and 2), and the database build was silent for 1 to 2 minutes.
+- **Decision (Ben, 2026-11-12):** copy the small private helpers and own them, and do
+  not patch them `pub`. The exception is `write_report` (about 560 lines, Sage's report
+  libraries): a one-word `pub` patch.
+- **Guard:** `cargo test pipeline` runs stock `Runner::new` + `run` and the pipeline on
+  generated data (401 proteins, 300 MGF spectra, plus Sage's own one-spectrum mzML) and
+  compares every output file, without `psm_id`, rows sorted. Cases: plain, file batches
+  (more files than `parallel`), Parquet, prefilter. Five deliberate changes to the copy
+  (report count, spectrum FDR, protein-group FDR, mobility model, grouping flag) each
+  made the test fail. With only the one real spectrum, two of them passed: the fixture
+  was too weak, so the generated data was added. The real-data check is the ignored test
+  `pipeline_matches_stock_runner_on_real_data` (`SAGEGUI_PIPELINE_E2E=results.json`).
+- **Differences from stock `run`, by design:** no `println!` of `results.json` (SageGUI
+  has no console), no telemetry (SageGUI never sent it), and "finished in Ns" counts from
+  the start of the search, not the database build.
+- **Progress detail limits:** digest and fragment-index build show a spinner, the
+  elapsed time and counts when done, but no percentage. A percentage needs a counter
+  inside `Parameters::digest` and `build_from_peptides` (sage-core), so it would be a
+  Sage patch. Ben chose named steps only. The Search bar's total is now the exact count
+  of MS2 spectra that pass `min_peaks`, known after reading. The old `<spectrumList
+  count>` pre-scan counted MS1 spectra too, so the old bar stopped short of 100%. It is
+  removed.
+- **Upkeep:** MAINTENANCE.md Step 2, "Port upstream pipeline changes".
+
 ### Sage patch 1: `Runner.progress` counter (2026-08-21; first on `neely/sage`, now vendored)
+- **Superseded 2026-11-12:** SageGUI no longer reads this field. Its own pipeline has
+  its own counter (see "Own search pipeline" above).
 - **Now vendored (2026-09-23):** this patch is `vendor/sage/PATCHES.md` entry 1, commit `cddfb85`. The detail below is the original record. Where it says `neely/sage` or "merge into the fork", read "re-apply to `vendor/sage`" (MAINTENANCE.md Step 2).
 - **What:** `neely/sage` `master` (merged PR #1, commit `cf20b75b`, on top of
   `d74024df`) carries a small hand-written patch, not from upstream
@@ -68,6 +105,9 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
   action needed beyond noting the new commit hash.
 
 ### Sage patch 2: `Runner.cancel` cooperative cancellation (2026-08-24; first on `neely/sage`, now vendored)
+- **Superseded 2026-11-12:** SageGUI no longer calls `with_cancel`. Its own pipeline
+  checks the Stop flag at the same three places, plus between build steps, per FASTA
+  chunk in prefilter, and once more before it writes files.
 - **Now vendored (2026-09-23):** this patch is `vendor/sage/PATCHES.md` entry 2, commit `b6746d3`. The detail below is the original record.
 - **What:** `neely/sage` `master` (commit `ed5f06c`, pushed straight to
   master, on top of `cf20b75b`) carries a second additive patch: a

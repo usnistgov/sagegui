@@ -22,6 +22,8 @@ use std::str::FromStr;
 
 use crate::convert_job::{conversion_dir, scan_results_dir, ConvertRequest, ConvertStatus};
 use crate::export::{ExportOptions, QSource};
+use crate::pipeline::Step;
+use crate::progress::{Status, StepState};
 use crate::SageLauncher;
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -2080,6 +2082,10 @@ impl SageLauncher {
 
         ui.add_space(10.0);
 
+        self.progress_card(ui);
+
+        ui.add_space(10.0);
+
         ui.group(|ui| {
             ui.heading("Sage Log");
             ui.label("Live output from Sage's own search engine, captured during a run.");
@@ -2147,6 +2153,71 @@ impl SageLauncher {
     /// two-step Clear. The totals come from `cache_stats`, which reads the
     /// folder only when it is `None`: at start, after a search, after Clear,
     /// and on Refresh. Never read the folder on every frame.
+    /// The run bar's step line: the step that is running, its place in the
+    /// list, and its bar. A step with no count shows a moving bar.
+    pub fn run_bar_step(&mut self, ui: &mut egui::Ui) {
+        let current = self
+            .run_progress
+            .as_ref()
+            .and_then(|p| p.current())
+            .cloned();
+        match current {
+            Some(s) => {
+                let n = Step::ALL.iter().position(|x| *x == s.step).unwrap_or(0) + 1;
+                ui.label(format!("{} ({n} of {})", s.step.label(), Step::ALL.len()));
+                ui.add(step_bar(&s).desired_width(120.0));
+            }
+            None => {
+                ui.spinner();
+                ui.label("Starting");
+            }
+        }
+    }
+
+    /// One row per search step, with its status, a summary and a bar. Kept
+    /// after the run, so a finished or stopped search can be reviewed.
+    fn progress_card(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.set_min_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.heading("Progress");
+                if let Some(p) = &self.run_progress {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.monospace(format!("{:.1} s", p.elapsed().as_secs_f64()));
+                    });
+                }
+            });
+            let Some(p) = &self.run_progress else {
+                ui.weak("Run a search to see each step here.");
+                return;
+            };
+            for s in &p.steps {
+                match s.step {
+                    Step::ReadFasta => {
+                        ui.weak("Peptide database");
+                    }
+                    Step::ReadSpectra => {
+                        ui.add_space(4.0);
+                        ui.weak("Spectra and search");
+                    }
+                    Step::Fdr => {
+                        ui.add_space(4.0);
+                        ui.weak("Results");
+                    }
+                    _ => {}
+                }
+                ui.horizontal(|ui| {
+                    status_icon(ui, s.status);
+                    ui.label(s.step.label());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.weak(step_detail(s));
+                    });
+                });
+                ui.add(step_bar(s).desired_height(6.0));
+            }
+        });
+    }
+
     fn database_cache_section(&mut self, ui: &mut egui::Ui) {
         ui.group(|ui| {
             ui.heading("Database cache");
@@ -2479,6 +2550,72 @@ fn sagegui_citation() -> String {
          Standards and Technology. {SAGEGUI_REPO}",
         env!("CARGO_PKG_VERSION")
     )
+}
+
+// ─── Progress card helpers ───────────────────────────────────────────────────
+
+/// The bar for one step. A running step with no count moves on its own.
+fn step_bar(s: &StepState) -> egui::ProgressBar {
+    match s.fraction() {
+        Some(f) => egui::ProgressBar::new(f),
+        None => egui::ProgressBar::new(0.0).animate(true),
+    }
+}
+
+/// The right-hand text of a step row.
+fn step_detail(s: &StepState) -> String {
+    let unit = match s.step {
+        Step::ReadSpectra => "files",
+        Step::Search => "spectra",
+        _ => "",
+    };
+    let mut parts = Vec::new();
+    if s.status == Status::Running {
+        if let Some(total) = s.total {
+            parts.push(format!(
+                "{} of {} {unit}",
+                crate::pipeline::count(s.done),
+                crate::pipeline::count(total)
+            ));
+        }
+    }
+    if !s.detail.is_empty() {
+        parts.push(s.detail.clone());
+    }
+    if s.status == Status::Running {
+        if let Some(t) = s.started {
+            parts.push(format!("{:.0} s", t.elapsed().as_secs_f64()));
+        }
+    }
+    parts.join(" · ")
+}
+
+/// A small status mark: an open ring (to do), a spinner (running), a green
+/// dot (done), a grey dot (skipped) or an orange dot (stopped or failed).
+fn status_icon(ui: &mut egui::Ui, status: Status) {
+    if status == Status::Running {
+        ui.add(egui::Spinner::new().size(12.0));
+        return;
+    }
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+    let center = rect.center();
+    let painter = ui.painter();
+    let grey = ui.visuals().weak_text_color();
+    match status {
+        Status::Pending => {
+            painter.circle_stroke(center, 5.0, egui::Stroke::new(1.5_f32, grey));
+        }
+        Status::Done => {
+            painter.circle_filled(center, 5.5, egui::Color32::from_rgb(46, 160, 67));
+        }
+        Status::Skipped => {
+            painter.circle_filled(center, 5.5, grey);
+        }
+        Status::Stopped => {
+            painter.circle_filled(center, 5.5, ui.visuals().warn_fg_color);
+        }
+        Status::Running => {}
+    }
 }
 
 #[cfg(test)]

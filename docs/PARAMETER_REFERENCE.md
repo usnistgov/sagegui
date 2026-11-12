@@ -120,7 +120,7 @@ Leave it off for normal tryptic searches at normal database sizes. The pass cost
 
 - **Extra CPU.** Every spectrum is scored once per chunk before the real search starts.
 - **Slightly different results.** Decoys are generated per chunk and are not regenerated over the final filtered set, so PSM counts can differ a little from a non-prefiltered run of the same data.
-- **No progress readout.** The pass runs inside database construction, where SageGUI has no progress signal. The run bar stays at 0% for its duration.
+- **Coarse progress readout.** The pass is part of the Digest proteins step. The Progress card shows which FASTA chunk is being searched, for example "prefilter chunk 3 of 9", but no percentage inside a chunk.
 - **File-count cliff.** If SageGUI's thread count (half the CPU cores) is at least the number of mzML files, Sage reads all spectra once and holds them in memory for the whole pass. Otherwise it re-reads and re-processes every mzML file once per chunk, which is slow when there are many chunks. On a 16-core machine the switch happens at 9 files.
 
 **Fields**

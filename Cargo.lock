@@ -5005,6 +5005,7 @@ dependencies = [
 name = "sagegui"
 version = "0.10.0"
 dependencies = [
+ "anyhow",
  "eframe",
  "egui",
  "egui_extras",
@@ -5013,6 +5014,7 @@ dependencies = [
  "image 0.24.9",
  "log",
  "num_cpus",
+ "rayon",
  "rfd",
  "sage-cli",
  "sage-cloudpath",

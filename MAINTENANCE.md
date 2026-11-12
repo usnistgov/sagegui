@@ -55,7 +55,26 @@ only `crates/sage-cli/src/runner.rs`: the `Runner` struct, both `Self { ... }` l
 patch separately with a message that names it, and update its PATCHES.md entry if the
 code moved.
 
-If upstream has adopted one of our patches, drop it and delete its PATCHES.md entry.
+If upstream has adopted one of our patches, drop it and mark its PATCHES.md entry as
+dropped. The numbers stay fixed.
+
+**Port upstream pipeline changes to `src/pipeline.rs`.** SageGUI runs the search steps
+itself (NOTES, "Own search pipeline"), from a copy of `Runner::new`, `Runner::run` and
+their private helpers. Diff those functions between the old and the new base commit:
+
+```bash
+# In a clone of lazear/sage
+git diff OLD_COMMIT..NEW_COMMIT -- crates/sage-cli/src/runner.rs crates/sage-cli/src/output.rs
+```
+
+Port every change inside `new`, `run`, `prefilter_peptides`,
+`peptide_filter_processed_spectra`, `read_processed_spectra`, `search_processed_spectra`,
+`complete_features`, `process_chunk`, `batch_files`, `spectrum_fdr` and
+`RawSpectrumAccumulator` into `src/pipeline.rs`, and update the commit named in its
+header. Then run `cargo test pipeline`. Those tests run stock Sage and the copy on the
+same data and compare every output file, so a change that was not ported fails them.
+Also run the real-data check (`SAGEGUI_PIPELINE_E2E`, see the test
+`pipeline_matches_stock_runner_on_real_data`).
 
 Dependency patches (a version or feature change in a `Cargo.toml`) need a check, not a
 replay. For each one, compare the new upstream `Cargo.toml` with the PATCHES.md entry. If

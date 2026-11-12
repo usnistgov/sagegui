@@ -10,15 +10,16 @@
 mod convert_job;
 mod export;
 mod index_cache;
+mod pipeline;
+mod progress;
 mod sage_json;
 mod ui;
 mod version;
 
 use eframe::egui;
 use log::info;
-use sage_cli::{input::Input, runner::Runner};
+use sage_cli::input::Input;
 use serde::{Deserialize, Serialize};
-use std::io::Read;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -45,9 +46,8 @@ struct PersistedState {
 #[derive(Debug)]
 enum ThreadMessage {
     Progress(String),
-    /// Sent once `Runner::new` succeeds, carrying the live spectra-scored
-    /// counter so the GUI thread can poll it for a real progress percentage.
-    RunnerReady(Arc<AtomicUsize>),
+    /// One step event from `pipeline.rs`.
+    Step(pipeline::Event),
     /// One line captured from Sage's own `info`-level log output during a run.
     LogLine(String),
     Completed(Result<String, String>),
@@ -117,11 +117,9 @@ pub struct SageLauncher {
     pub mod_custom_mass: f32,
     /// Path of the temp-concatenated FASTA to delete after the run.
     temp_fasta_path: Option<std::path::PathBuf>,
-    /// Live spectra-scored count from the running search, once `Runner` exists.
-    search_progress: Option<Arc<AtomicUsize>>,
-    /// Total MSn spectra across selected mzML files, pre-scanned before launch.
-    /// `None` if any file's count couldn't be determined (unknown denominator).
-    total_spectra: Option<usize>,
+    /// The steps of the current or last search. Kept after the run ends, so
+    /// the Run / Info tab still shows how it went. Replaced on the next Run.
+    pub run_progress: Option<progress::RunProgress>,
     /// Set to request cancellation; checked at phase boundaries in `run_sage`.
     cancel_flag: Option<Arc<AtomicBool>>,
     /// True once Stop has been clicked, until the thread finishes cleaning up.
@@ -187,8 +185,7 @@ impl Default for SageLauncher {
             mod_custom_key: String::new(),
             mod_custom_mass: 0.0,
             temp_fasta_path: None,
-            search_progress: None,
-            total_spectra: None,
+            run_progress: None,
             cancel_flag: None,
             stop_requested: false,
             log_lines: Vec::new(),
@@ -299,8 +296,8 @@ impl eframe::App for SageLauncher {
                         egui::Button::new("Stop"),
                     )
                     .on_hover_text(
-                        "Stops at the end of the current step. A search already scoring \
-                         spectra runs to completion.",
+                        "Stops the search. A stopped search writes no files. Once Sage \
+                         has started to write results, the search finishes.",
                     );
                 if stop_btn.clicked() {
                     if let Some(flag) = &self.cancel_flag {
@@ -311,11 +308,11 @@ impl eframe::App for SageLauncher {
                 }
 
                 if self.is_running {
-                    ui.spinner();
                     if self.stop_requested {
+                        ui.spinner();
                         ui.colored_label(ui.visuals().warn_fg_color, "Stopping");
                     } else {
-                        ui.label("Processing");
+                        self.run_bar_step(ui);
                     }
                     if let Some(start_time) = self.start_time {
                         self.elapsed_time = format_duration(start_time.elapsed());
@@ -330,18 +327,6 @@ impl eframe::App for SageLauncher {
                         self.convert.progress * 100.0
                     ));
                 }
-
-                let fraction = match (&self.search_progress, self.total_spectra) {
-                    (Some(scored), Some(total)) if total > 0 => {
-                        (scored.load(Ordering::Relaxed) as f32 / total as f32).min(1.0)
-                    }
-                    _ => 0.0,
-                };
-                ui.add(
-                    egui::ProgressBar::new(fraction)
-                        .desired_width(120.0)
-                        .show_percentage(),
-                );
             });
 
             if !self.status_message.is_empty() {
@@ -409,13 +394,21 @@ impl SageLauncher {
             // The conversion may have written a file the status line names.
             self.results_scan = None;
         }
-        if let Some(receiver) = &self.message_receiver {
+        // Read every waiting message, not one per frame. A search sends a
+        // burst of step events, and one per frame made the card lag behind.
+        // The cap keeps one frame short if the thread floods the channel.
+        for _ in 0..1000 {
+            let Some(receiver) = &self.message_receiver else {
+                break;
+            };
             match receiver.try_recv() {
                 Ok(ThreadMessage::Progress(msg)) => {
                     self.status_message = msg;
                 }
-                Ok(ThreadMessage::RunnerReady(progress)) => {
-                    self.search_progress = Some(progress);
+                Ok(ThreadMessage::Step(event)) => {
+                    if let Some(p) = &mut self.run_progress {
+                        p.apply(event);
+                    }
                 }
                 Ok(ThreadMessage::LogLine(line)) => {
                     self.log_lines.push(line);
@@ -446,9 +439,20 @@ impl SageLauncher {
                     self.results_scan = None;
                     // A search may have written a cache entry.
                     self.cache_stats = None;
+                    let stopped = matches!(
+                        &result,
+                        Err(err) if self.stop_requested && err == pipeline::CANCELLED
+                    );
+                    if let Some(p) = &mut self.run_progress {
+                        p.end(match (&result, stopped) {
+                            (Ok(_), _) => None,
+                            (Err(_), true) => Some("stopped"),
+                            (Err(_), false) => Some("failed"),
+                        });
+                    }
                     self.status_message = match result {
                         Ok(msg) => msg,
-                        Err(err) if self.stop_requested && err == "cancelled" => {
+                        Err(_) if stopped => {
                             "Search stopped. No output files were written.".to_string()
                         }
                         Err(err) => format!("Error: {}", err),
@@ -458,11 +462,15 @@ impl SageLauncher {
                         self.convert.start(request);
                     }
                 }
-                Err(mpsc::TryRecvError::Empty) => {}
+                Err(mpsc::TryRecvError::Empty) => break,
                 Err(mpsc::TryRecvError::Disconnected) => {
                     self.cleanup_thread();
+                    break;
                 }
             }
+        }
+        if let Some(p) = &mut self.run_progress {
+            p.poll();
         }
     }
 
@@ -474,8 +482,11 @@ impl SageLauncher {
         self.message_receiver = None;
         self.start_time = None;
         self.is_running = false;
-        self.search_progress = None;
-        self.total_spectra = None;
+        if let Some(p) = &mut self.run_progress {
+            if !p.is_finished() {
+                p.end(Some("stopped"));
+            }
+        }
         self.cancel_flag = None;
         self.stop_requested = false;
         self.pending_conversion = None;
@@ -587,8 +598,8 @@ impl SageLauncher {
         let sage_input: Input = self.config.clone().into();
         let reuse_cached_index = index_cache::ENABLED && self.config.database.reuse_cached_index;
 
-        self.search_progress = None;
-        self.total_spectra = total_mzml_spectra(&self.config.mzml_paths);
+        let searched = Arc::new(AtomicUsize::new(0));
+        self.run_progress = Some(progress::RunProgress::new(searched.clone()));
 
         let cancel = Arc::new(AtomicBool::new(false));
         self.cancel_flag = Some(cancel.clone());
@@ -625,6 +636,7 @@ impl SageLauncher {
                     &sender,
                     &cancel,
                     reuse_cached_index,
+                    searched,
                 )
             }));
 
@@ -794,12 +806,12 @@ impl From<Config> for Input {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/// Returns an error (any error — the caller only checks `stop_requested`, not
-/// this text, except for the specific "cancelled" text `run_sage` itself
-/// produces or forwards from `Runner::run`) as soon as `cancel` is observed
-/// set. Also injected into the `Runner` via `with_cancel` before `run()`, so
-/// a click during the scoring phase interrupts it too. See _dev/NOTES.md "Stop
-/// button" and `vendor/sage/PATCHES.md` entry 2 for the Sage patch.
+/// Runs one search on the search thread, through `pipeline.rs`, and reports
+/// each step to the GUI as `ThreadMessage::Step`.
+///
+/// Returns the error text `pipeline::CANCELLED` once `cancel` is seen set. The
+/// pipeline checks it between steps and per spectrum, and never after it has
+/// started to write files. See _dev/NOTES.md "Stop button".
 fn run_sage(
     input: Input,
     parallel: u16,
@@ -807,43 +819,57 @@ fn run_sage(
     sender: &Sender<ThreadMessage>,
     cancel: &Arc<AtomicBool>,
     reuse_cached_index: bool,
+    searched: Arc<AtomicUsize>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if cancel.load(Ordering::Relaxed) {
-        return Err("cancelled".into());
+        return Err(pipeline::CANCELLED.into());
     }
-
-    println!("Running analysis... Building");
-    let prefiltering = input.database.prefilter.unwrap_or(false);
-    let build_msg = if prefiltering {
-        "Prefiltering database in chunks… (no progress % for this phase)"
-    } else {
-        "Building peptide database…"
-    };
     let search = input.build()?;
-
     if cancel.load(Ordering::Relaxed) {
-        return Err("cancelled".into());
+        return Err(pipeline::CANCELLED.into());
     }
+
+    let emit = |event: pipeline::Event| {
+        let _ = sender.send(ThreadMessage::Step(event));
+    };
+    let hooks = pipeline::Hooks {
+        cancel,
+        searched,
+        emit: &emit,
+    };
+    let parallel = usize::from(parallel);
 
     // The cache key hashes the FASTA at `search.database.fasta`. For several
     // FASTAs that is the concatenated temp file, which `cleanup_thread` and
     // `on_exit` delete only after this thread ends. Keep it that way.
     let cache = index_cache::IndexCache::for_parameters(&search.database, reuse_cached_index);
-    let runner = match cache.as_ref().and_then(|c| c.load()) {
+    let load_start = Instant::now();
+    let (search, database) = match cache.as_ref().and_then(|c| c.load()) {
         Some(database) => {
-            let _ = sender.send(ThreadMessage::Progress(
-                "Loaded the peptide database from the cache.".to_string(),
+            use pipeline::{count, Event, Step};
+            let from_cache = format!("from cache · {:.1} s", load_start.elapsed().as_secs_f64());
+            emit(Event::Finished(Step::ReadFasta, "from cache".into()));
+            emit(Event::Finished(
+                Step::Digest,
+                format!("{} peptides · from cache", count(database.peptides.len())),
             ));
-            Runner::from_parts(search, database).with_cancel(cancel.clone())
+            emit(Event::Finished(
+                Step::BuildIndex,
+                format!(
+                    "{} fragments · {from_cache}",
+                    count(database.fragments.len())
+                ),
+            ));
+            (search, database)
         }
         None => {
-            let _ = sender.send(ThreadMessage::Progress(build_msg.to_string()));
-            let runner = Runner::new(search, parallel.into())?.with_cancel(cancel.clone());
+            let (search, database) = pipeline::build_database(search, parallel, &hooks)?;
             if let Some(cache) = &cache {
-                let _ = sender.send(ThreadMessage::Progress(
-                    "Saving the peptide database to the cache.".to_string(),
+                emit(pipeline::Event::Detail(
+                    pipeline::Step::BuildIndex,
+                    "saving to the cache".into(),
                 ));
-                let note = match cache.store(&runner.database) {
+                let note = match cache.store(&database) {
                     index_cache::StoreOutcome::Stored { bytes } => {
                         format!(
                             "Saved the peptide database to the cache ({}).",
@@ -862,83 +888,12 @@ fn run_sage(
                 info!("{note}");
                 let _ = sender.send(ThreadMessage::LogLine(note));
             }
-            runner
+            (search, database)
         }
     };
-    let _ = sender.send(ThreadMessage::RunnerReady(runner.progress.clone()));
 
-    if cancel.load(Ordering::Relaxed) {
-        return Err("cancelled".into());
-    }
-
-    let _ = sender.send(ThreadMessage::Progress(
-        "Reading and searching spectra…".to_string(),
-    ));
-    println!("Running analysis... Executing");
-    let _tel = runner.run(parallel.into(), parquet)?;
+    pipeline::run_search(search, database, parallel, parquet, &hooks)?;
     Ok(())
-}
-
-/// Best-effort total MSn spectrum count across all selected mzML files, read
-/// from each file's `<spectrumList count="N">` opening tag (a plain-text scan,
-/// not a full XML parse — just enough to give the run-bar progress bar a
-/// denominator). Returns `None` if any file's count can't be determined,
-/// rather than reporting a partial (and misleadingly low) total.
-fn total_mzml_spectra(paths: &[std::path::PathBuf]) -> Option<usize> {
-    let mut total = 0usize;
-    for path in paths {
-        total += count_spectra_in_mzml(path)?;
-    }
-    Some(total)
-}
-
-fn count_spectra_in_mzml(path: &std::path::Path) -> Option<usize> {
-    // Cap how much of the file we scan — the spectrumList tag is near the top,
-    // well before any actual spectrum data, so this is normally a tiny read.
-    const MAX_SCAN_BYTES: usize = 8 * 1024 * 1024;
-
-    let file = std::fs::File::open(path).ok()?;
-    let is_gz = path
-        .extension()
-        .map(|e| e.eq_ignore_ascii_case("gz"))
-        .unwrap_or(false);
-
-    let mut reader: Box<dyn Read> = if is_gz {
-        Box::new(flate2::read::MultiGzDecoder::new(file))
-    } else {
-        Box::new(file)
-    };
-
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 65536];
-    loop {
-        let n = reader.read(&mut chunk).ok()?;
-        if n == 0 {
-            return None;
-        }
-        buf.extend_from_slice(&chunk[..n]);
-        if let Some(count) = extract_spectrum_list_count(&buf) {
-            return Some(count);
-        }
-        if buf.len() >= MAX_SCAN_BYTES {
-            return None;
-        }
-    }
-}
-
-fn extract_spectrum_list_count(buf: &[u8]) -> Option<usize> {
-    let text = String::from_utf8_lossy(buf);
-    let tag_start = text.find("spectrumList")?;
-    let after_tag = &text[tag_start..];
-    let count_start = after_tag.find("count=")?;
-    let after_count = &after_tag[count_start + "count=".len()..];
-    let quote = after_count.chars().next()?;
-    if quote != '"' && quote != '\'' {
-        return None;
-    }
-    let rest = &after_count[quote.len_utf8()..];
-    let end = rest.find(quote)?;
-    rest[..end].parse::<usize>().ok()
 }
 
 fn format_duration(duration: Duration) -> String {
