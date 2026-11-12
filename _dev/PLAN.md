@@ -9,8 +9,8 @@
 ## Status
 
 - **Current phase:** Published as `usnistgov/sagegui` (2026-09-23), a GitHub fork of `jspaezp/sagegui`. Releases are tagged `nist-vX.Y.Z`. Actions is on (2026-09-25). The database cache is on `main` but hidden by `index_cache::ENABLED`.
-- **Last updated:** 2026-10-27. Documentation only, from a NIST review and the NIST software documentation checklist: README disclaimers (`7f49eda`), and status and support, requirements and build provenance in the README (`c78b990`). Issues was off on this repository, and Ben turned it on on 2026-10-27. Support is GitHub Issues or email. The Info panel link to `/issues` is unchanged since `nist-v0.10.0`. (`c78b990` pointed it to email, and the next commit restored it.) NOTES and JOURNAL were not updated.
-- **Next action (next session):** (1) Download `nist-v0.10.0` and run it on Windows, Linux and macOS (the assets exist and the macOS architectures are checked; nobody has run them yet). (2) Decide when the cache ships. (3) Then the open items in Handoff below. Keep `neely/sage` public: commits before the vendoring still pin it.
+- **Last updated:** 2026-11-12. Sage re-vendored at upstream `4a051b2` (28 commits after v0.15.0-beta.2). SageGUI now runs Sage's search steps itself (`src/pipeline.rs`) and shows a Progress card. Code patches 1 and 2 are removed; patch 5 is dropped (upstream adopted it); patch 7 (`pub write_report`) is added. All on `main`, not pushed, no release yet. See NOTES "Own search pipeline" and the 2026-11-12 JOURNAL entry.
+- **Next action (next session):** (1) Ben checks the Progress card in the GUI on a real search (Mac), including Stop during Digest and during Search, and a cached run if the cache is turned on locally. (2) Push `main`, with Ben's approval, and check that CI passes on all four targets. (3) Cut `nist-v0.11.0` (MAINTENANCE Step 7), with Ben's approval. (4) Run the release on Windows and Linux. Keep `neely/sage` public: commits before the vendoring still pin it.
 - **Released:** `nist-v0.10.0` (2026-09-25), the first release built on usnistgov: vendored Sage with six patches (three code, three dependency), the reworked Info / Help block, the licence files. Previous: `nist-v0.9.0` (2026-09-22), Convert results to mzIdentML and pepXML. Earlier releases are in CHANGELOG.md.
 
 Locked decisions, gotchas, and the API-change reference now live in `NOTES.md`. Session history is in `JOURNAL.md`.
@@ -59,7 +59,7 @@ Provide a user-friendly graphical interface for Sage that:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key dependency:** Sage, vendored in `vendor/sage/` since 2026-09-23: upstream `lazear/sage` commit `d74024df` (10 commits after v0.15.0-beta.2) plus six patches. Three are additive code patches (`Runner.progress`, `Runner.cancel`, `Runner::from_parts`). Three are dependency updates that clear security advisories. See `vendor/sage/VENDORED.md` and `PATCHES.md`. Before 2026-09-23 it was the Git fork `github.com/neely/sage` at `ed5f06c`.
+**Key dependency:** Sage, vendored in `vendor/sage/` since 2026-09-23, re-vendored 2026-11-12 at upstream `lazear/sage` commit `4a051b2` (28 commits after v0.15.0-beta.2). Live patches: two additive code patches (`Runner::from_parts`, `pub write_report`) and two dependency updates that clear security advisories (`env_logger`, `parquet`). SageGUI runs the search steps from its own copy of the pipeline, `src/pipeline.rs`. See `vendor/sage/VENDORED.md` and `PATCHES.md`. Before 2026-09-23 it was the Git fork `github.com/neely/sage` at `ed5f06c`.
 
 ---
 
@@ -81,7 +81,8 @@ Provide a user-friendly graphical interface for Sage that:
 
 #### UI/UX (priority order)
 
-- [x] **Async execution and progress display.** Real percentage during scoring, named phases, a live Sage Log panel. The database build phase is silent for 1 to 2 minutes on a large FASTA, because Sage logs it only at `trace`. No time-remaining estimate. See NOTES "Sage patch 1".
+- [x] **Async execution and progress display.** A Progress card with eight steps (2026-11-12): database steps with counts and times, a Search bar that reaches 100%, a live Sage Log panel. No percentage inside digest or the fragment-index build (a sage-core patch would be needed). No time-remaining estimate. See NOTES "Own search pipeline".
+- [ ] **UI for the new Sage mod options** (`4a051b2`): named modifications (`UNIMOD:35`), per-mod `max_count` and `max_combinations`. Today a JSON with them loads, keeps the masses, and warns that the rest is dropped.
 - [x] **Remember settings between sessions.** Every field round-trips, checked by a test. Mods now carry over, so a stale mod can apply to the next search; re-applying a template resets it. See NOTES "Settings persistence".
 - [x] **Stop button.** Cooperative cancellation, also during scoring (2.2 s to stop in the live test). See NOTES "Stop button".
 - [x] **macOS terminal window.** Fixed with a real `.app` bundle. See NOTES "macOS terminal window + app icon".

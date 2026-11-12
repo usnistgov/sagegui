@@ -1,3 +1,70 @@
+## 2026-11-12: Sage 4a051b2, own search pipeline, step progress
+
+**Did:** Ben asked for two things: better use of Sage in SageGUI, and better
+progress bars like Michael Lazear's web Sage. Michael's advice was to drive
+Sage's pipeline from the app. SageGUI already compiled Sage in, but called
+`Runner::new` and `Runner::run` as two closed blocks. Ben also asked to take
+the new upstream commits and to test fully before any release.
+
+1. **Re-vendored at `4a051b2`** by the MAINTENANCE runbook: a pristine commit,
+   then each patch as its own commit. Patch 1 conflicted with upstream's new
+   private `spectra_searched` counter; both were kept. Patch 5 (`reqwest`) was
+   dropped because upstream made the same change. Patch 6 shrank to
+   `parquet` 59: timsrust 0.6.7 has no `minitdf` feature. timsrust 0.6 brings
+   back thrift 0.17, libsqlite3-sys and quick-xml 0.37 through its Bruker file
+   manager. Ben chose to accept upstream and test Bruker later, before calling
+   it a feature. `cargo update` cleared the advisories that had appeared since
+   September (h2, rustls, quinn-proto, zstd and others).
+2. **API fixes:** `ModEntry` mods, the modification registry with `ModId` on
+   peptides (cache format 2), `Kind::ZRadical` (`Z•` in the picker,
+   `MS:1001408` in mzIdentML), named mods in Sage JSON and in TSV peptides.
+3. **Own pipeline:** `src/pipeline.rs` copies `new`, `run` and the private
+   helpers, with step events and Stop checks. Ben chose to copy the helpers
+   rather than patch them `pub`. `write_report` is the one exception (patch
+   7). `src/progress.rs` and a Progress card on Run / Info show eight steps.
+   Patches 1 and 2 were then removed.
+4. **Tests:** the equivalence tests compare stock Sage and the pipeline on
+   every output file. With only Sage's one test spectrum, a changed
+   `report_psms` and a removed protein-group FDR both passed, so the tests
+   now generate 401 proteins (some shared stretches) and 300 MGF spectra. Five
+   deliberate changes to the copy each failed the tests.
+
+**Real data (serum, 2026-09-22 config):** stock against pipeline gave
+identical files except `psm_id`. New against `nist-v0.10.0`: same counts
+(10,511 PSMs and 3,099 peptides at 1%, 300 groups, 3,040 LFQ precursors), two
+`peptide_q` values differ at the fifth decimal, LFQ intensities shift by a
+median of -2% (upstream LFQ fixes). The cache end-to-end test passed in format
+2: 32,221 identical PSMs; build 26.0 s, store 21.0 s (2.6 GB), load 11.4 s.
+
+**Not done:** the GUI was not driven on screen. Computer use was not
+available in this session, so the Progress card has unit tests but no visual
+check. Nothing is pushed and no release is cut.
+
+**Least confident (Q1):** the Progress card on screen: layout at narrow
+widths, the spinner rows, and the run-bar line while Stop is pending. Check:
+run the serum search in the app, press Stop once during Digest and once
+during Search, and look at the card after each.
+
+**Assumed (Q2):** that "finished in Ns" may count from the start of the
+search, not the database build, and that SageGUI needs neither the stdout
+print of `results.json` nor telemetry. Both are logged in NOTES as by design.
+
+**Missing (Q3):** quick-xml 0.31 in Sage's own mzML reader has two
+advisories (quadratic time, unbounded namespaces). It is reachable from an
+mzML file, and it was in `nist-v0.10.0` too. The fix is a newer quick-xml in
+sage-cloudpath, which is a code change upstream.
+
+**Could have gone better (Q4):** the first equivalence fixture was too weak,
+and that only showed when a deliberate change passed. Mutation checks should
+come with any new equivalence test from the start.
+
+**Improvement (Q5):** suggest to Michael that `write_report` and a
+`from_parts`-like constructor become public upstream, and that quick-xml move
+to 0.41 in the mzML reader. Then the vendored copy would need no code patch at
+all.
+
+---
+
 ## 2026-09-25: First usnistgov build, Info / Help block, cache hidden
 
 **Did:** Session-start check found PLAN stale (status date, "two patches",
