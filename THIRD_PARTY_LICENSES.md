@@ -37,8 +37,10 @@ header at the top of the file:
   checks in `Runner::run`, so SageGUI's Stop button can interrupt a search.
 - 2026-09-23: a `Runner::from_parts` constructor, so SageGUI can run a search on a
   peptide database loaded from its on-disk cache.
+- 2026-11-12: `write_report` made public, so SageGUI's own pipeline can write the HTML
+  report.
 
-All three changes are additive. The stock Sage command-line tool never uses them, so its
+All four changes are additive. The stock Sage command-line tool never uses them, so its
 behaviour is unchanged.
 
 **Modifications to the two `Cargo.toml` files,** made by Benjamin A. Neely (NIST) on
@@ -308,6 +310,20 @@ TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
 END OF TERMS AND CONDITIONS
 ```
+
+---
+
+## Code copied from Sage into SageGUI
+
+`src/pipeline.rs` contains functions copied from Sage's `crates/sage-cli/src/runner.rs`
+at commit `4a051b2` (MIT License, Copyright (c) 2022 Michael Lazear; the licence text is
+in the Sage section above). Copied by Benjamin A. Neely (NIST) on 2026-11-12 and
+**MODIFIED**: progress events, cancel checks and log targets were added. The file header
+and a comment on each copied function name the upstream function.
+
+**Test data** in `tests/fixtures/sage/` (`LQSRPAAPPAPGPGQLTLR.mzML`, `Q99536.fasta`) is
+copied unmodified from Sage's `tests/` folder at the same commit, under the same MIT
+licence. It is used only by the tests and is not built into the program.
 
 ---
 

@@ -6,6 +6,8 @@
 // `cancel` flag, `with_cancel`, and three cancellation checks in `run()`.
 // Modified by Benjamin A. Neely (NIST) on 2026-09-23: added
 // `Runner::from_parts`, so a cached database can skip the build in `new`.
+// Modified by Benjamin A. Neely (NIST) on 2026-11-12: made `write_report`
+// public, so SageGUI's own pipeline can write the HTML report.
 // Every change is listed in vendor/sage/PATCHES.md.
 use super::input::Search;
 use super::output::SageResults;
@@ -1334,7 +1336,7 @@ impl Runner {
         Ok(path)
     }
 
-    fn write_report(
+    pub fn write_report(
         &self,
         features: &[Feature],
         areas: Option<HashMap<(PrecursorId, bool), (Peak, Vec<f64>), fnv::FnvBuildHasher>>,

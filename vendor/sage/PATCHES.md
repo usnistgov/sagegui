@@ -4,7 +4,7 @@ This file lists every change we (NIST) made to the vendored Sage source, relativ
 upstream base commit named in [VENDORED.md](VENDORED.md). Each entry is one commit in this
 repository, so `git log -p -- vendor/sage` shows the exact lines. There are two kinds:
 
-- **Code patches (1 to 3)** are additive. They add fields and methods that the stock Sage
+- **Code patches (1 to 3, and 7)** are additive. They add fields and methods that the stock Sage
   command-line tool never calls, and they change no existing behaviour.
 - **Dependency patches (4 and 6)** change a version in a `Cargo.toml`, to remove a
   package with a security advisory. Each one names the advisories it clears. At each
@@ -124,3 +124,15 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   changes from run to run even without this patch.
 - **At the next update:** drop this patch if upstream uses a `parquet` without `thrift`
   0.17.
+
+## 7. `Runner::write_report` made public
+
+- **File:** `crates/sage-cli/src/runner.rs` (one word, `fn` to `pub fn`, and the header).
+- **Written:** 2026-11-12, by Benjamin A. Neely (NIST).
+- **What:** `write_report` becomes `pub`. Its body is unchanged.
+- **Why:** SageGUI runs the search steps itself, in `src/pipeline.rs`, so it can report
+  progress per step (see NOTES, "Own search pipeline"). It writes results with Sage's own
+  public writers on a `Runner` made by `from_parts` (patch 3). `write_report` was the one
+  writer that was private. It is about 560 lines and uses Sage's report libraries, so a
+  copy in SageGUI made no sense.
+- **At the next update:** drop this patch if upstream makes `write_report` public.
