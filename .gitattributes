@@ -11,3 +11,7 @@ vendor/sage/** -text
 # Bundled search templates, compiled into the binary with include_str!. Without
 # this, the Windows binary would embed CRLF copies and differ from the others.
 assets/templates/*.json -text
+
+# Sage's own test data, copied unmodified (THIRD_PARTY_LICENSES.md says so), and
+# read by the pipeline tests on every CI target.
+tests/fixtures/sage/** -text

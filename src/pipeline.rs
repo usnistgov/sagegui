@@ -720,6 +720,11 @@ fn batch_files(
         })
         .collect::<SageResults>();
 
+    // Stopped: the rows stay running, and the GUI marks them stopped. They
+    // must not turn green with a partial count.
+    if hooks.cancelled() {
+        return results;
+    }
     let read_time = read_start.elapsed().saturating_sub(search_time);
     hooks.emit(Event::Finished(
         Step::ReadSpectra,
@@ -1217,13 +1222,25 @@ mod tests {
         out
     }
 
-    /// `results.json` with the output folder written as `<out>`.
+    /// `results.json` without the parts that name the output folder:
+    /// `output_directory` becomes `<out>` and each output path keeps only its
+    /// file name, in order. Done on the parsed value, not the text, because
+    /// the paths are `file://` URLs and Windows spells a folder differently.
     fn results_json(dir: &Path) -> serde_json::Value {
         let text = fs::read_to_string(dir.join("results.json")).unwrap();
-        let canon = fs::canonicalize(dir).unwrap();
-        let mut text = text.replace(&canon.to_string_lossy().to_string(), "<out>");
-        text = text.replace(&dir.to_string_lossy().to_string(), "<out>");
-        serde_json::from_str(&text).unwrap()
+        let mut v: serde_json::Value = serde_json::from_str(&text).unwrap();
+        v["output_directory"] = "<out>".into();
+        let names: Vec<serde_json::Value> = v["output_paths"]
+            .as_array()
+            .expect("output_paths")
+            .iter()
+            .map(|p| {
+                let p = p.as_str().unwrap();
+                p.rsplit(['/', '\\']).next().unwrap().into()
+            })
+            .collect();
+        v["output_paths"] = names.into();
+        v
     }
 
     fn files(dir: &Path) -> BTreeMap<String, PathBuf> {
@@ -1370,6 +1387,42 @@ mod tests {
         cancel.store(true, Ordering::Relaxed);
         let err = run_search(search, db, 1, false, &hooks).unwrap_err();
         assert_eq!(err.to_string(), CANCELLED);
+        assert_eq!(files(&root.join("out")).len(), 0, "no file may be written");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Stop pressed during Search: the run ends as cancelled, writes nothing,
+    /// and does not report Read spectra or Search as finished.
+    #[test]
+    fn a_stop_during_search_writes_nothing_and_finishes_no_step() {
+        let root = temp_dir("cancel-search");
+        let mut i = input(&test_data(&root), serde_json::json!({}));
+        i.output_directory = Some(root.join("out").to_string_lossy().to_string());
+        let search = i.build().unwrap();
+        let cancel = AtomicBool::new(false);
+        let events = std::sync::Mutex::new(Vec::new());
+        let record = |e: Event| {
+            if matches!(e, Event::Started(Step::Search)) {
+                cancel.store(true, Ordering::Relaxed);
+            }
+            events.lock().unwrap().push(e);
+        };
+        let hooks = Hooks {
+            cancel: &cancel,
+            searched: Arc::new(AtomicUsize::new(0)),
+            emit: &record,
+        };
+        let (search, db) = build_database(search, 1, &hooks).unwrap();
+        let err = run_search(search, db, 1, false, &hooks).unwrap_err();
+        assert_eq!(err.to_string(), CANCELLED);
+        let events = events.lock().unwrap().clone();
+        assert!(!events.iter().any(|e| matches!(
+            e,
+            Event::Finished(
+                Step::Search | Step::ReadSpectra | Step::Fdr | Step::Write,
+                _
+            )
+        )));
         assert_eq!(files(&root.join("out")).len(), 0, "no file may be written");
         let _ = fs::remove_dir_all(&root);
     }
