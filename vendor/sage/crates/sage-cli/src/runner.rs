@@ -1,3 +1,8 @@
+// This file is from lazear/sage (MIT License, Michael Lazear), vendored at
+// commit 4a051b2. Source: https://github.com/lazear/sage
+// Modified by Benjamin A. Neely (NIST) on 2026-08-21: added the public
+// `progress` counter on `Runner`.
+// Every change is listed in vendor/sage/PATCHES.md.
 use super::input::Search;
 use super::output::SageResults;
 use super::telemetry;
@@ -32,6 +37,10 @@ pub struct Runner {
     start: Instant,
     /// Total MS2 spectra searched (summed over all chunks), reported in telemetry
     spectra_searched: AtomicUsize,
+    /// Count of MSn spectra scored so far, incremented in
+    /// `search_processed_spectra`. Shared so a caller can poll it from
+    /// another thread while `run()` is executing (e.g. for a GUI progress bar).
+    pub progress: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 #[derive(Default)]
@@ -124,6 +133,7 @@ impl Runner {
                         parameters: parameters.clone(),
                         start,
                         spectra_searched: AtomicUsize::new(0),
+                        progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
                     };
                     let peptides = mini_runner.prefilter_peptides(parallel, fasta);
                     parameters.database.clone().build_from_peptides(peptides)
@@ -142,6 +152,7 @@ impl Runner {
             parameters,
             start,
             spectra_searched: AtomicUsize::new(0),
+            progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         })
     }
 
@@ -318,6 +329,8 @@ impl Runner {
             .filter(|spec| spec.masses.len() >= self.parameters.min_peaks && spec.level == 2)
             .map(|x| {
                 let prev = counter.fetch_add(1, Ordering::Relaxed);
+                self.progress
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if prev > 0 && prev % 10_000 == 0 {
                     let duration = Instant::now().duration_since(start).as_millis() as usize;
 
