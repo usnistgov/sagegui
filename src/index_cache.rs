@@ -55,13 +55,13 @@ use std::time::SystemTime;
 use sage_core::database::{IndexedDatabase, Parameters, PeptideIx, Theoretical};
 use sage_core::enzyme::Position;
 use sage_core::ion_series::Kind;
-use sage_core::modification::ModificationSpecificity;
+use sage_core::modification::{ModId, ModName, Modifications};
 use sage_core::peptide::Peptide;
 use twox_hash::{XxHash3_128, XxHash3_64};
 
 /// Bump on any change to the file layout, or to a vendored Sage patch that
 /// changes what the database contains. A mismatch is a miss, never an error.
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 
 /// The payload is a full `IndexedDatabase`. A different strategy (for example
 /// peptides only, rebuilt on load) would use another value.
@@ -444,7 +444,10 @@ fn estimate_size(db: &IndexedDatabase) -> u64 {
         + db.decoy_tag.len() as u64
         + db.ion_kinds.len() as u64
         + 4 * db.min_value.len() as u64
-        + 16 * db.potential_mods.len() as u64
+        + db.modifications
+            .iter()
+            .map(|m| 9 + m.name.as_ref().map_or(0, |n| n.as_str().len()) as u64)
+            .sum::<u64>()
         + peptides
         + 8 * db.fragments.len() as u64
 }
@@ -457,6 +460,7 @@ fn kind_code(k: Kind) -> u8 {
         Kind::X => 3,
         Kind::Y => 4,
         Kind::Z => 5,
+        Kind::ZRadical => 6,
     }
 }
 
@@ -468,6 +472,7 @@ fn kind_from(code: u8) -> io::Result<Kind> {
         3 => Kind::X,
         4 => Kind::Y,
         5 => Kind::Z,
+        6 => Kind::ZRadical,
         _ => return Err(bad("ion kind")),
     })
 }
@@ -489,6 +494,23 @@ fn position_from(code: u8) -> io::Result<Position> {
         3 => Position::Internal,
         _ => return Err(bad("peptide position")),
     })
+}
+
+/// Maps each registered modification to its 1-based position in the
+/// registry. `ModId` keeps its index private, so the position is found by
+/// inserting each entry again into a copy: `insert` returns the existing id.
+fn mod_codes(registry: &Modifications) -> io::Result<HashMap<ModId, u8>> {
+    let mut probe = registry.clone();
+    registry
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            let id = probe
+                .insert(m.mass, m.name.as_ref())
+                .map_err(|_| bad("modification registry"))?;
+            Ok((id, (i + 1) as u8))
+        })
+        .collect()
 }
 
 fn bad(what: &str) -> io::Error {
@@ -521,48 +543,6 @@ impl<W: Write> HashingWriter<W> {
     fn bytes(&mut self, b: &[u8]) -> io::Result<()> {
         self.len32(b.len())?;
         self.write_all(b)
-    }
-    fn opt_f32(&mut self, v: Option<f32>) -> io::Result<()> {
-        match v {
-            Some(x) => {
-                self.u8(1)?;
-                self.f32(x)
-            }
-            None => self.u8(0),
-        }
-    }
-    fn opt_u8(&mut self, v: Option<u8>) -> io::Result<()> {
-        match v {
-            Some(x) => {
-                self.u8(1)?;
-                self.u8(x)
-            }
-            None => self.u8(0),
-        }
-    }
-    fn spec(&mut self, s: ModificationSpecificity) -> io::Result<()> {
-        match s {
-            ModificationSpecificity::PeptideN(r) => {
-                self.u8(0)?;
-                self.opt_u8(r)
-            }
-            ModificationSpecificity::PeptideC(r) => {
-                self.u8(1)?;
-                self.opt_u8(r)
-            }
-            ModificationSpecificity::ProteinN(r) => {
-                self.u8(2)?;
-                self.opt_u8(r)
-            }
-            ModificationSpecificity::ProteinC(r) => {
-                self.u8(3)?;
-                self.opt_u8(r)
-            }
-            ModificationSpecificity::Residue(r) => {
-                self.u8(4)?;
-                self.u8(r)
-            }
-        }
     }
 }
 
@@ -641,26 +621,6 @@ impl<R: Read> PayloadReader<R> {
         self.take(&mut v)?;
         Ok(v)
     }
-    fn opt_f32(&mut self) -> io::Result<Option<f32>> {
-        Ok(if self.bool()? {
-            Some(self.f32()?)
-        } else {
-            None
-        })
-    }
-    fn opt_u8(&mut self) -> io::Result<Option<u8>> {
-        Ok(if self.bool()? { Some(self.u8()?) } else { None })
-    }
-    fn spec(&mut self) -> io::Result<ModificationSpecificity> {
-        Ok(match self.u8()? {
-            0 => ModificationSpecificity::PeptideN(self.opt_u8()?),
-            1 => ModificationSpecificity::PeptideC(self.opt_u8()?),
-            2 => ModificationSpecificity::ProteinN(self.opt_u8()?),
-            3 => ModificationSpecificity::ProteinC(self.opt_u8()?),
-            4 => ModificationSpecificity::Residue(self.u8()?),
-            _ => return Err(bad("modification specificity")),
-        })
-    }
 }
 
 fn write_index_file(path: &Path, key: &[u8; 16], db: &IndexedDatabase) -> io::Result<u64> {
@@ -699,11 +659,21 @@ fn write_payload<W: Write>(w: &mut HashingWriter<W>, db: &IndexedDatabase) -> io
         w.u8(kind_code(*k))?;
     }
 
-    w.len32(db.potential_mods.len())?;
-    for (spec, mass) in &db.potential_mods {
-        w.spec(*spec)?;
-        w.f32(*mass)?;
+    // The modification registry, in id order. A peptide stores each
+    // modification as its 1-based position here (0 is "unmodified").
+    w.len32(db.modifications.len())?;
+    for m in db.modifications.iter() {
+        w.f32(m.mass)?;
+        match &m.name {
+            Some(name) => {
+                w.u8(1)?;
+                w.bytes(name.as_str().as_bytes())?;
+            }
+            None => w.u8(0)?,
+        }
     }
+    let codes = mod_codes(&db.modifications)?;
+    let code = |id: Option<ModId>| id.map_or(0, |id| codes[&id]);
 
     w.u64(db.min_value.len() as u64)?;
     for block in db.min_value.chunks(BLOCK) {
@@ -746,11 +716,11 @@ fn write_payload<W: Write>(w: &mut HashingWriter<W>, db: &IndexedDatabase) -> io
         w.u8(p.decoy as u8)?;
         w.u32(sequence_ix[&*p.sequence])?;
         w.len32(p.modifications.len())?;
-        for m in &p.modifications {
-            w.f32(*m)?;
+        for m in p.modifications.iter() {
+            w.u8(code(*m))?;
         }
-        w.opt_f32(p.nterm)?;
-        w.opt_f32(p.cterm)?;
+        w.u8(code(p.nterm))?;
+        w.u8(code(p.cterm))?;
         w.f32(p.monoisotopic)?;
         w.u8(p.missed_cleavages)?;
         w.u8(p.semi_enzymatic as u8)?;
@@ -823,10 +793,36 @@ fn read_payload<R: Read>(r: &mut PayloadReader<R>) -> io::Result<IndexedDatabase
         .map(|_| kind_from(r.u8()?))
         .collect::<io::Result<Vec<_>>>()?;
 
-    let n = r.count(false, 6)?;
-    let potential_mods = (0..n)
-        .map(|_| Ok((r.spec()?, r.f32()?)))
-        .collect::<io::Result<Vec<_>>>()?;
+    let n = r.count(false, 5)?;
+    let mut modifications = Modifications::default();
+    let mut mod_ids = Vec::with_capacity(n);
+    for i in 0..n {
+        let mass = r.f32()?;
+        let name = if r.bool()? {
+            let s = String::from_utf8(r.bytes()?).map_err(|_| bad("modification name"))?;
+            Some(s.parse::<ModName>().map_err(|_| bad("modification name"))?)
+        } else {
+            None
+        };
+        let id = modifications
+            .insert(mass, name.as_ref())
+            .map_err(|_| bad("modification registry"))?;
+        // A repeated entry would map two codes to one id.
+        if modifications.len() != i + 1 {
+            return Err(bad("modification registry"));
+        }
+        mod_ids.push(id);
+    }
+    let mod_id = |code: u8| -> io::Result<Option<ModId>> {
+        match code {
+            0 => Ok(None),
+            c => mod_ids
+                .get(c as usize - 1)
+                .copied()
+                .map(Some)
+                .ok_or_else(|| bad("modification index")),
+        }
+    };
 
     let n = r.count(true, 4)?;
     let mut min_value = Vec::with_capacity(n);
@@ -864,10 +860,12 @@ fn read_payload<R: Read>(r: &mut PayloadReader<R>) -> io::Result<IndexedDatabase
             .get(seq)
             .ok_or_else(|| bad("sequence index"))?
             .clone();
-        let m = r.count(false, 4)?;
-        let modifications = (0..m).map(|_| r.f32()).collect::<io::Result<Vec<_>>>()?;
-        let nterm = r.opt_f32()?;
-        let cterm = r.opt_f32()?;
+        let m = r.count(false, 1)?;
+        let residue_mods = (0..m)
+            .map(|_| mod_id(r.u8()?))
+            .collect::<io::Result<Box<[_]>>>()?;
+        let nterm = mod_id(r.u8()?)?;
+        let cterm = mod_id(r.u8()?)?;
         let monoisotopic = r.f32()?;
         let missed_cleavages = r.u8()?;
         let semi_enzymatic = r.bool()?;
@@ -885,7 +883,7 @@ fn read_payload<R: Read>(r: &mut PayloadReader<R>) -> io::Result<IndexedDatabase
         peptides.push(Peptide {
             decoy,
             sequence,
-            modifications,
+            modifications: residue_mods,
             nterm,
             cterm,
             monoisotopic,
@@ -920,7 +918,7 @@ fn read_payload<R: Read>(r: &mut PayloadReader<R>) -> io::Result<IndexedDatabase
         fragments,
         ion_kinds,
         min_value,
-        potential_mods,
+        modifications,
         bucket_size,
         generate_decoys,
         decoy_tag,
@@ -961,7 +959,9 @@ mod tests {
     }
 
     fn params(extra: serde_json::Value) -> Parameters {
-        builder(extra).make_parameters()
+        builder(extra)
+            .make_parameters()
+            .expect("valid test modifications")
     }
 
     fn build_db(p: &Parameters) -> IndexedDatabase {
@@ -991,12 +991,45 @@ mod tests {
         }
     }
 
-    fn peptide_bits(p: &Peptide) -> Vec<u32> {
+    /// Mass bits of a peptide and of each modification on it, resolved
+    /// through the database's own registry.
+    fn peptide_bits(db: &IndexedDatabase, p: &Peptide) -> Vec<u32> {
+        let mass = |id: Option<ModId>| db.modifications.mass(id).to_bits();
         let mut v = vec![p.monoisotopic.to_bits()];
-        v.extend(p.modifications.iter().map(|m| m.to_bits()));
-        v.extend(p.nterm.map(f32::to_bits));
-        v.extend(p.cterm.map(f32::to_bits));
+        v.extend(p.modifications.iter().map(|m| mass(*m)));
+        v.push(mass(p.nterm));
+        v.push(mass(p.cterm));
         v
+    }
+
+    /// Store `db`, load it back, and check every field, floats by their bits.
+    fn assert_round_trip(db: &IndexedDatabase, name: &str) {
+        let dir = temp_dir(name);
+        let cache = cache_in(&dir, 7);
+        assert!(matches!(cache.store(db), StoreOutcome::Stored { .. }));
+        let back = cache.load().expect("the stored file must load");
+
+        assert!(back.peptides == db.peptides);
+        for (a, b) in back.peptides.iter().zip(&db.peptides) {
+            assert_eq!(peptide_bits(&back, a), peptide_bits(db, b));
+        }
+        assert_eq!(back.fragments.len(), db.fragments.len());
+        for (a, b) in back.fragments.iter().zip(&db.fragments) {
+            assert_eq!(a.peptide_index, b.peptide_index);
+            assert_eq!(a.fragment_mz.to_bits(), b.fragment_mz.to_bits());
+        }
+        assert_eq!(back.ion_kinds, db.ion_kinds);
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+        assert_eq!(bits(&back.min_value), bits(&db.min_value));
+        assert!(back.modifications == db.modifications);
+        for (a, b) in back.modifications.iter().zip(db.modifications.iter()) {
+            assert_eq!(a.mass.to_bits(), b.mass.to_bits());
+            assert_eq!(a.name, b.name);
+        }
+        assert_eq!(back.bucket_size, db.bucket_size);
+        assert_eq!(back.generate_decoys, db.generate_decoys);
+        assert_eq!(back.decoy_tag, db.decoy_tag);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     /// The guard that fails loudly when Sage adds a field: the struct
@@ -1011,35 +1044,29 @@ mod tests {
         assert!(db
             .peptides
             .iter()
-            .any(|p| p.modifications.iter().any(|m| *m != 0.0)));
+            .any(|p| p.modifications.iter().any(|m| m.is_some())));
         assert!(db.peptides.iter().any(|p| p.decoy));
+        assert_round_trip(&db, "roundtrip");
+    }
 
-        let dir = temp_dir("roundtrip");
-        let cache = cache_in(&dir, 7);
-        assert!(matches!(cache.store(&db), StoreOutcome::Stored { .. }));
-        let back = cache.load().expect("the stored file must load");
-
-        assert!(back.peptides == db.peptides);
-        for (a, b) in back.peptides.iter().zip(&db.peptides) {
-            assert_eq!(peptide_bits(a), peptide_bits(b));
-        }
-        assert_eq!(back.fragments.len(), db.fragments.len());
-        for (a, b) in back.fragments.iter().zip(&db.fragments) {
-            assert_eq!(a.peptide_index, b.peptide_index);
-            assert_eq!(a.fragment_mz.to_bits(), b.fragment_mz.to_bits());
-        }
-        assert_eq!(back.ion_kinds, db.ion_kinds);
-        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
-        assert_eq!(bits(&back.min_value), bits(&db.min_value));
-        assert_eq!(back.potential_mods.len(), db.potential_mods.len());
-        for (a, b) in back.potential_mods.iter().zip(&db.potential_mods) {
-            assert_eq!(a.0, b.0);
-            assert_eq!(a.1.to_bits(), b.1.to_bits());
-        }
-        assert_eq!(back.bucket_size, db.bucket_size);
-        assert_eq!(back.generate_decoys, db.generate_decoys);
-        assert_eq!(back.decoy_tag, db.decoy_tag);
-        let _ = fs::remove_dir_all(&dir);
+    /// Sage 4a051b2 added named modifications, per-mod `max_count` and
+    /// radical z ions. A name must survive the cache, and two mods with the
+    /// same mass but different names must stay two registry entries.
+    #[test]
+    fn round_trip_keeps_mod_names_and_radical_z() {
+        let p = params(serde_json::json!({
+            "ion_kinds": ["c", "z_radical"],
+            "static_mods": { "C": { "mass": 57.0215, "name": "UNIMOD:4" } },
+            "variable_mods": {
+                "M": [{ "mass": 15.9949, "name": "UNIMOD:35", "max_count": 1 }],
+                "W": [15.9949]
+            }
+        }));
+        let db = build_db(&p);
+        assert!(db.ion_kinds.contains(&Kind::ZRadical));
+        assert!(db.modifications.iter().any(|m| m.name.is_some()));
+        assert!(db.modifications.iter().any(|m| m.name.is_none()));
+        assert_round_trip(&db, "roundtrip-named");
     }
 
     #[test]

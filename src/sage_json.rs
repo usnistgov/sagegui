@@ -97,7 +97,7 @@ pub struct DatabaseJson {
     pub peptide_max_mass: Option<f32>,
     pub ion_kinds: Option<Vec<Kind>>,
     pub min_ion_index: Option<u32>,
-    pub static_mods: Option<HashMap<String, f32>>,
+    pub static_mods: Option<HashMap<String, ModValue>>,
     pub variable_mods: Option<HashMap<String, MassList>>,
     pub max_variable_mods: Option<u32>,
     pub decoy_tag: Option<String>,
@@ -129,19 +129,68 @@ pub struct EnzymeJson {
     pub semi_enzymatic: Option<bool>,
 }
 
-/// Sage's `variable_mods` values are `Vec<f32>`, but a hand-written config may
+/// One modification entry. Since Sage 4a051b2 an entry is a bare mass or an
+/// object `{"mass": 15.9949, "name": "UNIMOD:35", "max_count": 1}`. Accept
+/// both. SageGUI holds the mass only; `dropped` names what it cannot keep.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum ModValue {
+    Mass(f32),
+    Detailed {
+        mass: f32,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        max_count: Option<usize>,
+    },
+}
+
+impl ModValue {
+    pub fn mass(&self) -> f32 {
+        match self {
+            ModValue::Mass(m) | ModValue::Detailed { mass: m, .. } => *m,
+        }
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            ModValue::Detailed { name: Some(n), .. } => Some(n),
+            _ => None,
+        }
+    }
+
+    /// The parts SageGUI cannot hold yet, for a warning. `None` if none.
+    fn dropped(&self) -> Option<String> {
+        let ModValue::Detailed {
+            name, max_count, ..
+        } = self
+        else {
+            return None;
+        };
+        let mut parts = Vec::new();
+        if let Some(n) = name {
+            parts.push(format!("name {n:?}"));
+        }
+        if let Some(c) = max_count {
+            parts.push(format!("max_count {c}"));
+        }
+        (!parts.is_empty()).then(|| parts.join(" and "))
+    }
+}
+
+/// Sage's `variable_mods` values are lists, but a hand-written config may
 /// carry a bare scalar. Accept either rather than failing the whole file.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum MassList {
-    One(f32),
-    Many(Vec<f32>),
+    One(ModValue),
+    Many(Vec<ModValue>),
 }
 
 impl MassList {
-    fn as_slice(&self) -> Vec<f32> {
+    pub fn as_slice(&self) -> Vec<ModValue> {
         match self {
-            MassList::One(m) => vec![*m],
+            MassList::One(m) => vec![m.clone()],
             MassList::Many(v) => v.clone(),
         }
     }
@@ -384,9 +433,15 @@ impl SageJson {
         if let Some(mods) = &db.static_mods {
             target.static_mods.static_mods.clear();
             target.static_mods.static_mods_ser.clear();
-            for (key, mass) in mods {
+            for (key, value) in mods {
                 if ModificationSpecificity::from_str(key).is_ok() {
-                    target.static_mods.insert_key(key, *mass);
+                    target.static_mods.insert_key(key, value.mass());
+                    if let Some(what) = value.dropped() {
+                        report.warnings.push(format!(
+                            "Static mod {key:?}: kept the mass and dropped the {what}. \
+                             SageGUI holds masses only."
+                        ));
+                    }
                 } else {
                     report
                         .warnings
@@ -410,8 +465,15 @@ impl SageJson {
                     None => report
                         .warnings
                         .push(format!("Variable mod {key:?} had no masses; skipped.")),
-                    Some((first, rest)) => {
-                        target.variable_mods.variable_mods.insert_key(key, *first);
+                    Some((first_value, rest)) => {
+                        let first = first_value.mass();
+                        target.variable_mods.variable_mods.insert_key(key, first);
+                        if let Some(what) = first_value.dropped() {
+                            report.warnings.push(format!(
+                                "Variable mod {key:?}: kept the mass and dropped the {what}. \
+                                 SageGUI holds masses only."
+                            ));
+                        }
                         if !rest.is_empty() {
                             // Sage allows several masses per residue; this GUI
                             // holds one. Say so rather than drop them quietly.
@@ -420,7 +482,7 @@ impl SageJson {
                                  SageGUI holds one mass per residue.",
                                 masses.len(),
                                 rest.iter()
-                                    .map(|m| m.to_string())
+                                    .map(|m| m.mass().to_string())
                                     .collect::<Vec<_>>()
                                     .join(", ")
                             ));
@@ -851,6 +913,34 @@ mod tests {
         assert!(report.warnings[0].contains("dropped"));
     }
 
+    /// A named mod with a max_count (Sage 4a051b2) loads. The mass is kept,
+    /// and the name and max_count are reported as dropped, not lost quietly.
+    #[test]
+    fn named_mod_keeps_the_mass_and_warns() {
+        let (config, _, _, report) = apply(
+            r#"{"database":{
+                "static_mods":{"C":{"mass":57.0215,"name":"UNIMOD:4"}},
+                "variable_mods":{"M":[{"mass":15.9949,"name":"UNIMOD:35","max_count":1}]}
+            }}"#,
+        );
+        let m = ModificationSpecificity::from_str("M").unwrap();
+        assert_eq!(
+            config
+                .database
+                .variable_mods
+                .variable_mods
+                .static_mods
+                .get(&m),
+            Some(&15.9949)
+        );
+        assert_eq!(report.warnings.len(), 2, "{:?}", report.warnings);
+        assert!(report
+            .warnings
+            .iter()
+            .any(|w| w.contains("UNIMOD:35") && w.contains("max_count 1")));
+        assert!(report.warnings.iter().any(|w| w.contains("UNIMOD:4")));
+    }
+
     /// File selections must never be touched by an import.
     #[test]
     fn import_leaves_file_selections_alone() {
@@ -952,13 +1042,20 @@ mod tests {
         use sage_core::database::{EnzymeBuilder, Parameters};
         use sage_core::scoring::ScoreType;
 
+        use sage_core::database::ResolvedModifications;
+        use sage_core::modification::ModEntry;
+
         let mut static_mods = HashMap::new();
-        static_mods.insert(ModificationSpecificity::from_str("C").unwrap(), 57.0215f32);
+        static_mods.insert(
+            ModificationSpecificity::from_str("C").unwrap(),
+            ModEntry::Mass(57.0215),
+        );
         let mut variable_mods = HashMap::new();
         variable_mods.insert(
             ModificationSpecificity::from_str("M").unwrap(),
-            vec![15.9949f32],
+            vec![ModEntry::Mass(15.9949)],
         );
+        let modifications = ResolvedModifications::new(&static_mods, &variable_mods).unwrap();
 
         let search = Search {
             version: "0.15.0-beta.2".into(),
@@ -979,8 +1076,8 @@ mod tests {
                 peptide_max_mass: 5000.0,
                 ion_kinds: vec![Kind::B, Kind::Y],
                 min_ion_index: 2,
-                static_mods,
-                variable_mods,
+                modifications,
+                max_combinations: None,
                 max_variable_mods: 3,
                 decoy_tag: "rev_".into(),
                 generate_decoys: true,

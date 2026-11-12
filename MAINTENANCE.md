@@ -188,6 +188,20 @@ The `nist-` prefix keeps our tags apart from upstream's.
 | `Input` | New fields | Add `protein_grouping: None`, `protein_grouping_peptide_fdr: None`, `write_report: None` |
 | `Runner::new` | Signature change | `Runner::new(search)` → `Runner::new(search, parallel)` |
 
+### d74024d → 4a051b2 (2026-11-12) Changes
+
+| Component | Change | Fix |
+|-----------|--------|-----|
+| `Builder` | `static_mods` and `variable_mods` take `ModEntry` (a mass, or `{mass, name, max_count}`) | Wrap each mass in `ModEntry::Mass` |
+| `Builder` | New field `max_combinations` | Add `max_combinations: None` |
+| `Builder::make_parameters` | Returns `Result<Parameters, ModificationError>` | Handle the error (`Input::build` adds context) |
+| `Parameters` | `static_mods`, `variable_mods` replaced by `modifications: ResolvedModifications` | Build it with `ResolvedModifications::new` |
+| `IndexedDatabase` | `potential_mods` replaced by the `modifications` registry | The cache stores the registry (`index_cache.rs` format 2) |
+| `Peptide` | Mods are `Option<ModId>` ids into the registry, not masses | Resolve with `db.modifications.mass(id)` |
+| `Kind` | New variant `ZRadical` (`"z_radical"`) | Add it to every `match` (cache code, mzIdentML term, ion picker) |
+| `results.json` | A mod entry may be an object with `name` and `max_count` | `sage_json::ModValue` reads both forms |
+| TSV `peptide` | A named mod shows its name: `M[UNIMOD:35]` | `parse_peptide_with` resolves it through `Params::mod_names` |
+
 ### Finding API Changes
 
 When updating, compare the Sage source code:

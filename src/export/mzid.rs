@@ -20,7 +20,7 @@ use std::io::Write;
 
 use sage_core::ion_series::Kind;
 
-use super::model::{mz, parse_peptide, scan_number, ParsedPeptide, Table};
+use super::model::{mz, parse_peptide_with, scan_number, ParsedPeptide, Table};
 use super::params::{base_name, DeltaTol, EnzymeSpec, ModSpec, ModTarget, Params, TolUnit};
 use super::xml::{num, num32, to_uri, utc_now_iso, Esc};
 use super::{Control, ExportOptions, QSource, CANCELLED};
@@ -189,6 +189,7 @@ fn ion_term(k: Kind) -> (&'static str, &'static str) {
         Kind::X => ("MS:1001261", "param: x ion"),
         Kind::Y => ("MS:1001262", "param: y ion"),
         Kind::Z => ("MS:1001263", "param: z ion"),
+        Kind::ZRadical => ("MS:1001408", "param: z+1 ion"),
     }
 }
 
@@ -285,7 +286,7 @@ pub fn write(
     let parsed: Vec<ParsedPeptide> = t
         .peptides
         .iter()
-        .map(|e| parse_peptide(&e.peptide))
+        .map(|e| parse_peptide_with(&e.peptide, &p.mod_names))
         .collect::<Result<_, _>>()?;
 
     // One <Peptide> per distinct inline string. A target and a decoy that

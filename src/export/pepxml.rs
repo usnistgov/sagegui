@@ -21,7 +21,8 @@
 use std::io::Write;
 
 use super::model::{
-    decimal, parse_peptide, residue_mass, round_to, scan_number, Psm, Table, C_TERM_OH, N_TERM_H,
+    decimal, parse_peptide_with, residue_mass, round_to, scan_number, Psm, Table, C_TERM_OH,
+    N_TERM_H,
 };
 use super::mzid::filter_text;
 use super::params::{base_name, DeltaTol, EnzymeSpec, ModSpec, ModTarget, Params, TolUnit};
@@ -182,7 +183,7 @@ pub fn write(
     let parsed: Vec<_> = t
         .peptides
         .iter()
-        .map(|e| parse_peptide(&e.peptide))
+        .map(|e| parse_peptide_with(&e.peptide, &p.mod_names))
         .collect::<Result<_, _>>()?;
 
     // Order: file, then spectrum, then precursor, then rank. Rows arrive in

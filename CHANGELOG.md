@@ -11,6 +11,14 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+### Changed
+
+- **Sage engine updated to upstream `4a051b2`** (`v0.15.0-beta.2-28-g4a051b2`), 18 commits newer. Upstream changes that can alter results: a fix to candidate score ordering, two LFQ fixes, a fix to MS1 picked-precursor FDR, and a neutral NH3 mass in c, x and z ions. See the upstream CHANGELOG.
+- **Radical z ions.** The ion picker has a new `Z•` choice for ETD and ECD.
+- **Named modifications load.** A Sage JSON with a mod object (`{"mass": 15.9949, "name": "UNIMOD:35", "max_count": 1}`) now loads. SageGUI keeps the mass and warns that it dropped the name and `max_count`. The mzIdentML and pepXML converters read a peptide that shows a mod name.
+- **The database cache format changed** (format 2). Entries written by `nist-v0.10.0` are not used. They are rebuilt on the next run.
+- **Vendored Sage patches.** The `reqwest` patch is gone, because upstream made the same change. The `parquet` patch stays. `timsrust` 0.6 brings back three advisories through its Bruker file reader. SageGUI offers no Bruker input, so they are not reachable. See `vendor/sage/PATCHES.md`, entry 6.
+
 ### Added
 
 - **NIST disclaimers in the README.** A generative AI disclaimer, which links to `docs/AI_USAGE.md`, and the NIST commercial product disclaimer.

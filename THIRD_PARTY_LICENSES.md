@@ -10,8 +10,9 @@ license, summarized or reproduced below.
 
 Source: https://github.com/lazear/sage  
 License: MIT  
-Vendored: `vendor/sage/`, base commit `d74024df774054fa411a9d5cca6013ce91d26208`
-(`master`, 10 commits after the `v0.15.0-beta.2` tag), vendored 2026-09-23.
+Vendored: `vendor/sage/`, base commit `4a051b214bddc63ad43433b6a996df666d240da1`
+(`master`, 28 commits after the `v0.15.0-beta.2` tag), vendored 2026-11-12 (first
+vendored 2026-09-23 at `d74024d`).
 
 **Redistribution notice:** this repository contains the source of three Sage crates
 (`crates/sage`, published as `sage-core`; `crates/sage-cli`; `crates/sage-cloudpath`),
@@ -41,9 +42,8 @@ All three changes are additive. The stock Sage command-line tool never uses them
 behaviour is unchanged.
 
 **Modifications to the two `Cargo.toml` files,** made by Benjamin A. Neely (NIST) on
-2026-09-24: newer versions of `env_logger`, `reqwest` and `parquet`, and fewer `timsrust`
-features. These remove packages with security advisories. The Bruker miniTDF reader is
-off as a result. `vendor/sage/PATCHES.md` gives the full list and the reasons,
+2026-09-24 and revised on 2026-11-12: newer versions of `env_logger` and `parquet`. These
+remove packages with security advisories. `vendor/sage/PATCHES.md` gives the full list and the reasons,
 and `git log -p -- vendor/sage` shows every changed line. The upstream MIT license text
 is kept at `vendor/sage/LICENSE` and is reproduced below; it applies to the original
 files.

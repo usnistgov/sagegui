@@ -6,7 +6,7 @@ use eframe::egui;
 use egui::include_image;
 use rfd::FileDialog;
 use sage_cli::input::{LfqOptions, QuantOptions, TmtOptions, TmtSettings};
-use sage_core::modification::ModificationSpecificity;
+use sage_core::modification::{ModEntry, ModificationSpecificity};
 use sage_core::{
     database::{Builder, EnzymeBuilder},
     lfq::LfqSettings,
@@ -531,8 +531,16 @@ impl Default for IonKindSelection {
 }
 
 impl IonKindSelection {
-    pub fn variants() -> [Kind; 6] {
-        [Kind::A, Kind::B, Kind::C, Kind::X, Kind::Y, Kind::Z]
+    pub fn variants() -> [Kind; 7] {
+        [
+            Kind::A,
+            Kind::B,
+            Kind::C,
+            Kind::X,
+            Kind::Y,
+            Kind::Z,
+            Kind::ZRadical,
+        ]
     }
 
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
@@ -540,7 +548,20 @@ impl IonKindSelection {
             ui.label("Select Ion Kinds:");
             for kind in IonKindSelection::variants() {
                 let mut enabled = *self.ion_kinds.get(&kind).unwrap_or(&false);
-                ui.checkbox(&mut enabled, format!("{:?}", kind));
+                let label = match kind {
+                    Kind::ZRadical => "Z•".to_string(),
+                    _ => format!("{:?}", kind),
+                };
+                let response = ui.checkbox(&mut enabled, label);
+                match kind {
+                    Kind::ZRadical => {
+                        response.on_hover_text("Radical z ion (z•). Use it with C for ETD or ECD.");
+                    }
+                    Kind::Z => {
+                        response.on_hover_text("Non-radical z ion.");
+                    }
+                    _ => {}
+                }
                 self.ion_kinds.insert(kind, enabled);
             }
         });
@@ -828,8 +849,23 @@ impl From<DatabaseConfig> for Builder {
             decoy_tag: val.decoy_tag,
             generate_decoys: Some(val.generate_decoys),
             fasta: Some(val.fasta_for_launch),
-            static_mods: Some(val.static_mods.as_hashmap()),
-            variable_mods: Some(val.variable_mods.as_hashmap()),
+            static_mods: Some(
+                val.static_mods
+                    .static_mods
+                    .iter()
+                    .map(|(k, v)| (*k, ModEntry::Mass(*v)))
+                    .collect(),
+            ),
+            variable_mods: Some(
+                val.variable_mods
+                    .variable_mods
+                    .static_mods
+                    .iter()
+                    .map(|(k, v)| (*k, vec![ModEntry::Mass(*v)]))
+                    .collect(),
+            ),
+            // SageGUI has no control for this yet. `None` is Sage's default.
+            max_combinations: None,
             prefilter: Some(val.prefilter),
             prefilter_chunk_size: Some(val.prefilter_chunk_size),
             prefilter_low_memory: Some(val.prefilter_low_memory),

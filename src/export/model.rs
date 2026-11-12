@@ -380,7 +380,20 @@ pub struct ParsedPeptide {
 /// - C-terminal mass last: `PEPTIDE-[+0.9840]`
 ///
 /// The number always has a sign and may be negative.
+///
+/// Since Sage 4a051b2 a named modification shows its name instead of the
+/// mass: `M[UNIMOD:35]`. Such a name is looked up in `names`, which comes from
+/// `results.json` (see `Params::mod_names`).
+#[cfg(test)]
 pub fn parse_peptide(text: &str) -> Result<ParsedPeptide, String> {
+    parse_peptide_with(text, &HashMap::new())
+}
+
+/// [`parse_peptide`], with the table of named modifications.
+pub fn parse_peptide_with(
+    text: &str,
+    names: &HashMap<String, f32>,
+) -> Result<ParsedPeptide, String> {
     let bad = |why: &str| format!("Cannot read peptide `{text}`: {why}.");
     let b = text.as_bytes();
     let mut i = 0usize;
@@ -394,9 +407,15 @@ pub fn parse_peptide(text: &str) -> Result<ParsedPeptide, String> {
             .find(']')
             .map(|e| start + e)
             .ok_or_else(|| bad("a `[` has no closing `]`"))?;
-        let value = text[start + 1..end]
-            .parse::<f64>()
-            .map_err(|_| bad("a bracket does not hold a number"))?;
+        let inner = &text[start + 1..end];
+        let value = match inner.parse::<f64>() {
+            Ok(v) => v,
+            Err(_) => names.get(inner).map(|m| *m as f64).ok_or_else(|| {
+                bad(&format!(
+                    "`{inner}` is not a number or a modification named in results.json"
+                ))
+            })?,
+        };
         Ok((value, end + 1))
     };
 
@@ -580,6 +599,22 @@ mod tests {
         assert_eq!(deltas, vec![-17.026548, 57.0215, 15.9949]);
         let positions: Vec<usize> = p.mods.iter().map(|m| m.position).collect();
         assert_eq!(positions, vec![1, 2, 3]);
+    }
+
+    /// Sage 4a051b2 writes a named mod's name in the brackets. The name is
+    /// resolved through the table from results.json. An unknown name is an
+    /// error, not a silent zero.
+    #[test]
+    fn a_named_mod_resolves_through_the_table() {
+        let names = HashMap::from([
+            ("UNIMOD:35".to_string(), 15.9949f32),
+            ("UNIMOD:1".to_string(), 42.0106f32),
+        ]);
+        let p = parse_peptide_with("[UNIMOD:1]-PEPM[UNIMOD:35]C[+57.0215]K", &names).unwrap();
+        assert_eq!(p.sequence, "PEPMCK");
+        let deltas: Vec<f64> = p.mods.iter().map(|m| m.delta).collect();
+        assert_eq!(deltas, vec![42.0106f32 as f64, 15.9949f32 as f64, 57.0215]);
+        assert!(parse_peptide_with("PEPM[UNIMOD:999]K", &names).is_err());
     }
 
     #[test]

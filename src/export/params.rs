@@ -17,7 +17,7 @@ use std::path::Path;
 use sage_core::ion_series::Kind;
 use sage_core::mass::Tolerance;
 
-use crate::sage_json::{pretty_path, MassList, SageJson};
+use crate::sage_json::{pretty_path, SageJson};
 use crate::ui::ToleranceConfig;
 
 /// Unit of a tolerance window.
@@ -123,6 +123,9 @@ pub struct Params {
     pub enzyme: Option<EnzymeSpec>,
     pub static_mods: Vec<ModSpec>,
     pub variable_mods: Vec<ModSpec>,
+    /// Mass of each named modification, keyed by its name (for example
+    /// `UNIMOD:35`). Used to read a TSV peptide that shows the name.
+    pub mod_names: HashMap<String, f32>,
     pub max_variable_mods: Option<u32>,
     pub decoy_tag: Option<String>,
     pub generate_decoys: Option<bool>,
@@ -179,26 +182,37 @@ impl Params {
             max_len: e.max_len.map(|n| n as u32),
         });
 
+        // Since Sage 4a051b2 a mod may carry a name. The TSV then writes the
+        // name in the brackets instead of the mass, so keep name to mass.
+        let mut mod_names = HashMap::new();
         let mut static_mods = Vec::new();
-        for (key, mass) in db.static_mods.iter().flatten() {
+        for (key, value) in db.static_mods.iter().flatten() {
+            if let Some(name) = value.name() {
+                mod_names.insert(name.to_string(), value.mass());
+            }
             if let Some(target) = parse_mod_key(key) {
                 static_mods.push(ModSpec {
                     target,
-                    delta: *mass,
+                    delta: value.mass(),
                 });
             }
         }
         let mut variable_mods = Vec::new();
         for (key, masses) in db.variable_mods.iter().flatten() {
+            let list = masses.as_slice();
+            for value in &list {
+                if let Some(name) = value.name() {
+                    mod_names.insert(name.to_string(), value.mass());
+                }
+            }
             let Some(target) = parse_mod_key(key) else {
                 continue;
             };
-            let list: Vec<f32> = match masses {
-                MassList::One(m) => vec![*m],
-                MassList::Many(v) => v.clone(),
-            };
-            for delta in list {
-                variable_mods.push(ModSpec { target, delta });
+            for value in list {
+                variable_mods.push(ModSpec {
+                    target,
+                    delta: value.mass(),
+                });
             }
         }
         // A JSON object has no order. Sort so two runs write the same file.
@@ -216,6 +230,7 @@ impl Params {
             enzyme,
             static_mods,
             variable_mods,
+            mod_names,
             max_variable_mods: db.max_variable_mods,
             decoy_tag: db.decoy_tag.clone(),
             generate_decoys: db.generate_decoys,
@@ -355,6 +370,26 @@ mod tests {
             p.path_of("B.naive_01steady-state.mzML.gz"),
             Some("c:/path/to/inputs/B.naive_01steady-state.mzML.gz")
         );
+    }
+
+    /// Sage 4a051b2 writes a mod as a bare mass or as an object with a name
+    /// and a max_count. Both must load, and the names must be kept.
+    #[test]
+    fn named_mod_entries_load_and_keep_their_names() {
+        let p = Params::from_json(
+            r#"{"database":{
+                "static_mods":{"C":{"mass":57.0215,"name":"UNIMOD:4"}},
+                "variable_mods":{"M":[{"mass":15.9949,"name":"UNIMOD:35","max_count":1}],
+                                 "^":[42.0106]}
+            }}"#,
+        )
+        .expect("named mods must load");
+        assert_eq!(p.static_mods.len(), 1);
+        assert_eq!(p.static_mods[0].delta, 57.0215);
+        assert_eq!(p.variable_mods.len(), 2);
+        assert_eq!(p.mod_names.get("UNIMOD:35"), Some(&15.9949));
+        assert_eq!(p.mod_names.get("UNIMOD:4"), Some(&57.0215));
+        assert_eq!(p.mod_names.len(), 2);
     }
 
     #[test]
