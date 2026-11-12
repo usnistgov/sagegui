@@ -2,6 +2,8 @@
 // commit 4a051b2. Source: https://github.com/lazear/sage
 // Modified by Benjamin A. Neely (NIST) on 2026-08-21: added the public
 // `progress` counter on `Runner`.
+// Modified by Benjamin A. Neely (NIST) on 2026-08-24: added the public
+// `cancel` flag, `with_cancel`, and three cancellation checks in `run()`.
 // Every change is listed in vendor/sage/PATCHES.md.
 use super::input::Search;
 use super::output::SageResults;
@@ -41,6 +43,14 @@ pub struct Runner {
     /// `search_processed_spectra`. Shared so a caller can poll it from
     /// another thread while `run()` is executing (e.g. for a GUI progress bar).
     pub progress: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    /// Cooperative cancellation flag, defaulted off. Replace it with an
+    /// externally-owned flag via `with_cancel` before calling `run()` to let
+    /// a caller (e.g. a GUI Stop button) interrupt an in-progress search.
+    /// Checked in `search_processed_spectra` (skips further scoring), between
+    /// file chunks in `process_chunk`, and in `run()` right after scoring,
+    /// before any FDR/grouping/quant/output-writing step, so a cancelled run
+    /// finishes quickly and writes nothing.
+    pub cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Default)]
@@ -134,6 +144,7 @@ impl Runner {
                         start,
                         spectra_searched: AtomicUsize::new(0),
                         progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+                        cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
                     };
                     let peptides = mini_runner.prefilter_peptides(parallel, fasta);
                     parameters.database.clone().build_from_peptides(peptides)
@@ -153,7 +164,17 @@ impl Runner {
             start,
             spectra_searched: AtomicUsize::new(0),
             progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         })
+    }
+
+    /// Replaces the default (never-set) cancellation flag with an
+    /// externally-owned one. Call before `run()`. Setting the flag from the
+    /// caller's side stops further scoring and output-writing work as soon
+    /// as `run()` next checks it. See the field docs on `Runner::cancel`.
+    pub fn with_cancel(mut self, cancel: std::sync::Arc<std::sync::atomic::AtomicBool>) -> Self {
+        self.cancel = cancel;
+        self
     }
 
     pub fn prefilter_peptides(self, parallel: usize, fasta: Fasta) -> Vec<Peptide> {
@@ -339,6 +360,11 @@ impl Runner {
                 }
                 x
             })
+            // Cancellation check sits right before the expensive scoring
+            // call, not the cheap counter/progress bookkeeping above, so a
+            // cancelled run stops doing real work almost immediately even
+            // though rayon still visits every remaining spectrum.
+            .filter(|_| !self.cancel.load(Ordering::Relaxed))
             .flat_map(|spec| scorer.score(spec))
             .collect();
 
@@ -388,6 +414,12 @@ impl Runner {
         chunk_idx: usize,
         batch_size: usize,
     ) -> SageResults {
+        // Cancelled between chunks: skip reading and scoring this file
+        // entirely rather than starting more work that will just be thrown
+        // away.
+        if self.cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return SageResults::default();
+        }
         let spectra = self.read_processed_spectra(chunk, chunk_idx, batch_size);
         let features = self.search_processed_spectra(scorer, &spectra.1);
         self.complete_features(spectra.1, spectra.0, features)
@@ -528,6 +560,13 @@ impl Runner {
 
         //Collect all results into a single container
         let mut outputs = self.batch_files(&scorer, parallel);
+
+        // Cancelled during (or right after) scoring: stop here, before FDR,
+        // protein grouping, quant, or writing any output. A cancelled run
+        // must leave nothing behind that looks like a completed search.
+        if self.cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            anyhow::bail!("cancelled");
+        }
 
         let alignments = if self.parameters.predict_rt {
             // Poisson probability is usually the best single feature for refining FDR.
