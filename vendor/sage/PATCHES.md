@@ -6,9 +6,13 @@ repository, so `git log -p -- vendor/sage` shows the exact lines. There are two 
 
 - **Code patches (1 to 3)** are additive. They add fields and methods that the stock Sage
   command-line tool never calls, and they change no existing behaviour.
-- **Dependency patches (4 to 6)** change a version or a feature list in a `Cargo.toml`, to
-  remove a package with a security advisory. Each one names the advisories it clears. At
-  each update, check whether upstream has made the same change. If it has, drop the patch.
+- **Dependency patches (4 and 6)** change a version in a `Cargo.toml`, to remove a
+  package with a security advisory. Each one names the advisories it clears. At each
+  update, check whether upstream has made the same change. If it has, drop the patch.
+  Patch 5 was dropped on 2026-11-12, because upstream made the same change.
+
+The numbers are fixed. A dropped patch keeps its number, so older commits and notes
+still point at the right entry.
 
 We keep patches small and confined to `crates/sage-cli/src/runner.rs` where possible, and
 we keep feature logic in SageGUI itself, because every edited line in Sage has to be
@@ -26,6 +30,10 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
 - **Why:** SageGUI clones the `Arc` before calling `run()` and polls it from the
   interface thread, so the progress bar shows real search progress. Stock Sage reports
   progress only as log lines.
+- **At `4a051b2`:** upstream added its own private `spectra_searched` counter, which it
+  sends with telemetry. It is not public and not live, so it does not replace this
+  field. Both fields are kept. Re-applying the patch conflicted on the struct and on both
+  literals; the fix keeps both lines in each place.
 
 ## 2. Cooperative cancellation on `Runner`
 
@@ -58,6 +66,7 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   the same database settings, SageGUI loads the cached database and passes it here,
   which skips the database build (about two minutes for a human proteome). SageGUI's
   cache key covers every parameter that affects the build; see `src/index_cache.rs`.
+- **At `4a051b2`:** the literal also sets upstream's new `spectra_searched` field.
 
 ## 4. `env_logger` 0.8 to 0.11 in `sage-cli`
 
@@ -70,8 +79,12 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   uses 0.11, so the tree now has one copy.
 - **At the next update:** drop this patch if upstream has moved past 0.8.
 
-## 5. `reqwest` 0.11 to 0.12 in `sage-cloudpath`
+## 5. `reqwest` 0.11 to 0.12 in `sage-cloudpath` (dropped 2026-11-12)
 
+- **Dropped:** upstream commit `f61a75c` ("migrate sage-cloudpath to reqwest 0.12") made
+  the same change, so the re-vendor at `4a051b2` does not re-apply it. Upstream also
+  changed the TLS feature to `rustls-tls-native-roots`. The `rustls` 0.21 and
+  `rustls-webpki` 0.101 advisories stay cleared.
 - **File:** `crates/sage-cloudpath/Cargo.toml` (one version line).
 - **Written:** 2026-09-24, by Benjamin A. Neely (NIST).
 - **What:** `reqwest` goes from `0.11` to `0.12`. The features stay the same
@@ -83,24 +96,31 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   old TLS stack leaves the tree.
 - **At the next update:** drop this patch if upstream has moved past 0.11.
 
-## 6. `parquet` 50 to 59 and fewer `timsrust` features in `sage-cloudpath`
+## 6. `parquet` 50 to 59 in `sage-cloudpath`
 
-- **Files:** `crates/sage-cloudpath/Cargo.toml` (two lines). SageGUI's own `Cargo.toml`
-  sets the same `timsrust` features, because Cargo merges the features of both lines.
-- **Written:** 2026-09-24, by Benjamin A. Neely (NIST).
-- **What:** `parquet` goes from `50.0.0` to `59`. `timsrust` loses its default features
-  and keeps `tdf` and `serialize`, so its `minitdf` feature is off. The Parquet writer
-  code in `src/parquet.rs` compiles unchanged.
-- **Why:** `thrift` 0.17 has an advisory (GHSA-2f9f-gq7v-9h6m). It came in twice: through
-  `parquet` 50, and through `parquet` 53, which the `timsrust` `minitdf` feature pulls in.
-  `parquet` 59 does not use the `thrift` crate.
-- **Effect:** Sage can no longer read Bruker miniTDF input. SageGUI does not offer Bruker
-  input (see NOTES, "Scope decision: mzML/.gz only"), so users lose nothing. Bruker `.d`
-  (TDF) reading still compiles.
+- **File:** `crates/sage-cloudpath/Cargo.toml` (one version line).
+- **Written:** 2026-09-24, by Benjamin A. Neely (NIST). Narrowed on 2026-11-12.
+- **What:** `parquet` goes from `50.0.0` to `59`. The Parquet writer code in
+  `src/parquet.rs` compiles unchanged.
+- **Why:** SageGUI offers Parquet output, so this is the `parquet` that SageGUI runs.
+  `parquet` 50 uses `thrift` 0.17 (GHSA-2f9f-gq7v-9h6m, RUSTSEC-2026-0435). `parquet` 59
+  does not use the `thrift` crate.
+- **History:** until 2026-11-12 this patch also turned off the `timsrust` default
+  features, to drop the `minitdf` reader and the `parquet` 53 it pulled in. Upstream
+  `4a051b2` moved to `timsrust` 0.6.7, which is split into crates and has no such
+  feature, so that half is gone. SageGUI's own `timsrust` line in `Cargo.toml` is gone too.
+- **Accepted advisories (decision 2026-11-12):** `timsrust` 0.6 depends on its
+  `filemanager` crate with default features. That brings `parquet` 57 with `thrift` 0.17,
+  `rusqlite` with `libsqlite3-sys` 0.33 (RUSTSEC-2026-0459), `object_store` 0.11 with
+  `quick-xml` 0.37 (RUSTSEC-2026-0194, -0195) and `rustls-pemfile` (unmaintained). Ben
+  chose to take upstream's Bruker reader as it is, and not to patch it out. Only Bruker
+  `.d` reading reaches this code, and SageGUI offers no Bruker input. Bruker becomes a
+  SageGUI feature only after our own tests on timsTOF data. Recheck at each update:
+  drop this note once `timsrust` trims those features.
 - **Checked:** the serum search (2026-09-22 `results.json`) with `--parquet
-  --annotate-matches`, before and after. `results.sage.parquet` (32,221 rows) and
-  `matched_fragments.sage.parquet` (264,036 rows) are identical in every column except
-  `psm_id`. `lfq.parquet` has the same 3,249 rows; its row order changes from run to run
-  even without this patch.
+  --annotate-matches`, before and after the 2026-09-24 change. `results.sage.parquet`
+  (32,221 rows) and `matched_fragments.sage.parquet` (264,036 rows) are identical in
+  every column except `psm_id`. `lfq.parquet` has the same 3,249 rows; its row order
+  changes from run to run even without this patch.
 - **At the next update:** drop this patch if upstream uses a `parquet` without `thrift`
-  0.17. Keep the `timsrust` features unless upstream has moved past `timsrust` 0.4.
+  0.17.
