@@ -12,10 +12,10 @@ place.
 | Field | Value |
 | --- | --- |
 | Upstream repository | https://github.com/lazear/sage |
-| Base commit | `d74024df774054fa411a9d5cca6013ce91d26208` (`master`, 2026-05-03, "fix: track charges on deisotoped ions (#220)") |
-| Relation to releases | 10 commits after the `v0.15.0-beta.2` tag (`df9219951cc9a54cf4cd55d76541af24b687bd3d`); `git describe` gives `v0.15.0-beta.2-10-gd74024d` |
+| Base commit | `4a051b214bddc63ad43433b6a996df666d240da1` (`master`, 2026-10-22, "chore: update ci [skip ci]") |
+| Relation to releases | 28 commits after the `v0.15.0-beta.2` tag (`df9219951cc9a54cf4cd55d76541af24b687bd3d`); `git describe` gives `v0.15.0-beta.2-28-g4a051b2` |
 | Crate version string | `0.15.0-beta.2` (upstream had not bumped it at this commit) |
-| Date vendored | 2026-09-23 |
+| Date vendored | 2026-11-12 (first vendored 2026-09-23 at `d74024d`) |
 
 ## What is copied
 
@@ -30,8 +30,9 @@ test does not run from here (SageGUI's `cargo test` does not run it in any case)
 
 ## Local modifications
 
-The first commit that adds this directory is byte-identical to upstream at the base
-commit. Each later change to Sage is a separate commit and is listed, with its reason, in
+Each update starts with one commit that makes `crates/` byte-identical to upstream at the
+base commit (`55230a9` for `d74024d`, then the "Vendor lazear/sage at 4a051b2" commit).
+Each later change to Sage is a separate commit and is listed, with its reason, in
 [PATCHES.md](PATCHES.md). To see exactly what we changed, run
 `git log -p -- vendor/sage` or compare this directory against a checkout of the base
 commit.

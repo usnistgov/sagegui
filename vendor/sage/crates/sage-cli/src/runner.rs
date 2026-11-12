@@ -1,12 +1,3 @@
-// This file is from lazear/sage (MIT License, Michael Lazear), vendored at
-// commit d74024d. Source: https://github.com/lazear/sage
-// Modified by Benjamin A. Neely (NIST) on 2026-08-21: added the public
-// `progress` counter on `Runner`.
-// Modified by Benjamin A. Neely (NIST) on 2026-08-24: added the public
-// `cancel` flag, `with_cancel`, and three cancellation checks in `run()`.
-// Modified by Benjamin A. Neely (NIST) on 2026-09-23: added
-// `Runner::from_parts`, so a cached database can skip the build in `new`.
-// Every change is listed in vendor/sage/PATCHES.md.
 use super::input::Search;
 use super::output::SageResults;
 use super::telemetry;
@@ -26,6 +17,7 @@ use sage_core::scoring::{Feature, Scorer};
 use sage_core::spectrum::{ProcessedSpectrum, RawSpectrum, SpectrumProcessor};
 use sage_core::tmt::TmtQuant;
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::AtomicUsize;
 use std::time::Instant;
 // HTML report specific imports
 use maud::{html, PreEscaped};
@@ -38,18 +30,8 @@ pub struct Runner {
     pub database: IndexedDatabase,
     pub parameters: Search,
     start: Instant,
-    /// Count of MSn spectra scored so far, incremented in
-    /// `search_processed_spectra`. Shared so a caller can poll it from
-    /// another thread while `run()` is executing (e.g. for a GUI progress bar).
-    pub progress: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-    /// Cooperative cancellation flag, defaulted off. Replace it with an
-    /// externally-owned flag via `with_cancel` before calling `run()` to let
-    /// a caller (e.g. a GUI Stop button) interrupt an in-progress search.
-    /// Checked in `search_processed_spectra` (skips further scoring), between
-    /// file chunks in `process_chunk`, and in `run()` right after scoring,
-    /// before any FDR/grouping/quant/output-writing step, so a cancelled run
-    /// finishes quickly and writes nothing.
-    pub cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Total MS2 spectra searched (summed over all chunks), reported in telemetry
+    spectra_searched: AtomicUsize,
 }
 
 #[derive(Default)]
@@ -141,8 +123,7 @@ impl Runner {
                         database: IndexedDatabase::default(),
                         parameters: parameters.clone(),
                         start,
-                        progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-                        cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+                        spectra_searched: AtomicUsize::new(0),
                     };
                     let peptides = mini_runner.prefilter_peptides(parallel, fasta);
                     parameters.database.clone().build_from_peptides(peptides)
@@ -160,34 +141,8 @@ impl Runner {
             database,
             parameters,
             start,
-            progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            spectra_searched: AtomicUsize::new(0),
         })
-    }
-
-    /// Replaces the default (never-set) cancellation flag with an
-    /// externally-owned one. Call before `run()`. Setting the flag from the
-    /// caller's side stops further scoring and output-writing work as soon
-    /// as `run()` next checks it. See the field docs on `Runner::cancel`.
-    pub fn with_cancel(mut self, cancel: std::sync::Arc<std::sync::atomic::AtomicBool>) -> Self {
-        self.cancel = cancel;
-        self
-    }
-
-    /// Builds a `Runner` from a database that was already built, and skips the
-    /// FASTA read and digest that `new` does. The caller must make sure that
-    /// `database` is what `new` would build from `parameters` (SageGUI keys its
-    /// on-disk database cache on every parameter that affects the build). The
-    /// `progress` and `cancel` fields start at their defaults; call
-    /// `with_cancel` after this, the same as after `new`.
-    pub fn from_parts(parameters: Search, database: IndexedDatabase) -> Self {
-        Self {
-            database,
-            parameters,
-            start: Instant::now(),
-            progress: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-        }
     }
 
     pub fn prefilter_peptides(self, parallel: usize, fasta: Fasta) -> Vec<Peptide> {
@@ -363,8 +318,6 @@ impl Runner {
             .filter(|spec| spec.masses.len() >= self.parameters.min_peaks && spec.level == 2)
             .map(|x| {
                 let prev = counter.fetch_add(1, Ordering::Relaxed);
-                self.progress
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if prev > 0 && prev % 10_000 == 0 {
                     let duration = Instant::now().duration_since(start).as_millis() as usize;
 
@@ -373,11 +326,6 @@ impl Runner {
                 }
                 x
             })
-            // Cancellation check sits right before the expensive scoring
-            // call, not the cheap counter/progress bookkeeping above, so a
-            // cancelled run stops doing real work almost immediately even
-            // though rayon still visits every remaining spectrum.
-            .filter(|_| !self.cancel.load(Ordering::Relaxed))
             .flat_map(|spec| scorer.score(spec))
             .collect();
 
@@ -385,6 +333,7 @@ impl Runner {
         let prev = counter.load(Ordering::Relaxed);
         let rate = prev * 1000 / (duration + 1);
         log::info!("- search:  {:8} ms ({} spectra/s)", duration, rate);
+        self.spectra_searched.fetch_add(prev, Ordering::Relaxed);
         features
     }
 
@@ -426,12 +375,6 @@ impl Runner {
         chunk_idx: usize,
         batch_size: usize,
     ) -> SageResults {
-        // Cancelled between chunks: skip reading and scoring this file
-        // entirely rather than starting more work that will just be thrown
-        // away.
-        if self.cancel.load(std::sync::atomic::Ordering::Relaxed) {
-            return SageResults::default();
-        }
         let spectra = self.read_processed_spectra(chunk, chunk_idx, batch_size);
         let features = self.search_processed_spectra(scorer, &spectra.1);
         self.complete_features(spectra.1, spectra.0, features)
@@ -572,13 +515,6 @@ impl Runner {
 
         //Collect all results into a single container
         let mut outputs = self.batch_files(&scorer, parallel);
-
-        // Cancelled during (or right after) scoring: stop here, before FDR,
-        // protein grouping, quant, or writing any output. A cancelled run
-        // must leave nothing behind that looks like a completed search.
-        if self.cancel.load(std::sync::atomic::Ordering::Relaxed) {
-            anyhow::bail!("cancelled");
-        }
 
         let alignments = if self.parameters.predict_rt {
             // Poisson probability is usually the best single feature for refining FDR.
@@ -748,6 +684,8 @@ impl Runner {
             self.parameters,
             self.database.peptides.len(),
             self.database.fragments.len(),
+            self.spectra_searched
+                .load(std::sync::atomic::Ordering::Relaxed),
             parquet,
             run_time,
         );
@@ -760,7 +698,12 @@ impl Runner {
         record.push_field(itoa::Buffer::new().format(feature.psm_id).as_bytes());
 
         let peptide = &self.database[feature.peptide_idx];
-        record.push_field(peptide.to_string().as_bytes());
+        record.push_field(
+            peptide
+                .display(&self.database.modifications)
+                .to_string()
+                .as_bytes(),
+        );
         record.push_field(
             peptide
                 .proteins(&self.database.decoy_tag, self.database.generate_decoys)
@@ -867,6 +810,7 @@ impl Runner {
                     Kind::X => "x",
                     Kind::Y => "y",
                     Kind::Z => "z",
+                    Kind::ZRadical => "z_radical",
                 };
                 record.push_field(ion_type.as_bytes());
                 record.push_field(
@@ -1132,7 +1076,12 @@ impl Runner {
                 .format(feature.posterior_error)
                 .as_bytes(),
         );
-        record.push_field(peptide.to_string().as_bytes());
+        record.push_field(
+            peptide
+                .display(&self.database.modifications)
+                .to_string()
+                .as_bytes(),
+        );
         record.push_field(
             peptide
                 .proteins(&self.database.decoy_tag, self.database.generate_decoys)
@@ -1282,7 +1231,12 @@ impl Runner {
                     PrecursorId::Combined(x) => (x, None),
                     PrecursorId::Charged((x, charge)) => (x, Some(charge as i32)),
                 };
-                record.push_field(self.database[peptide_ix].to_string().as_bytes());
+                record.push_field(
+                    self.database[peptide_ix]
+                        .display(&self.database.modifications)
+                        .to_string()
+                        .as_bytes(),
+                );
                 record.push_field(itoa::Buffer::new().format(charge.unwrap_or(-1)).as_bytes());
                 record.push_field(
                     self.database[peptide_ix]
@@ -1364,7 +1318,11 @@ impl Runner {
                         && f.peptide_q <= global_q_value_filter
                         && filenames[f.file_id] == *filename
                 }) {
-                    peptides.insert(self.database[feature.peptide_idx].to_string());
+                    peptides.insert(
+                        self.database[feature.peptide_idx]
+                            .display(&self.database.modifications)
+                            .to_string(),
+                    );
                 }
                 num_peptide_targets_per_file.push(peptides.len());
             }

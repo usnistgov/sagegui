@@ -14,7 +14,7 @@ pub enum ScoreType {
 }
 
 /// Structure to hold temporary scores
-#[derive(Copy, Clone, Default, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Default, Debug, PartialEq)]
 struct Score {
     peptide: PeptideIx,
     matched_b: u16,
@@ -31,11 +31,15 @@ struct Score {
 
 impl Eq for Score {}
 
+impl PartialOrd for Score {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Ord for Score {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.hyperscore
-            .partial_cmp(&other.hyperscore)
-            .unwrap_or(std::cmp::Ordering::Less)
+        self.hyperscore.total_cmp(&other.hyperscore)
     }
 }
 
@@ -602,7 +606,7 @@ impl<'db> Scorer<'db> {
             .db
             .ion_kinds
             .iter()
-            .flat_map(|kind| IonSeries::new(peptide, *kind));
+            .flat_map(|kind| IonSeries::new(peptide, *kind, &self.db.modifications));
 
         let max_fragment_charge = max_fragment_charge(self.max_fragment_charge, psm.charge);
 
@@ -702,11 +706,10 @@ impl<'db> Scorer<'db> {
         // Regenerate theoretical ions - initial database search might be
         // using only a subset of all possible ions (e.g. no b1/b2/y1/y2)
         // so we need to completely re-score this candidate
-        let fragments = self
-            .db
-            .ion_kinds
-            .iter()
-            .flat_map(|kind| IonSeries::new(peptide, *kind).enumerate());
+        let fragments =
+            self.db.ion_kinds.iter().flat_map(|kind| {
+                IonSeries::new(peptide, *kind, &self.db.modifications).enumerate()
+            });
 
         let mut b_run = Run::default();
         let mut y_run = Run::default();
@@ -741,7 +744,7 @@ impl<'db> Scorer<'db> {
                             score.summed_b += peak_intensity;
                             b_run.matched(idx);
                         }
-                        Kind::X | Kind::Y | Kind::Z => {
+                        Kind::X | Kind::Y | Kind::Z | Kind::ZRadical => {
                             score.matched_y += 1;
                             score.summed_y += peak_intensity;
                             y_run.matched(idx);
@@ -751,7 +754,7 @@ impl<'db> Scorer<'db> {
                     if self.annotate_matches {
                         let idx = match frag.kind {
                             Kind::A | Kind::B | Kind::C => idx as i32 + 1,
-                            Kind::X | Kind::Y | Kind::Z => {
+                            Kind::X | Kind::Y | Kind::Z | Kind::ZRadical => {
                                 peptide.sequence.len().saturating_sub(1) as i32 - idx as i32
                             }
                         };
@@ -840,5 +843,24 @@ mod tests {
         assert_eq!(max_fragment_charge(Some(1), 3), 2);
         assert_eq!(max_fragment_charge(Some(2), 4), 3);
         assert_eq!(max_fragment_charge(Some(4), 1), 2);
+    }
+
+    #[test]
+    fn score_ordering_issue_236() {
+        let mut scores = [(1, 100.0), (2, 50.0), (3, 1.0)]
+            .into_iter()
+            .map(|(index, hyperscore)| Score {
+                peptide: PeptideIx(index),
+                hyperscore,
+                ..Default::default()
+            })
+            .collect::<Vec<_>>();
+        bounded_min_heapify(&mut scores, 2);
+        let mut retained = scores[..2]
+            .iter()
+            .map(|score| score.hyperscore)
+            .collect::<Vec<_>>();
+        retained.sort_by(f64::total_cmp);
+        assert_eq!(retained, vec![50.0, 100.0]);
     }
 }
