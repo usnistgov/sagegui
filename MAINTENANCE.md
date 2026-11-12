@@ -48,10 +48,11 @@ git show PATCH_COMMIT -- vendor/sage/crates | git apply --3way
 ```
 
 If upstream has rewritten the same lines, `git apply --3way` stops with a conflict.
-Resolve it by hand: keep the upstream change and re-add ours. All code patches so far touch
-only `crates/sage-cli/src/runner.rs`: the `Runner` struct, both `Self { ... }` literals in
-`Runner::new` (including the prefilter `mini_runner`), `search_processed_spectra`,
-`process_chunk` and `run()`. Keep the NIST header at the top of `runner.rs`. Commit each
+Resolve it by hand: keep the upstream change and re-add ours. The code patches touch
+only `crates/sage-cli/src/runner.rs`: `Runner::from_parts` (patch 3, a `Self { ... }`
+literal that must list every `Runner` field) and `pub` on `write_report` (patch 7). Keep
+the NIST header at the top of `runner.rs`. Patches 1 and 2 are removed; do not re-apply
+them. Commit each
 patch separately with a message that names it, and update its PATCHES.md entry if the
 code moved.
 

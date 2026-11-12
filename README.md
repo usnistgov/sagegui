@@ -16,7 +16,7 @@ This repository is the NIST-maintained fork of [jspaezp/sagegui](https://github.
 
 SageGUI lets you configure and run Sage searches without the command line. Pick your mzML files and FASTA databases, set search parameters, and hit Run. Results land wherever you point the output directory.
 
-This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VENDORED.md): upstream `lazear/sage` at commit `4a051b2` (28 commits after the v0.15.0-beta.2 release), plus three small additive code patches (search progress, the Stop button and the database cache) and two dependency updates that clear security advisories, all listed in [`PATCHES.md`](vendor/sage/PATCHES.md).
+This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VENDORED.md): upstream `lazear/sage` at commit `4a051b2` (28 commits after the v0.15.0-beta.2 release), plus two small additive code patches (a constructor for the database cache and one public method for the HTML report) and two dependency updates that clear security advisories, all listed in [`PATCHES.md`](vendor/sage/PATCHES.md).
 
 ## Features
 
@@ -161,7 +161,7 @@ Please also cite Sage, which performs the searches:
 SageGUI incorporates code from two projects:
 
 - **sagegui** (J. Sebastian Paez), Apache License 2.0, https://github.com/jspaezp/sagegui. This repository is a fork of it. The files that derive from it carry a notice that says so, as Apache License 2.0 Section 4(b) requires, and `THIRD_PARTY_LICENSES.md` lists them.
-- **Sage** (Michael Lazear), MIT License, https://github.com/lazear/sage. Its source is vendored in [`vendor/sage`](vendor/sage/VENDORED.md) and compiled into the program. We made three small additive changes to one file, listed in [`vendor/sage/PATCHES.md`](vendor/sage/PATCHES.md). The SageGUI logo, made at NIST, and the app icons derive from Sage's logo.
+- **Sage** (Michael Lazear), MIT License, https://github.com/lazear/sage. Its source is vendored in [`vendor/sage`](vendor/sage/VENDORED.md) and compiled into the program. We made two small additive changes to one file, listed in [`vendor/sage/PATCHES.md`](vendor/sage/PATCHES.md). The SageGUI logo, made at NIST, and the app icons derive from Sage's logo.
 
 Full licence texts, the list of derived files and the modification notices are in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 

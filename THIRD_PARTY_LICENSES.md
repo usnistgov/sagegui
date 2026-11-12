@@ -31,16 +31,14 @@ from upstream:
 **Modifications to `runner.rs`,** made by Benjamin A. Neely (NIST) and marked in a
 header at the top of the file:
 
-- 2026-08-21: a public `progress` counter on `Runner`, so SageGUI can show search
-  progress.
-- 2026-08-24: a public `cancel` flag, a `with_cancel` method, and three cancellation
-  checks in `Runner::run`, so SageGUI's Stop button can interrupt a search.
 - 2026-09-23: a `Runner::from_parts` constructor, so SageGUI can run a search on a
-  peptide database loaded from its on-disk cache.
+  peptide database loaded from its on-disk cache, and write results from its own
+  pipeline.
 - 2026-11-12: `write_report` made public, so SageGUI's own pipeline can write the HTML
   report.
 
-All four changes are additive. The stock Sage command-line tool never uses them, so its
+Both changes are additive. (Two earlier changes, a `progress` counter and a `cancel`
+flag, were removed on 2026-11-12.) The stock Sage command-line tool never uses them, so its
 behaviour is unchanged.
 
 **Modifications to the two `Cargo.toml` files,** made by Benjamin A. Neely (NIST) on

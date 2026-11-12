@@ -71,6 +71,22 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
   count>` pre-scan counted MS1 spectra too, so the old bar stopped short of 100%. It is
   removed.
 - **Upkeep:** MAINTENANCE.md Step 2, "Port upstream pipeline changes".
+- **Real data (2026-11-12):** the 2026-09-22 serum search (human FASTA, one mzML.gz,
+  LFQ) through stock Sage `4a051b2` and through the pipeline gave identical files in
+  every column except `psm_id` (both runs 41.6 s, release build).
+- **Patches 1 and 2 removed (2026-11-12)** after that check. The vendored `runner.rs` now
+  differs from upstream only by `from_parts` and `pub write_report`.
+
+### Sage `4a051b2` against `d74024d` on the serum search (2026-11-12)
+- **Counts unchanged:** 32,221 PSM rows, 10,511 target PSMs at 1% spectrum q,
+  3,099 peptides at 1% peptide q, 300 protein groups, 3,040 LFQ precursors.
+- **PSM rows:** all keys match. Two rows differ, in `peptide_q` at the fifth decimal
+  (0.68284 against 0.68288, far above 1%). Everything else is identical.
+- **LFQ:** the same 3,040 precursors and q-values. `score` and `spectral_angle` change
+  in every row, and intensity in 2,948 of 3,040. log2(new/old) intensity: median
+  -0.029, 5th percentile -0.113, 95th percentile +0.010. No intensity went to or from
+  zero. This is the upstream LFQ fix "integrate symmetric bounds" (`75a5300`) and the
+  spectral-angle fix (`63f10e7`).
 
 ### Sage patch 1: `Runner.progress` counter (2026-08-21; first on `neely/sage`, now vendored)
 - **Superseded 2026-11-12:** SageGUI no longer reads this field. Its own pipeline has

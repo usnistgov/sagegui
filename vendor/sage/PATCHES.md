@@ -4,8 +4,10 @@ This file lists every change we (NIST) made to the vendored Sage source, relativ
 upstream base commit named in [VENDORED.md](VENDORED.md). Each entry is one commit in this
 repository, so `git log -p -- vendor/sage` shows the exact lines. There are two kinds:
 
-- **Code patches (1 to 3, and 7)** are additive. They add fields and methods that the stock Sage
-  command-line tool never calls, and they change no existing behaviour.
+- **Code patches (3 and 7)** are additive. They add a method and make one method public,
+  the stock Sage command-line tool never calls them, and they change no existing
+  behaviour. Code patches 1 and 2 were removed on 2026-11-12, when SageGUI started to run
+  the search steps itself (`src/pipeline.rs`).
 - **Dependency patches (4 and 6)** change a version in a `Cargo.toml`, to remove a
   package with a security advisory. Each one names the advisories it clears. At each
   update, check whether upstream has made the same change. If it has, drop the patch.
@@ -18,7 +20,10 @@ We keep patches small and confined to `crates/sage-cli/src/runner.rs` where poss
 we keep feature logic in SageGUI itself, because every edited line in Sage has to be
 re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md)).
 
-## 1. Progress counter on `Runner`
+## 1. Progress counter on `Runner` (removed 2026-11-12)
+
+- **Removed:** SageGUI's own pipeline (`src/pipeline.rs`) counts searched spectra
+  itself, so nothing reads this field. The record below is kept for history.
 
 - **File:** `crates/sage-cli/src/runner.rs` (8 added lines).
 - **Written:** 2026-08-21, by Benjamin A. Neely (NIST). First carried as `neely/sage`
@@ -35,7 +40,10 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   field. Both fields are kept. Re-applying the patch conflicted on the struct and on both
   literals; the fix keeps both lines in each place.
 
-## 2. Cooperative cancellation on `Runner`
+## 2. Cooperative cancellation on `Runner` (removed 2026-11-12)
+
+- **Removed:** SageGUI's own pipeline checks the Stop flag itself, at the same places
+  and more, so nothing calls `with_cancel`. The record below is kept for history.
 
 - **File:** `crates/sage-cli/src/runner.rs` (37 added lines).
 - **Written:** 2026-08-24, by Benjamin A. Neely (NIST). First carried as `neely/sage`
@@ -66,7 +74,8 @@ re-applied by hand at the next update (see [MAINTENANCE.md](../../MAINTENANCE.md
   the same database settings, SageGUI loads the cached database and passes it here,
   which skips the database build (about two minutes for a human proteome). SageGUI's
   cache key covers every parameter that affects the build; see `src/index_cache.rs`.
-- **At `4a051b2`:** the literal also sets upstream's new `spectra_searched` field.
+- **At `4a051b2`:** the literal also sets upstream's new `spectra_searched` field. Since
+  patches 1 and 2 are gone, it no longer sets `progress` or `cancel`.
 
 ## 4. `env_logger` 0.8 to 0.11 in `sage-cli`
 
