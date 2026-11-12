@@ -36,14 +36,17 @@ identical files except `psm_id`. New against `nist-v0.10.0`: same counts
 median of -2% (upstream LFQ fixes). The cache end-to-end test passed in format
 2: 32,221 identical PSMs; build 26.0 s, store 21.0 s (2.6 GB), load 11.4 s.
 
-**Not done:** the GUI was not driven on screen. Computer use was not
-available in this session, so the Progress card has unit tests but no visual
-check. Nothing is pushed and no release is cut.
+**On screen:** once Ben turned on computer use (it is under Capabilities in
+the Claude app settings), I drove a dev build wrapped in a scratch `.app`,
+with the output folder pointed at the scratchpad (Ben's `app.ron` was backed
+up and restored). A full serum run and Stops during the index build and
+during Search all behaved. Three fixes came out of it (Read spectra finished
+late, the stopped bar filled to 100%, egui's 0% dot); see NOTES. Nothing is
+pushed and no release is cut.
 
-**Least confident (Q1):** the Progress card on screen: layout at narrow
-widths, the spinner rows, and the run-bar line while Stop is pending. Check:
-run the serum search in the app, press Stop once during Digest and once
-during Search, and look at the card after each.
+**Least confident (Q1):** the card at narrow window widths and on Windows
+and Linux, which nobody has seen. Check: run the CI build on each platform
+and resize the window during a search.
 
 **Assumed (Q2):** that "finished in Ns" may count from the start of the
 search, not the database build, and that SageGUI needs neither the stdout
