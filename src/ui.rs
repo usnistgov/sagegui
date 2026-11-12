@@ -2165,7 +2165,7 @@ impl SageLauncher {
             Some(s) => {
                 let n = Step::ALL.iter().position(|x| *x == s.step).unwrap_or(0) + 1;
                 ui.label(format!("{} ({n} of {})", s.step.label(), Step::ALL.len()));
-                ui.add(step_bar(&s).desired_width(120.0));
+                step_bar(ui, &s, 120.0, 8.0);
             }
             None => {
                 ui.spinner();
@@ -2213,7 +2213,7 @@ impl SageLauncher {
                         ui.weak(step_detail(s));
                     });
                 });
-                ui.add(step_bar(s).desired_height(6.0));
+                step_bar(ui, s, ui.available_width(), 6.0);
             }
         });
     }
@@ -2554,11 +2554,40 @@ fn sagegui_citation() -> String {
 
 // ─── Progress card helpers ───────────────────────────────────────────────────
 
-/// The bar for one step. A running step with no count moves on its own.
-fn step_bar(s: &StepState) -> egui::ProgressBar {
+/// The bar for one step: a grey track and a fill. A running step with no
+/// count shows a short segment that slides along the track. A stopped step
+/// keeps the fill it had, in the warning colour. Drawn by hand, because
+/// egui's bar shows a dot at 0%.
+fn step_bar(ui: &mut egui::Ui, s: &StepState, width: f32, height: f32) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    let radius = height / 2.0;
+    let fill = if s.status == Status::Stopped {
+        ui.visuals().warn_fg_color
+    } else {
+        ui.visuals().selection.bg_fill
+    };
+    let painter = ui.painter();
+    painter.rect_filled(rect, radius, ui.visuals().faint_bg_color);
     match s.fraction() {
-        Some(f) => egui::ProgressBar::new(f),
-        None => egui::ProgressBar::new(0.0).animate(true),
+        Some(f) if f > 0.0 => {
+            let mut done = rect;
+            done.set_width((rect.width() * f).max(height));
+            painter.rect_filled(done, radius, fill);
+        }
+        Some(_) => {}
+        None => {
+            // The app repaints every 100 ms during a run, which moves it.
+            let t = ui.input(|i| i.time) as f32;
+            let seg = rect.width() * 0.25;
+            let x = rect.left() + (t * 0.5).fract() * (rect.width() + seg) - seg;
+            let moving = egui::Rect::from_min_max(
+                egui::pos2(x.max(rect.left()), rect.top()),
+                egui::pos2((x + seg).min(rect.right()), rect.bottom()),
+            );
+            if moving.width() > 0.0 {
+                painter.rect_filled(moving, radius, fill);
+            }
+        }
     }
 }
 

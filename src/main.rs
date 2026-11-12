@@ -45,7 +45,6 @@ struct PersistedState {
 
 #[derive(Debug)]
 enum ThreadMessage {
-    Progress(String),
     /// One step event from `pipeline.rs`.
     Step(pipeline::Event),
     /// One line captured from Sage's own `info`-level log output during a run.
@@ -402,9 +401,6 @@ impl SageLauncher {
                 break;
             };
             match receiver.try_recv() {
-                Ok(ThreadMessage::Progress(msg)) => {
-                    self.status_message = msg;
-                }
                 Ok(ThreadMessage::Step(event)) => {
                     if let Some(p) = &mut self.run_progress {
                         p.apply(event);
@@ -617,8 +613,6 @@ impl SageLauncher {
             .replace(sender.clone());
 
         let thread_handle = thread::spawn(move || {
-            let _ = sender.send(ThreadMessage::Progress("Starting analysis...".to_string()));
-
             // A panic in here has to be reported, not left to the channel.
             // `LOG_SENDER` holds a clone of `sender` for the whole run, so
             // this thread unwinding does NOT drop the last sender and the

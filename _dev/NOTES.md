@@ -74,6 +74,18 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 - **Real data (2026-11-12):** the 2026-09-22 serum search (human FASTA, one mzML.gz,
   LFQ) through stock Sage `4a051b2` and through the pipeline gave identical files in
   every column except `psm_id` (both runs 41.6 s, release build).
+- **Checked on screen (2026-11-12, Mac, serum search, computer use):** a full run took
+  35.5 s and every row turned green with its summary (database 3.6 + 2.9 + 8.2 s; read
+  3.0 s; search 14.5 s; 10,615 PSMs and 3,099 peptides at 1%; LFQ 3,021 peaks; 6 files;
+  the mzIdentML auto-convert ran). The fragment index, not the digest, is the slow
+  database step. Stop during the index build: the build finishes (it cannot be cut),
+  then the run stops before reading spectra, no files. Stop during Search: stops in
+  about a second, Search turns orange with its bar where it stopped, no files. Three
+  fixes came from this check: Read spectra now finishes when the last file batch is
+  read (it stayed "running" during Search); the GUI counter now sits after the cancel
+  check (the stopped bar filled to 100%); and the bars are drawn by hand (egui's bar
+  shows a dot at 0%). egui text fields and the Stop button do not take background
+  accessibility input, so the on-screen test needed full-screen control.
 - **Patches 1 and 2 removed (2026-11-12)** after that check. The vendored `runner.rs` now
   differs from upstream only by `from_parts` and `pub write_report`.
 

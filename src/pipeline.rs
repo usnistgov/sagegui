@@ -609,7 +609,6 @@ fn search_processed_spectra(
         .filter(|spec| spec.masses.len() >= parameters.min_peaks && spec.level == 2)
         .map(|x| {
             let prev = counter.fetch_add(1, Ordering::Relaxed);
-            hooks.searched.fetch_add(1, Ordering::Relaxed);
             if prev > 0 && prev % 10_000 == 0 {
                 let duration = Instant::now().duration_since(start).as_millis() as usize;
 
@@ -619,6 +618,11 @@ fn search_processed_spectra(
             x
         })
         .filter(|_| !hooks.cancelled())
+        // The GUI counter sits after the cancel check, so after Stop it
+        // holds the spectra really searched and the bar stops there.
+        .inspect(|_| {
+            hooks.searched.fetch_add(1, Ordering::Relaxed);
+        })
         .flat_map(|spec| scorer.score(spec))
         .collect();
 
@@ -705,6 +709,15 @@ fn batch_files(
                 read_processed_spectra(parameters, chunk, chunk_idx, batch_size, Some(&files));
             ms2_read += spectra.1.len();
             to_search += searchable(parameters, &spectra.1);
+            // The last batch is read: Read spectra is done, even though
+            // Search still has this batch to score.
+            if chunk_idx + 1 == n_chunks && !hooks.cancelled() {
+                let read_time = read_start.elapsed().saturating_sub(search_time);
+                hooks.emit(Event::Finished(
+                    Step::ReadSpectra,
+                    format!("{} MS2 spectra · {}", count(ms2_read), secs(read_time)),
+                ));
+            }
             if chunk_idx == 0 {
                 hooks.emit(Event::Started(Step::Search));
             }
@@ -725,11 +738,6 @@ fn batch_files(
     if hooks.cancelled() {
         return results;
     }
-    let read_time = read_start.elapsed().saturating_sub(search_time);
-    hooks.emit(Event::Finished(
-        Step::ReadSpectra,
-        format!("{} MS2 spectra · {}", count(ms2_read), secs(read_time)),
-    ));
     hooks.emit(Event::Finished(
         Step::Search,
         format!(
