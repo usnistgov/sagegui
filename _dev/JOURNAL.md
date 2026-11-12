@@ -44,6 +44,14 @@ during Search all behaved. Three fixes came out of it (Read spectra finished
 late, the stopped bar filled to 100%, egui's 0% dot); see NOTES. Nothing is
 pushed and no release is cut.
 
+**CI and push:** Ben approved the push. A push to `main` runs only CodeQL,
+so `build.yml` was started by hand: run 43265145379 passed on all four
+targets (169 tests each). Every job warned that `upload-artifact@v4` runs on
+deprecated Node 20, so it moved to v7 (`e687501`). Run 43271996943 passed on
+Linux, Windows and macOS Intel with no Node 20 warning. The macOS arm64 job
+was cancelled twice because GitHub found no runner; no step ran. The tag
+build will run it.
+
 **Least confident (Q1):** the card at narrow window widths and on Windows
 and Linux, which nobody has seen. Check: run the CI build on each platform
 and resize the window during a search.
