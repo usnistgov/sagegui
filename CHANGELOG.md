@@ -13,7 +13,7 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ### Added
 
-- **Tooltips for Deisotope, Chimera, Wide Window, Predict RT, Precursor Charge, Decoy Tag, Output Location, the custom modification mass and the TMT level.** These settings had no tooltip.
+- **A tooltip on every control.** New tooltips: Deisotope, Chimera, Wide Window, Predict RT, Precursor Charge, Decoy Tag, Output Location, the PPM and Da choice, the Enzyme picker, Cut side, Ion Kinds, the template picker, Pick mzML files, Target, Add to target box, Enable Quantification, LFQ and TMT, the TMT plex and level, Browse and Run.
 
 ### Fixed
 
@@ -21,7 +21,16 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
   - Over a slider name, such as Missed Cleavages or Min Peaks. The tooltip showed only over the slider. Spectral Angle on the Quant tab now has its name to the left of the slider, in line with the other LFQ settings.
   - On a control that is off, such as Stop, Chunk size, Low-memory mode, ◀ Add and Remove ▶. The tooltip now shows and says why the control is off.
   - Over the label or the control of a row, when only one of them had the tooltip, such as Isotope Errors, Score Type, Q-value source and Delta mass.
-- **The Deisotope and Chimera entries in the parameter reference are correct.** Deisotope acts on MS2 spectra, not MS1 features. Chimera needs Report PSMs above 1.
+- **Tooltip text agrees with the code and the docs.** The fragment tolerance tooltip no longer suggests a +500 ppm modification. The min_ion_index, Decoy Tag, Generate Decoys and peptide mass tooltips now say what Sage does.
+- **The documentation agrees with the code.** A check of every tooltip against `docs/` found and fixed:
+  - The tolerance sections described "Lower" and "Upper" in Sage's JSON order. The Search tab shows a delta-mass range. Each example now states its convention, as AGENTS.md requires (`PARAMETER_REFERENCE.md`, `sagegui-params.md`, `mass-tolerance-params.md`).
+  - The Experiment tab section described an Experiment Type picker that no longer exists. It now describes the templates and Load Sage config.
+  - Precursor Charge: Sage uses the range only when it cannot use the charge in the file.
+  - min_ion_index, Decoy Tag, Deisotope, Chimera, Wide Window, Predict RT, Min and Max Peaks, LFQ PPM Tolerance and Spectral Angle: corrected to match the code.
+  - Combine Charge States: the reference said to leave it on for MSstats. It now agrees with the README: turn it off for MSstats.
+  - `sagegui-params.md` gave the decoy tag as `rev`. It is `rev_`.
+  - The glossary described SageGUI as a Sage fork. Sage is vendored.
+  - `ui-spec.md` is now marked as the historical August 2026 design brief.
 
 ## [0.11.1] - 2026-11-19
 

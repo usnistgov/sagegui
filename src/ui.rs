@@ -249,7 +249,7 @@ impl EnzymeConfig {
         // name that disagreed with it would be the confusing state.
         let matched = self.matching_preset();
         ui.horizontal(|ui| {
-            ui.label("Enzyme:");
+            ui.label("Enzyme:").on_hover_text(ENZYME_TIP);
             egui::ComboBox::from_id_salt("enzyme_picker")
                 .width(200.0)
                 .selected_text(match matched {
@@ -266,7 +266,9 @@ impl EnzymeConfig {
                             self.apply_preset(preset);
                         }
                     }
-                });
+                })
+                .response
+                .on_hover_text(ENZYME_TIP);
         });
         match matched {
             Some(i) => ui.weak(ENZYME_PRESETS[i].note),
@@ -301,13 +303,14 @@ impl EnzymeConfig {
             ui.colored_label(ui.visuals().error_fg_color, problem);
         }
         ui.horizontal(|ui| {
-            ui.label("Cut side:");
+            ui.label("Cut side:").on_hover_text(CUT_SIDE_TIP);
             // A radio pair, not a checkbox. A checkbox names only the true
             // case, so "cuts before the residue" was invisible unless already
             // selected. Asp-N and Lys-N are the reason this matters.
-            ui.radio_value(&mut self.c_terminal, true, "After the residue");
+            ui.radio_value(&mut self.c_terminal, true, "After the residue")
+                .on_hover_text(CUT_SIDE_TIP);
             ui.radio_value(&mut self.c_terminal, false, "Before the residue")
-                .on_hover_text("Asp-N and Lys-N cut before their residue.");
+                .on_hover_text(CUT_SIDE_TIP);
         });
         ui.checkbox(&mut self.semi_enzymatic, "Semi-Enzymatic")
             .on_hover_text("Allow one non-enzymatic terminus. Doubles+ search space.");
@@ -558,7 +561,7 @@ impl IonKindSelection {
 
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label("Select Ion Kinds:");
+            ui.label("Select Ion Kinds:").on_hover_text(ION_KINDS_TIP);
             for kind in IonKindSelection::variants() {
                 let mut enabled = *self.ion_kinds.get(&kind).unwrap_or(&false);
                 let label = match kind {
@@ -573,7 +576,9 @@ impl IonKindSelection {
                     Kind::Z => {
                         response.on_hover_text("Non-radical z ion.");
                     }
-                    _ => {}
+                    _ => {
+                        response.on_hover_text(ION_KINDS_TIP);
+                    }
                 }
                 self.ion_kinds.insert(kind, enabled);
             }
@@ -957,7 +962,7 @@ impl ToleranceConfig {
         Self::to_delta(lower, upper)
     }
 
-    pub fn update_section(&mut self, ui: &mut egui::Ui) {
+    pub fn update_section(&mut self, ui: &mut egui::Ui, precursor: bool) {
         // The widget works in DELTA MASS, which is how a person states the
         // window: "find IDs carrying up to +500 Da". Sage's own config files
         // store the opposite orientation. Only the display is flipped. What is
@@ -969,14 +974,18 @@ impl ToleranceConfig {
         let (mut delta_lower, mut delta_upper) = self.displayed_delta();
 
         ui.horizontal(|ui| {
+            let what = if precursor { "precursor" } else { "fragment" };
             let low_tip = format!(
-                "Most negative delta mass to search, in {unit}. A modification that \
-                 removes mass gives a negative delta."
+                "Most negative {what} delta mass to search, in {unit}. Delta mass is the \
+                 experimental mass minus the theoretical mass."
             );
-            let high_tip = format!(
-                "Most positive delta mass to search, in {unit}. Set 500 to find IDs \
-                 carrying a modification of up to +500 {unit}."
-            );
+            let mut high_tip = format!("Most positive {what} delta mass to search, in {unit}.");
+            if precursor {
+                high_tip.push_str(
+                    " A peptide that carries a +500 Da modification has a delta mass of \
+                     +500 Da.",
+                );
+            }
             ui.label("Delta mass from:").on_hover_text(&low_tip);
             ui.add(egui::DragValue::new(&mut delta_lower).speed(speed))
                 .on_hover_text(&low_tip);
@@ -1054,11 +1063,16 @@ impl IsobarSelection {
     }
 
     pub fn update_section(&mut self, ui: &mut egui::Ui) {
-        ui.radio_value(&mut self.selected, Isobaric::Tmt6, "TMT 6-plex");
-        ui.radio_value(&mut self.selected, Isobaric::Tmt10, "TMT 10-plex");
-        ui.radio_value(&mut self.selected, Isobaric::Tmt11, "TMT 11-plex");
-        ui.radio_value(&mut self.selected, Isobaric::Tmt16, "TMT 16-plex");
-        ui.radio_value(&mut self.selected, Isobaric::Tmt18, "TMT 18-plex");
+        ui.radio_value(&mut self.selected, Isobaric::Tmt6, "TMT 6-plex")
+            .on_hover_text(TMT_PLEX_TIP);
+        ui.radio_value(&mut self.selected, Isobaric::Tmt10, "TMT 10-plex")
+            .on_hover_text(TMT_PLEX_TIP);
+        ui.radio_value(&mut self.selected, Isobaric::Tmt11, "TMT 11-plex")
+            .on_hover_text(TMT_PLEX_TIP);
+        ui.radio_value(&mut self.selected, Isobaric::Tmt16, "TMT 16-plex")
+            .on_hover_text(TMT_PLEX_TIP);
+        ui.radio_value(&mut self.selected, Isobaric::Tmt18, "TMT 18-plex")
+            .on_hover_text(TMT_PLEX_TIP);
     }
 }
 
@@ -1260,6 +1274,17 @@ fn tip_slider(ui: &mut egui::Ui, slider: egui::Slider<'_>, name: &str, tip: &str
         ui.label(name).on_hover_text(tip);
     });
 }
+
+// Search tab tooltips shared by a label and its controls.
+const UNIT_TIP: &str = "Unit of the window. PPM is relative to the mass, Da is absolute. \
+     Switching resets the window to -10 to +10 ppm or -0.02 to +0.02 Da.";
+const ENZYME_TIP: &str = "Sets the cut rule from 14 curated proteases. Missed Cleavages, the \
+     lengths and Semi-Enzymatic do not change. Shows Custom when the rule is not a preset.";
+const CUT_SIDE_TIP: &str = "Whether the enzyme cuts after the Cleave At residue or before \
+     it. Asp-N and Lys-N cut before their residue.";
+const ION_KINDS_TIP: &str = "Fragment ion series to score. b and y suit CID and HCD. c and \
+     z or z• suit ETD and ECD. Default b and y.";
+const TMT_PLEX_TIP: &str = "The TMT reagent set that labels the samples. Default TMT 6-plex.";
 
 // Files & Database prefiltering tooltips. Each is also shown, with the reason,
 // when the control is off.
@@ -1507,7 +1532,12 @@ impl SageLauncher {
                                 &template.meta.name,
                             );
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text(
+                        "Pick a template. The text below describes it. Nothing changes until \
+                         you click Apply template.",
+                    );
 
                 if ui
                     .button("Apply template")
@@ -1625,7 +1655,14 @@ impl SageLauncher {
 
             // mzML file picker
             ui.horizontal(|ui| {
-                if ui.button("Pick mzML files").clicked() {
+                if ui
+                    .button("Pick mzML files")
+                    .on_hover_text(
+                        "Pick one or more .mzML or .mzML.gz files. Convert Thermo .raw and \
+                         Bruker .d files to mzML first.",
+                    )
+                    .clicked()
+                {
                     if let Some(paths) = FileDialog::new()
                         .add_filter("mzML", &["mzML", "gz", "mzml"])
                         .pick_files()
@@ -1760,7 +1797,10 @@ impl SageLauncher {
                 .default_open(false)
                 .show(ui, |ui| {
                     ui.checkbox(&mut self.config.database.generate_decoys, "Generate Decoys")
-                        .on_hover_text("Auto-generate reversed decoys for FDR estimation.");
+                        .on_hover_text(
+                            "Auto-generate reversed decoys for FDR estimation. Turn off only if \
+                             the FASTA already holds decoys that carry the Decoy Tag. Default on.",
+                        );
 
                     tip_slider(
                         ui,
@@ -1774,14 +1814,19 @@ impl SageLauncher {
                         egui::DragValue::new(&mut self.config.database.min_ion_index)
                             .prefix("min_ion_index: "),
                     )
-                    .on_hover_text("Lowest fragment ion index to generate. Default 2.");
+                    .on_hover_text(
+                        "Fragment ions below this index are left out of the fragment index for the \
+                         first-pass search. 2 leaves out b1, b2, y1 and y2. Full scoring is not \
+                         affected. Default 2.",
+                    );
 
                     // decoy_tag (Option<String>)
                     let mut tag = self.config.database.decoy_tag.clone().unwrap_or_default();
                     ui.horizontal(|ui| {
-                        let tip = "Prefix that marks a decoy protein. Sage adds it to the \
-                                   decoys it makes, and reads it to find decoys already in \
-                                   the FASTA. Default rev_.";
+                        let tip = "Prefix that marks a decoy protein. With Generate Decoys on, Sage puts \
+                                   it on the decoys it makes and drops FASTA entries that \
+                                   already carry it. With Generate Decoys off, Sage uses those \
+                                   entries as the decoys. Default rev_.";
                         ui.label("Decoy Tag:").on_hover_text(tip);
                         if ui
                             .add(egui::TextEdit::singleline(&mut tag).desired_width(80.0))
@@ -1838,13 +1883,13 @@ impl SageLauncher {
                 ui,
                 egui::Slider::new(&mut self.config.database.peptide_min_mass, 300.0..=1000.0),
                 "Peptide Min Mass",
-                "Lightest peptide to fragment, in Da. Default 500.",
+                "Lightest peptide mass, in Da, to put in the database. Default 500.",
             );
             tip_slider(
                 ui,
                 egui::Slider::new(&mut self.config.database.peptide_max_mass, 3000.0..=7000.0),
                 "Peptide Max Mass",
-                "Heaviest peptide to fragment, in Da. Default 5000.",
+                "Heaviest peptide mass, in Da, to put in the database. Default 5000.",
             );
         });
 
@@ -1864,7 +1909,7 @@ impl SageLauncher {
             ui.horizontal(|ui| {
                 let tip = "C13 isotope-error offsets. Slower than simply widening precursor \
                            tolerance to cover the same mass range. Prefer a wider Da window \
-                           when unsure.";
+                           when unsure. Default -1 to 3.";
                 ui.label("Isotope Errors Min:").on_hover_text(tip);
                 ui.add(egui::DragValue::new(&mut self.config.isotope_errors.0).range(-5..=0))
                     .on_hover_text(tip);
@@ -1962,7 +2007,8 @@ impl SageLauncher {
 
         // Which box do the arrows act on?
         ui.horizontal(|ui| {
-            ui.label("Target:");
+            ui.label("Target:")
+                .on_hover_text("The box that the ◀ Add and Remove ▶ arrows act on.");
             ui.selectable_value(&mut self.mod_target, ModTarget::Variable, "Variable")
                 .on_hover_text("Arrows add/remove modifications in the Variable box.");
             ui.selectable_value(&mut self.mod_target, ModTarget::Static, "Static (fixed)")
@@ -2101,6 +2147,8 @@ impl SageLauncher {
                     }
                     if ui
                         .add_enabled(parsed, egui::Button::new("Add to target box"))
+                        .on_hover_text("Add this key and mass to the target box.")
+                        .on_disabled_hover_text("Enter a valid Sage key first.")
                         .clicked()
                     {
                         // Leak-free: custom keys go through the owned-string path.
@@ -2200,7 +2248,11 @@ impl SageLauncher {
                 ui.label("Output Location:").on_hover_text(tip);
                 ui.text_edit_singleline(&mut self.config.output_directory)
                     .on_hover_text(tip);
-                if ui.button("Browse").clicked() {
+                if ui
+                    .button("Browse")
+                    .on_hover_text("Pick a folder.")
+                    .clicked()
+                {
                     if let Some(path) = FileDialog::new().pick_folder() {
                         self.config.output_directory = path.display().to_string();
                     }
@@ -2457,7 +2509,11 @@ impl SageLauncher {
                 if edit.changed() {
                     self.config.results_dir_edited();
                 }
-                if ui.button("Browse").clicked() {
+                if ui
+                    .button("Browse")
+                    .on_hover_text("Pick a folder.")
+                    .clicked()
+                {
                     if let Some(path) = FileDialog::new().pick_folder() {
                         self.config.set_results_dir(path.display().to_string());
                     }
@@ -2533,12 +2589,16 @@ impl SageLauncher {
                 &mut self.config.export_mzid_after_run,
                 "Write mzIdentML after the search",
             )
-            .on_hover_text("Convert the results when a search ends without error. Default off.");
+            .on_hover_text(
+                "Write results.sage.mzid when a search ends without error. Default off.",
+            );
             ui.checkbox(
                 &mut self.config.export_pepxml_after_run,
                 "Write pepXML after the search",
             )
-            .on_hover_text("Convert the results when a search ends without error. Default off.");
+            .on_hover_text(
+                "Write results.sage.pep.xml when a search ends without error. Default off.",
+            );
 
             let idle = !self.is_running && !self.convert.is_running();
             let mut request = None;
@@ -2619,8 +2679,10 @@ impl SageLauncher {
                 &mut self.precursor_tolerance_type,
                 ToleranceType::Ppm,
                 "PPM",
-            );
-            ui.radio_value(&mut self.precursor_tolerance_type, ToleranceType::Da, "Da");
+            )
+            .on_hover_text(UNIT_TIP);
+            ui.radio_value(&mut self.precursor_tolerance_type, ToleranceType::Da, "Da")
+                .on_hover_text(UNIT_TIP);
 
             match (self.precursor_tolerance_type, self.config.precursor_tol) {
                 (ToleranceType::Ppm, ToleranceConfig::Da(..)) => {
@@ -2633,13 +2695,15 @@ impl SageLauncher {
                 }
                 _ => {}
             }
-            self.config.precursor_tol.update_section(ui);
+            self.config.precursor_tol.update_section(ui, true);
         });
 
         ui.group(|ui| {
             ui.heading("Fragment Tolerance");
-            ui.radio_value(&mut self.fragment_tolerance_type, ToleranceType::Ppm, "PPM");
-            ui.radio_value(&mut self.fragment_tolerance_type, ToleranceType::Da, "Da");
+            ui.radio_value(&mut self.fragment_tolerance_type, ToleranceType::Ppm, "PPM")
+                .on_hover_text(UNIT_TIP);
+            ui.radio_value(&mut self.fragment_tolerance_type, ToleranceType::Da, "Da")
+                .on_hover_text(UNIT_TIP);
 
             match (self.fragment_tolerance_type, self.config.fragment_tol) {
                 (ToleranceType::Ppm, ToleranceConfig::Da(..)) => {
@@ -2650,12 +2714,16 @@ impl SageLauncher {
                 }
                 _ => {}
             }
-            self.config.fragment_tol.update_section(ui);
+            self.config.fragment_tol.update_section(ui, false);
         });
     }
 
     pub fn update_quant_options(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(&mut self.config.quant_enabled, "Enable Quantification");
+        ui.checkbox(&mut self.config.quant_enabled, "Enable Quantification")
+            .on_hover_text(
+                "Off: Sage identifies peptides only. On: Sage also quantifies them, by \
+                 LFQ or TMT. Default on.",
+            );
 
         if self.config.quant_enabled {
             ui.label("Quantification Type");
@@ -2663,12 +2731,17 @@ impl SageLauncher {
                 &mut self.config.quant_class,
                 SupportedQuantTypes::Lfq,
                 "Label-Free Quantification (LFQ)",
+            )
+            .on_hover_text(
+                "Quantify each peptide from its MS1 precursor signal. Needs Predict RT, on \
+                 the Search tab.",
             );
             ui.radio_value(
                 &mut self.config.quant_class,
                 SupportedQuantTypes::Tmt,
                 "Tandem Mass Tag (TMT)",
-            );
+            )
+            .on_hover_text("Quantify each spectrum from its TMT reporter ions.");
 
             match (self.config.quant_class, self.config.quant.clone()) {
                 (SupportedQuantTypes::Lfq, QuantType::Lfq(..)) => {}

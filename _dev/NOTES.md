@@ -1654,10 +1654,16 @@ Three ways a tooltip does not show. All were found in SageGUI and fixed.
 
 Rule: a label that names one control gets the same tooltip as the control.
 
-**Testing gotcha.** After a full-screen synthetic `left_click`, egui showed no
-tooltip anywhere, even on ones that had worked, until the app restarted. Hover
-still highlighted widgets. Change tabs with a background AX click
-(`app_click` by element index), then hover with full-screen `mouse_move`.
+**Testing gotcha.** After a synthetic `left_click`, a single `mouse_move` that
+jumps to a widget shows no tooltip, though the widget highlights. egui hides
+tooltips while the last click is more recent than the last pointer movement
+(`clicked_more_recently_than_moved` in `Response::should_show_hover_ui`), and
+one jump does not count as enough movement. Move the pointer in three or four
+steps, then wait 1.3 s. A real mouse is not affected.
+
+**Consistency rule.** Tooltip text and `docs/` say the same thing. When one
+changes, check the other. `PARAMETER_REFERENCE.md` is the reference;
+`sagegui-params.md` repeats it in short form; `ui-spec.md` is historical.
 
 ---
 

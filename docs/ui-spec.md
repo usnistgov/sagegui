@@ -1,14 +1,19 @@
 # SageGUI — UI specification & redesign brief
 
+> **Status (2026-11-19): historical.** This is the August 2026 redesign brief. It
+> describes the old single-page layout, before the six tabs. It is not the current
+> reference. For each control as it is now, with its default and meaning, see
+> [PARAMETER_REFERENCE.md](PARAMETER_REFERENCE.md). The help text the app shows is in
+> `src/ui.rs`.
+
 > **Purpose of this file:** a single, self-contained block you can paste into a
 > web LLM (Perplexity, Claude, ChatGPT, v0, etc.) to prototype a better UI. It
 > describes *exactly* what the app does, every control it exposes, and the
 > constraints any redesign must respect. Everything the model needs is here —
 > you should not have to paste anything else.
 >
-> It also doubles as the source of truth for the planned **in-GUI parameter
-> documentation** feature (tooltips/help for every control) — the "Tooltip
-> draft" column below is that copy.
+> The "Tooltip draft" column below was the first draft of the help text. The
+> tooltips in the app have since replaced it.
 
 ---
 

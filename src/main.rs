@@ -271,10 +271,13 @@ impl eframe::App for SageLauncher {
             ui.horizontal(|ui| {
                 // A conversion reads the files a search writes, so the two do not
                 // run at the same time.
-                let run_btn = ui.add_enabled(
-                    !self.is_running && !self.convert.is_running(),
-                    egui::Button::new("Run"),
-                );
+                let run_btn = ui
+                    .add_enabled(
+                        !self.is_running && !self.convert.is_running(),
+                        egui::Button::new("Run"),
+                    )
+                    .on_hover_text("Start a search with the current settings.")
+                    .on_disabled_hover_text("Not available while a search or a conversion runs.");
                 if run_btn.clicked() {
                     // Pre-flight is checked here, separately from the launch, so
                     // a refusal to start can be told apart from a failure after

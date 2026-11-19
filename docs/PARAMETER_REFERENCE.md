@@ -15,35 +15,30 @@ A guide to every control in the SageGUI interface. For each parameter, this docu
 
 ## Experiment Tab
 
-### Experiment Type
+### Templates
 
-**Default:** Custom
+**Default:** the first template in the list, Tryptic - wide MS1 / tight MS2. Nothing changes until you click **Apply template**.
 
-**Options:** Custom, Tryptic LFQ, Wide Open, Phospho, Semi-Tryptic
+**Options:** Tryptic - wide MS1 / tight MS2, Tryptic - tight, Tryptic - open, Tryptic - biofluid, TMT 11-plex
 
 **What it does:**
-Selects a preset configuration archetype that populates recommended values for Search, Modifications, and Quant tabs. Currently inert (selecting an option does not yet apply the preset defaults).[file:250]
+A template is a complete set of search parameters for a common experiment type. **Apply template** replaces the current search parameters with the template's values. It never changes the selected mzML files, the FASTA files or the output folder. Applying the same template again restores every setting it covers. The text under the picker describes the selected template.
 
-**When to change it:**
-- Select **Tryptic LFQ** for standard trypsin digestion with label free quantification
-- Select **Wide Open** for discovery mode searches (wide precursor tolerance, fewer restrictions)
-- Select **Phospho** for phosphoproteomics experiments
-- Select **Semi Tryptic** to allow peptides with one non enzymatic terminus
-- Select **Custom** if you want to manually set all parameters
+**What each template sets** (tolerances are delta-mass ranges, as the Search tab shows them):
+- **Tryptic - wide MS1 / tight MS2:** precursor −1.25 to +3.5 Da, fragment −10 to +10 ppm, no isotope errors. The wide MS1 window absorbs isotope errors.
+- **Tryptic - tight:** precursor and fragment −20 to +20 ppm, isotope errors −1 to 3.
+- **Tryptic - open:** precursor −100 to +500 Da, to find unknown modifications. Expect a long run.
+- **Tryptic - biofluid:** semi-enzymatic digestion with database prefiltering on, to bound memory.
+- **TMT 11-plex:** static TMT on K and the peptide N-terminus, with a 0.4 Da fragment window that suits an ion trap.
 
-**Planned:** Archetype presets will automatically populate the other tabs in a future release.[file:250]
+The template files are in `assets/templates/`, in Sage's own JSON format.
 
 ---
 
-### Save / Load Config
+### Load settings from a Sage file
 
-**Status:** Coming in a future version.
-
-**What it will do:**
-Save your current configuration (all Search, Modifications, and Quant settings) to a JSON file for later reuse, or load a previously saved configuration.[file:250]
-
-**Why it is not ready yet:**
-The SageGUI config format differs from Sage’s native JSON schema, so a round trip import and export needs careful field mapping to avoid losing data.[file:250]
+**What it does:**
+**Load Sage config or results.json…** reads the search parameters from a Sage `config.json` or from the `results.json` that a past search wrote to its output folder. It never reads the file paths or the output folder in the file. After a load, the tab lists anything it could not apply, and the files you must select again.
 
 ---
 
@@ -159,7 +154,7 @@ Automatically generates reversed sequence decoys from your database for FDR esti
 
 **When to change it:**
 - Leave ON for standard searches (required for FDR calculation)
-- Turn OFF only if you are providing pre generated decoys in a separate FASTA
+- Turn OFF only if your FASTA already holds decoys whose accessions carry the Decoy Tag. With it on, Sage drops those entries and makes its own.
 
 **Why it matters:**
 FDR filtering relies on comparing target matches to decoy matches. Without decoys, you cannot reliably estimate false positives.[file:250]
@@ -190,7 +185,7 @@ Smaller buckets give finer mass granularity and can be faster for high resolutio
 **Default:** 2
 
 **What it does:**
-Minimum number of fragment ions required for a peptide to be indexed in the search database. Peptides with fewer fragments are skipped, which saves memory and speeds up the search.[file:250]
+Fragment ions below this index are left out of the fragment index that Sage uses for the first-pass search. The default of 2 leaves out b1, b2, y1 and y2, which are rarely informative. Full scoring of each candidate peptide is not affected.
 
 **When to change it:**
 Rarely. A value of 2 is safe for most searches.
@@ -202,7 +197,7 @@ Rarely. A value of 2 is safe for most searches.
 **Default:** `rev_`
 
 **What it does:**
-Prefix applied to protein names in the auto generated decoy sequences. Used to distinguish decoy matches in the results.[file:250]
+Prefix that marks a decoy protein. With Generate Decoys on, Sage puts it on the decoys it makes, and drops any FASTA entry whose accession already contains it. With Generate Decoys off, Sage uses the FASTA entries that contain it as the decoys.
 
 **When to change it:**
 Only if your protein names already start with `rev_`. Use a unique prefix like `decoy_` instead to avoid collisions.
@@ -219,31 +214,27 @@ Only if your protein names already start with `rev_`. Use a unique prefix like `
 
 ### Precursor Tolerance
 
-**Mode:** PPM (parts per million) or Da (Daltons)
+**Mode:** PPM (parts per million) or Da (Daltons). Switching the unit resets the window to −10 to +10 ppm or −0.02 to +0.02 Da.
 
-**Default:** PPM, Lower: –10, Upper: +10
+**Default:** PPM, delta mass −10 to +10
 
 **What it does:**
-Defines the mass window Sage searches around the observed precursor m/z. Sage applies the window to the experimental precursor mass and looks for theoretical peptides whose mass falls within
+Sets the precursor mass window. The Search tab shows it as a delta-mass range: **Delta mass from** and **to**. Delta mass is the experimental precursor mass minus the theoretical peptide mass. A peptide that carries a +16 Da modification has a delta mass of +16 Da. Sage matches a spectrum to every peptide whose delta mass is inside the range.
 
-`[observed + lower, observed + upper]`.[file:250]
+**Sage JSON convention (important):**
+Sage's own `precursor_tol` pair in a JSON file is **not** the delta-mass range. It is the delta-mass range negated and swapped. Delta −1.25 to +3.5 Da is `"da": [-3.5, 1.25]` in the JSON. SageGUI converts in both directions, when it writes a search and when it loads a Sage file. A symmetric window, such as −10 to +10 ppm, looks the same in both conventions, so the difference shows only on asymmetric and open windows.
 
-**Sign convention (important):**
-- Lower is normally negative and Upper is normally positive.[file:250]
-- A negative lower bound searches theoretical peptides that are lighter than the observed mass. This corresponds to observed peptides that carry a positive delta mass relative to the unmodified theoretical peptide.[file:250]
-- Example: `Lower = –500` searches theoretical peptides up to 500 Da below the observed mass. Those candidates would require a +500 Da modification to explain the observed m/z.[file:250]
-
-**Examples:**
-- **Closed search, tight ppm:** `PPM [–10, +10]` around the observed mass. Typical for high accuracy instruments.[file:250]
-- **Open search, wide Da:** `Da [–100, +500]` searches from 100 Da below to 500 Da above the observed mass and is a common wide window for PTM discovery.[web:53]
-- **Hybrid strategy:** a wider MS1 Da window with a tight MS2 ppm window. On Orbitrap MS1 and Orbitrap MS2, an example is `MS1 Da [–1.25, +3.5]` and `MS2 PPM [–20, +20]`. MS1 absorbs small mass drift or minor unmodelled modifications. MS2 remains strict because fragment mass accuracy is usually the more reliable signal.
+**Examples (delta mass, as entered in SageGUI):**
+- **Closed search, tight ppm:** −10 to +10 ppm. Typical for high accuracy instruments.
+- **Open search, wide Da:** −100 to +500 Da finds modifications from −100 to +500 Da. In Sage JSON this is `"da": [-500, 100]`. The Tryptic - open template sets it.
+- **Hybrid strategy:** a wider MS1 Da window with a tight MS2 ppm window. The Tryptic - wide MS1 / tight MS2 template sets precursor −1.25 to +3.5 Da and fragment −10 to +10 ppm. MS1 absorbs isotope errors and small mass drift. MS2 remains strict because fragment mass accuracy is usually the more reliable signal.
 
 **When to change it:**
-- Use tight ppm (for example `±10 ppm`) when the detector is well calibrated and your modification space is defined.
-- Use a wide Da window (for example `–100, +500`) when you want to discover unexpected PTMs. Keep the enzyme strict (fully tryptic, no semi enzymatic) or the search space grows very large.[web:53][file:250]
+- Use tight ppm (for example −10 to +10 ppm) when the detector is well calibrated and your modification space is defined.
+- Use a wide Da window (for example −100 to +500 Da) when you want to discover unexpected PTMs. Keep the enzyme strict (fully tryptic, no semi enzymatic) or the search space grows very large.
 - Combine a wider MS1 window with a tight MS2 window when you care more about fragment evidence than about exact precursor calibration.
 
-**Warning:** If Lower is greater than Upper, the window is inverted and Sage will compute an empty search range. The lower value should normally be the smaller number, often negative.[file:250]
+**Warning:** If the first value is greater than the second, the window is empty and Sage finds nothing. The Search tab shows a warning when this happens.
 
 ---
 
@@ -251,10 +242,10 @@ Defines the mass window Sage searches around the observed precursor m/z. Sage ap
 
 **Mode:** PPM or Da
 
-**Default:** PPM, Lower: –10, Upper: +10
+**Default:** PPM, delta mass −10 to +10
 
 **What it does:**
-Defines the mass window for fragment ion matching. Sage looks for theoretical fragments within `[observed + lower, observed + upper]` of each observed fragment.[file:250]
+Sets the mass window for fragment ion matching. The Search tab shows it as a delta-mass range, in the same way as the precursor tolerance: experimental fragment mass minus theoretical fragment mass. Sage's JSON `fragment_tol` pair uses the same negated and swapped convention as `precursor_tol`.
 
 **When to change it:**
 - High resolution MS2 (Orbitrap): around `±10 ppm`
@@ -270,7 +261,7 @@ Defines the mass window for fragment ion matching. Sage looks for theoretical fr
 **Default:** Min: 2, Max: 4
 
 **What it does:**
-Specifies the range of precursor charge states to search. Sage searches all charges from Min to Max inclusive for each observed precursor.[file:250][file:238]
+The precursor charges Sage tries when it cannot use the charge in the file. A spectrum with a charge annotation in the mzML is searched at that charge only. Sage tries every charge from Min to Max inclusive for a spectrum with no charge annotation, for every spectrum when **Override Precursor Charge** is on, and for every spectrum in **Wide Window** mode.
 
 **When to change it:**
 - Leave at 2–4 for most LC MS experiments
@@ -435,7 +426,7 @@ Restricts the database to peptides with monoisotopic mass in this range.[file:25
 **Default:** B and Y enabled
 
 **What it does:**
-Selects which fragment ion series Sage scores. Default is b and y ions.[file:250]
+Selects which fragment ion series Sage scores. Default is b and y ions, which suit CID and HCD.[file:250] For ETD or ECD, select c and z, or c and z• (the radical z ion).
 
 ---
 
@@ -478,7 +469,7 @@ Searches for co-fragmenting peptides in each MS2 spectrum. Sage reports up to **
 **Default:** ☐ Unchecked
 
 **What it does:**
-Switches Sage into a DIA style wide window mode where the configured precursor tolerance is ignored and all charge states in the range are considered.[file:238][file:250]
+For DIA or wide-window data. Sage ignores the precursor tolerance and uses each spectrum's isolation window instead. It tries every precursor charge in the Precursor Charge range.
 
 ---
 
@@ -502,7 +493,7 @@ Scoring function used for PSM ranking. The hover text recommends leaving this at
 **Default:** Min: 15, Max: 150
 
 **What it does:**
-Minimum and maximum number of fragment peaks retained per MS2 spectrum after preprocessing.[file:250]
+**Min Peaks:** Sage does not search a spectrum with fewer peaks than this. **Max Peaks:** Sage keeps only this many of the most intense peaks in each spectrum.
 
 ---
 
@@ -511,7 +502,7 @@ Minimum and maximum number of fragment peaks retained per MS2 spectrum after pre
 **Default:** 6
 
 **What it does:**
-Minimum number of matched fragment ions required for a PSM to be considered.[file:250]
+Fewest matched fragment ions for a PSM to be reported. Every bundled template uses 4.
 
 ---
 
@@ -538,7 +529,7 @@ Number of PSMs to report per spectrum. Default 1 keeps only the top scoring matc
 **Default:** ✓ Checked
 
 **What it does:**
-Enables retention time prediction in Sage, which can be used as an additional score feature.[file:238][file:250]
+Aligns retention times across files and predicts each peptide's retention time. Sage uses the prediction as a feature for FDR. **LFQ needs it:** with Predict RT off, LFQ does not run, and the Quant step on the Progress card says so.
 
 ---
 
@@ -617,7 +608,7 @@ Global toggle for quant features. When off, Sage runs identification only. When 
 **Options:** Label Free Quantification (LFQ), Tandem Mass Tag (TMT)
 
 **What it does:**
-Selects the quantification method. LFQ uses MS1 intensities. TMT uses isobaric reporter ions.[file:250]
+Selects the quantification method. LFQ uses MS1 intensities. TMT uses isobaric reporter ions.[file:250] LFQ needs **Predict RT** on the Search tab.
 
 ---
 
@@ -682,7 +673,7 @@ The Sage documentation recommends that you do not change this setting. The upstr
 **Default:** 5.0 ppm
 
 **What it does:**
-Precursor tolerance used by the LFQ engine when mapping features across runs.[file:250]
+The MS1 m/z tolerance, in ppm, that Sage uses to collect the precursor isotope intensities for each peptide (step 2 above).
 
 ---
 
@@ -693,7 +684,7 @@ Precursor tolerance used by the LFQ engine when mapping features across runs.[fi
 **Range:** 0.0–1.0
 
 **What it does:**
-Similarity threshold between experimental and reference spectra used for LFQ scoring. Peaks below this threshold are filtered out.[file:250]
+Minimum spectral angle between the observed and the expected isotope envelope. A retention time point below it cannot be the apex or part of the peak (steps 5 and 6 above).
 
 ---
 
@@ -712,7 +703,8 @@ Peptides often elute across multiple charge states in the same run. Summing them
 Turning this off increases LFQ runtime because Sage must trace and integrate a separate feature for every charge state of every peptide instead of one combined feature per peptide.[file:145][file:238]
 
 **When to change it:**
-- Leave on for standard peptide level quantification and most downstream pipelines, including MSstats.
+- Leave on for standard peptide level quantification.
+- Turn off if you plan to use MSstats. With it on, Sage writes a charge of -1 and `PrecursorCharge` has no meaning downstream (see the README, "Downstream tools").
 - Turn off only when you need charge resolved intensities or a downstream tool expects a real charge in every LFQ row.
 
 ---
@@ -744,6 +736,8 @@ The ion mobility tolerance for MS1 tracing. Sage uses it only for Bruker timsTOF
 
 #### TMT Plex
 
+**Default:** TMT 6 plex
+
 **Options:** TMT 6 plex, 10 plex, 11 plex, 16 plex, 18 plex
 
 **What it does:**
@@ -765,7 +759,7 @@ MS level used for TMT quantification. Default 3 is typical for TMT SPS MS3.[file
 **Default:** false
 
 **What it does:**
-Toggles a signal to noise based filter in TMT quantification.[file:238][file:250]
+Toggles a signal to noise based filter in TMT quantification.[file:238][file:250] The Quant tab does not show this setting. A value in a loaded Sage JSON is kept and sent to Sage.
 
 ---
 
@@ -843,7 +837,7 @@ Shows SageGUI version, Sage engine version, author and maintainer, repository li
 
 **Feature:** MS1 precursor ion described by mass, charge, retention time and isotopic envelope. LFQ traces features across runs.
 
-**LFQ:** Label free quantification. Derives peptide and protein intensity from MS1 precursor peak areas.
+**LFQ:** Label free quantification. Derives peptide intensity from the MS1 precursor signal: the peak area (Sum) or the apex intensity (Apex).
 
 **m/z:** Mass to charge ratio.
 
@@ -853,7 +847,7 @@ Shows SageGUI version, Sage engine version, author and maintainer, repository li
 
 **PTM:** Post translational modification.
 
-**Spectral Angle:** Similarity measure between peak lists on a zero to one scale where one is identical. Used in LFQ isotope profile comparison.
+**Spectral Angle:** Similarity measure between two intensity patterns, on a zero to one scale where one is identical. In LFQ, Sage compares the observed isotope envelope with the expected one.
 
 **TMT:** Tandem Mass Tag.
 

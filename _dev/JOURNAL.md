@@ -1,3 +1,35 @@
+## 2026-11-19 (night): every control hovered, tooltips against docs
+
+**Did:** Ben asked for the full check and for tooltip text to agree with the
+repo docs. Hovered every control on all six tabs (TMT plex and Add to target
+box only before their tooltips were added; their new tooltips were not hovered).
+Found 13 controls with no tooltip and one wrong text (fragment "to" suggested a
++500 ppm modification; `ToleranceConfig::update_section` now takes `precursor`).
+Compared all ~95 tooltip texts with PARAMETER_REFERENCE, sagegui-params,
+mass-tolerance-params, GLOSSARY and ui-spec, and settled each conflict from
+the vendored code: precursor charge rule (`scoring.rs` 427-458), min_ion_index
+(fragment index only, `database.rs` 311-319), decoy tag (`fasta.rs` 33, 66),
+fragment tolerance centred on the experimental mass (`database.rs` 619).
+
+**Biggest find:** the tolerance docs described Lower/Upper in Sage JSON order
+while the GUI shows delta mass, and gave "Da [-100, +500]" with no convention
+stated. That is the AGENTS.md STOP rule. Rewritten in delta mass, with the JSON
+form shown beside each asymmetric example.
+
+**Testing:** the "no tooltips after a click" effect is egui's
+clicked-more-recently-than-moved rule meeting a one-jump synthetic move. Stepped
+moves fix it (NOTES). Not an app bug.
+
+**Least confident about (Q1):** `sagegui-params.md` and `ui-spec.md` still
+repeat what PARAMETER_REFERENCE says, and will drift again. Proven by the next
+doc change: if a fact has to be edited in three files, retire the two copies.
+
+**Improvement (Q5):** retire `sagegui-params.md` (it is a short copy of the
+reference with `[file:250]` citation leftovers) and keep `ui-spec.md` only in
+`_dev/`. Ben's call.
+
+---
+
 ## 2026-11-19 (evening): tooltip audit
 
 **Did:** Ben asked for a full tooltip audit before the next release, after the

@@ -69,7 +69,7 @@ A reversed or shuffled protein sequence used for FDR estimation. Sage uses `rev_
 The expected proportion of false positives among reported identifications. Typically controlled at 1%.
 
 ### Open Search
-A search with wide precursor tolerance (e.g., ±500 Da) that can discover unexpected modifications.
+A search with a wide precursor tolerance (e.g., a delta-mass range of −100 to +500 Da) that can discover unexpected modifications.
 
 ### q-value
 The minimum FDR at which a PSM would be accepted. Lower is better.
@@ -107,11 +107,11 @@ A Rust package/library.
 
 ## Project-Specific Terms
 
-### Option A (Fork Sage)
-Our chosen approach: fork Sage, add lib exports, maintain sync with upstream.
+### Option A (Embed Sage)
+Our chosen approach: compile Sage in from `vendor/sage`, a copy of upstream at a fixed commit with small NIST patches. See `vendor/sage/VENDORED.md`.
 
 ### Option C (Wrapper)
 Alternative approach (not chosen): call `sage.exe` as subprocess, generate JSON config.
 
 ### lib target
-A Rust crate that can be used as a library dependency. The official `sage-cli` doesn't have one.
+A Rust crate that can be used as a library dependency. SageGUI uses the `sage_cli` library target of the vendored `sage-cli` crate.
