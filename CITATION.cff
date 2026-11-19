@@ -10,7 +10,7 @@ abstract: >-
   results.json files reproduce a known search configuration.
 type: software
 # The release tag, not the Cargo version: NIST releases are tagged nist-vX.Y.Z.
-version: "nist-v0.11.0"
+version: "nist-v0.11.1"
 date-released: "2026-11-19"
 authors:
   - family-names: Neely

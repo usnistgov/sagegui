@@ -11,6 +11,8 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-11-19
+
 ### Fixed
 
 - **LFQ tooltips show.** In 0.11.0 the tooltips for Integration, Peak Scoring, PPM Tolerance and Peptide q-value did not show when you held the pointer over the control. Each tooltip is now on the label and on the control.
@@ -236,6 +238,7 @@ When a new Sage version is released:
 
 4. **Test and release** new sagegui version
 
+[0.11.1]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.11.1
 [0.11.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.11.0
 [0.10.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.10.0
 [0.9.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.9.0

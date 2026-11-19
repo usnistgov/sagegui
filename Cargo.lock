@@ -5003,7 +5003,7 @@ dependencies = [
 
 [[package]]
 name = "sagegui"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "eframe",

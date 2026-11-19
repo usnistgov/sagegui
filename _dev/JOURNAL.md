@@ -1,3 +1,23 @@
+## 2026-11-19 (later): nist-v0.11.1, LFQ tooltips
+
+**Did:** `nist-v0.11.0` built on all four targets (run 44594250737) and was
+released. Ben found that the new LFQ tooltips did not show. Cause: I put
+`on_hover_text` on the `ui.horizontal` row response. In egui 0.29 the label
+and the control take the hover, so the row tooltip almost never shows. Each
+tooltip is now on the label and the control (constants `LFQ_*_TIP` in
+`src/ui.rs`). Checked on screen: the tooltips show, Apex selects and is saved in
+`app.ron` (restored after). Commented on issue #1 with the release link.
+Released as `nist-v0.11.1`.
+
+**Least confident about (Q1):** other places that may put a tooltip on a
+`ui.horizontal(...).response`. Proven by `grep -n "\.response$" src/ui.rs`
+and hovering each one.
+
+**Improvement (Q5):** add "a row response tooltip does not show in egui 0.29"
+to NOTES gotchas, and check tooltips on screen before a release, not after.
+
+---
+
 ## 2026-11-19: LFQ options (Sum or Apex), release 0.11.0
 
 **Did:** Ben asked to expose Sage's LFQ options, area or apex in particular, with
