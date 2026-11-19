@@ -11,6 +11,10 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-11-19
+
+A full tooltip audit. Every control on every tab now has a tooltip, each one was checked on screen, and the tooltip text now agrees with the documentation and with what Sage does. If you find a tooltip annoying or wrong, please open an issue that names the control.
+
 ### Added
 
 - **A tooltip on every control.** New tooltips: Deisotope, Chimera, Wide Window, Predict RT, Precursor Charge, Decoy Tag, Output Location, the PPM and Da choice, the Enzyme picker, Cut side, Ion Kinds, the template picker, Pick mzML files, Target, Add to target box, Enable Quantification, LFQ and TMT, the TMT plex and level, Browse and Run.
@@ -259,6 +263,7 @@ When a new Sage version is released:
 
 4. **Test and release** new sagegui version
 
+[0.11.2]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.11.2
 [0.11.1]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.11.1
 [0.11.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.11.0
 [0.10.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.10.0

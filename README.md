@@ -138,14 +138,14 @@ SageGUI is under active development. We want feedback on its performance and usa
 If you use SageGUI in published work, please cite the software:
 
 > Neely, B.A. (2026). *SageGUI: a graphical interface for the Sage proteomics
-> search engine* (Version nist-v0.11.1) [Computer software]. National Institute of
+> search engine* (Version nist-v0.11.2) [Computer software]. National Institute of
 > Standards and Technology. https://github.com/usnistgov/sagegui
 
 Cite the version you ran, not the repository in general. The pinned Sage
 engine version and the bundled templates both move between releases, so two
 versions of SageGUI do not necessarily run the same search. Cite the release by
-its tag (for example `nist-v0.11.1`). The Run / Info tab prints the SageGUI version
-number (`0.11.1` for `nist-v0.11.1`) and the Sage engine version it was built against.
+its tag (for example `nist-v0.11.2`). The Run / Info tab prints the SageGUI version
+number (`0.11.2` for `nist-v0.11.2`) and the Sage engine version it was built against.
 
 A `CITATION.cff` file is included, so GitHub's "Cite this repository" control
 produces the same reference in BibTeX or APA.
