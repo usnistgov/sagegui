@@ -1,3 +1,46 @@
+## 2026-11-19: LFQ options (Sum or Apex), release 0.11.0
+
+**Did:** Ben asked to expose Sage's LFQ options, area or apex in particular, with
+documentation, and to cut a release. This answers usnistgov/sagegui#1 (MJanech).
+I read Michael Lazear's docs (sage-docs.vercel.app, quantification and how it
+works) and then the code (`vendor/sage/crates/sage/src/lfq.rs`).
+
+1. **Found a silent loss.** `From<QuantType> for QuantOptions` hard-coded Hybrid
+   and Sum and sent `None` for two keys. A JSON with `"integration": "Apex"` ran as
+   Sum. All seven keys now pass through, and import reads all seven.
+2. **Quant tab:** Integration (Sum (area) / Apex), Peak Scoring (four, Hybrid
+   labelled recommended), Peptide q-value, tooltips on every LFQ control. No
+   mobility widget (mzML only); an imported value is kept. No new `Config` field.
+3. **Docs:** PARAMETER_REFERENCE has a "How Sage LFQ works" section and one
+   section per option; sagegui-params, ui-spec, README, CHANGELOG updated. Each
+   cites #1.
+4. **Release prep:** `Cargo.toml` 0.11.0, CITATION.cff, README Citation,
+   CHANGELOG `[0.11.0] - 2026-11-19`.
+
+**Real data (serum, 2026-09-22 config, stock Sage CLI):** Sum and Apex both give
+3,021 target MS1 peaks at 5% FDR, 3,040 rows. Apex/Sum per row: median 0.077,
+10th percentile 0.045, 90th 0.142. Apex is never above Sum. So Apex values are
+about 13 times smaller; ratios between samples are what matter.
+
+**Checks:** `cargo fmt --check`, `clippy -D warnings`, `cargo test` (171 passed,
+3 ignored need real data), `cargo build --release`.
+
+**Least confident about (Q1):** the Quant tab layout. I did not look at it on
+screen. Proven by opening the release build, Quant tab, LFQ: the two combo boxes
+should line up with the PPM row and the tooltips should show.
+
+**Assumed (Q2):** that the GUI pipeline passes `lfq_settings` to Sage the same way
+the CLI does. The unit test checks `QuantSettings`, and `pipeline.rs` reads
+`parameters.quant.lfq_settings`, but the serum run used the stock CLI.
+
+**Missing (Q3):** no benchmark says when Apex beats Sum. The docs say so plainly.
+
+**Improvement (Q5):** a test that every `LfqSettings` field is named in
+`From<QuantType>` would catch the next field Sage adds. Destructuring
+`LfqSettings { .. }` without `..` would do it at compile time.
+
+---
+
 ## 2026-11-12: Sage 4a051b2, own search pipeline, step progress
 
 **Did:** Ben asked for two things: better use of Sage in SageGUI, and better

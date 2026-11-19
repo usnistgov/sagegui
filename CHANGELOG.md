@@ -11,8 +11,11 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-19
+
 ### Added
 
+- **More LFQ options on the Quant tab.** You can now set Integration, Peak Scoring and Peptide q-value. Integration selects the LFQ intensity: Sum is the peak area (the default) and Apex is the intensity at the peak apex. This answers the feature request from MJanech ([usnistgov/sagegui#1](https://github.com/usnistgov/sagegui/issues/1)). Each control has a tooltip. `docs/PARAMETER_REFERENCE.md` describes each option and how Sage LFQ works.
 - **Step-by-step progress.** Run / Info has a Progress card with one row per step: Read FASTA, Digest proteins, Build fragment index, Read spectra, Search, Score and FDR, Quantify, Write results. Each row shows its state, a bar, its time and a summary such as the number of proteins, peptides, fragments, spectra or PSMs. The database build is no longer silent. The run bar shows the step that is running.
 - **NIST disclaimers in the README.** A generative AI disclaimer, which links to `docs/AI_USAGE.md`, and the NIST commercial product disclaimer.
 - **Status and support in the README.** SageGUI is under active development. Support is best effort, through GitHub Issues or email.
@@ -20,6 +23,7 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ### Changed
 
+- **Every LFQ setting now reaches Sage.** Before, SageGUI always ran Sum integration and Hybrid peak scoring, and ignored `peptide_q_value` and `mobility_pct_tolerance`, even when a loaded Sage JSON set them. A loaded JSON now sets all seven LFQ settings. Saved settings from 0.10.0 load unchanged.
 - **The Search bar reaches 100%.** Its total is now the exact number of MS2 spectra that Sage searches. The old total came from the mzML file header and counted MS1 spectra too.
 - **SageGUI runs Sage's search steps itself** (`src/pipeline.rs`, a copy of Sage's `Runner` pipeline), so it can report and stop each step. Sage's own writers still write every file. Tests run stock Sage and the copy on the same data and compare every output file.
 - **Stop works in more places.** A search can now stop between the database steps, between prefilter chunks, and after scoring, before any file is written.
@@ -228,6 +232,7 @@ When a new Sage version is released:
 
 4. **Test and release** new sagegui version
 
+[0.11.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.11.0
 [0.10.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.10.0
 [0.9.0]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.9.0
 [0.8.2]: https://github.com/usnistgov/sagegui/releases/tag/nist-v0.8.2

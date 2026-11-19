@@ -25,7 +25,7 @@ This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VEND
 - Run bar pinned at the bottom so you can launch from any tab
 - Modifications picker with a curated preset list (Static and Variable boxes, Mascot-style)
 - Enzyme presets: 14 curated proteases, including the Asp-N and Lys-N cases that cut before their residue
-- TMT (6/10/11/16/18-plex) and LFQ quantification
+- TMT (6/10/11/16/18-plex) and LFQ quantification. LFQ intensity can be the peak area (Sum) or the peak apex (Apex)
 - Database prefiltering (chunked FASTA processing) to bound peak memory on semi-enzymatic and non-specific searches
 - Settings remembered between sessions (parameters, file picks, active tab, and modifications)
 - Starting templates on the Experiment tab (tryptic wide MS1/tight MS2, tight, open, biofluid, TMT 11-plex)
@@ -40,7 +40,7 @@ This fork compiles Sage from source vendored in [`vendor/sage`](vendor/sage/VEND
 
 - Database cache: save the built peptide database and reuse it on a later run with the same FASTA and database settings. The code is in place but hidden in the UI until it is ready.
 - Export options: Perseus-format (for Perseus/[ProteoPlotter](https://github.com/JGM-Lab-UoG/ProteoPlotter)), [DIAgui](https://github.com/mgerault/DIAgui), [LFQ-Analyst](https://github.com/MonashBioinformaticsPlatform/LFQ-Analyst)/FragPipe-Analyst/[*-Analyst](https://analyst-suites.org/), Scaffold (?). PDV and MSstats are covered under Downstream tools instead: both read Sage output directly, so no exporter is needed here.
-- iBAQ and other LFQ options
+- iBAQ
 
 ## Download
 
@@ -138,14 +138,14 @@ SageGUI is under active development. We want feedback on its performance and usa
 If you use SageGUI in published work, please cite the software:
 
 > Neely, B.A. (2026). *SageGUI: a graphical interface for the Sage proteomics
-> search engine* (Version nist-v0.10.0) [Computer software]. National Institute of
+> search engine* (Version nist-v0.11.0) [Computer software]. National Institute of
 > Standards and Technology. https://github.com/usnistgov/sagegui
 
 Cite the version you ran, not the repository in general. The pinned Sage
 engine version and the bundled templates both move between releases, so two
 versions of SageGUI do not necessarily run the same search. Cite the release by
-its tag (for example `nist-v0.10.0`). The Run / Info tab prints the SageGUI version
-number (`0.10.0` for `nist-v0.10.0`) and the Sage engine version it was built against.
+its tag (for example `nist-v0.11.0`). The Run / Info tab prints the SageGUI version
+number (`0.11.0` for `nist-v0.11.0`) and the Sage engine version it was built against.
 
 A `CITATION.cff` file is included, so GitHub's "Cite this repository" control
 produces the same reference in BibTeX or APA.
