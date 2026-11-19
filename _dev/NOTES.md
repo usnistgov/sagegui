@@ -214,7 +214,7 @@ For chronological history, see `JOURNAL.md`. For the roadmap, see `PLAN.md`.
 Decided 2026-08-13. Moving from the single scrolling `CentralPanel` to a
 **sidebar-nav + pinned run-bar** layout (inspired by MetaMorpheus's task-first
 pattern). Design finalized and ported. Full paste-in design spec and the
-web-LLM proposal live in `docs/ui-spec.md`; the porter's handoff (ASCII mockups
+web-LLM proposal live in `_dev/ui-spec.md`; the porter's handoff (ASCII mockups
 + YAML layout) was the source for the tab structure below.
 
 ### Agreed tab structure (6 tabs + pinned run bar)
@@ -1662,8 +1662,9 @@ one jump does not count as enough movement. Move the pointer in three or four
 steps, then wait 1.3 s. A real mouse is not affected.
 
 **Consistency rule.** Tooltip text and `docs/` say the same thing. When one
-changes, check the other. `PARAMETER_REFERENCE.md` is the reference;
-`sagegui-params.md` repeats it in short form; `ui-spec.md` is historical.
+changes, check the other. `docs/PARAMETER_REFERENCE.md` is the one reference. `sagegui-params.md`, a short
+copy of it, was retired on 2026-11-19 after it drifted; `ui-spec.md`, the
+August 2026 redesign brief, moved to `_dev/`.
 
 ---
 

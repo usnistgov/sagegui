@@ -11,6 +11,10 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+### Changed
+
+- **One parameter reference.** `docs/sagegui-params.md`, a shorter copy of `docs/PARAMETER_REFERENCE.md` that had drifted from it, is removed. `docs/ui-spec.md`, the August 2026 redesign brief, moved to `_dev/ui-spec.md`, because it describes the old layout.
+
 ## [0.11.2] - 2026-11-19
 
 A full tooltip audit. Every control on every tab now has a tooltip, each one was checked on screen, and the tooltip text now agrees with the documentation and with what Sage does. If you find a tooltip annoying or wrong, please open an issue that names the control.

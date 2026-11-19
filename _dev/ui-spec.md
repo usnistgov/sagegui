@@ -3,7 +3,7 @@
 > **Status (2026-11-19): historical.** This is the August 2026 redesign brief. It
 > describes the old single-page layout, before the six tabs. It is not the current
 > reference. For each control as it is now, with its default and meaning, see
-> [PARAMETER_REFERENCE.md](PARAMETER_REFERENCE.md). The help text the app shows is in
+> [PARAMETER_REFERENCE.md](../docs/PARAMETER_REFERENCE.md). The help text the app shows is in
 > `src/ui.rs`.
 
 > **Purpose of this file:** a single, self-contained block you can paste into a
