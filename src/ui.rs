@@ -281,19 +281,20 @@ impl EnzymeConfig {
         // Above the separator: identity, which a preset writes.
         // Below it: tuning, which a preset never touches.
         ui.horizontal(|ui| {
-            ui.label("Cleave At:");
+            let tip = "Residues the enzyme cuts at, in capitals. Leave empty for a \
+                       non-specific search, which cuts everywhere. Use $ for no digestion.";
+            ui.label("Cleave At:").on_hover_text(tip);
             ui.add(egui::TextEdit::singleline(&mut self.cleave_at).desired_width(60.0))
-                .on_hover_text(
-                    "Residues the enzyme cuts at, in capitals. Leave empty for a \
-                     non-specific search, which cuts everywhere. Use $ for no digestion.",
-                );
+                .on_hover_text(tip);
         });
         ui.horizontal(|ui| {
-            ui.label("Restrict:");
+            let tip = "Suppress a cut when this residue follows the cut site.";
+            ui.label("Restrict:").on_hover_text(tip);
             ui.checkbox(&mut self.enable_restrict, "Do not cut before")
-                .on_hover_text("Suppress a cut when this residue follows the cut site.");
+                .on_hover_text(tip);
             if self.enable_restrict {
-                ui.add(egui::TextEdit::singleline(&mut self.restrict_char).desired_width(30.0));
+                ui.add(egui::TextEdit::singleline(&mut self.restrict_char).desired_width(30.0))
+                    .on_hover_text(tip);
             }
         });
         if let Err(problem) = validate_enzyme_residues(self) {
@@ -313,14 +314,24 @@ impl EnzymeConfig {
 
         ui.add_space(6.0);
 
-        ui.add(egui::Slider::new(&mut self.missed_cleavages, 0..=5).text("Missed Cleavages"))
-            .on_hover_text("Max enzyme cut sites a peptide may skip. Default 2.");
-        ui.add(egui::Slider::new(&mut self.min_len, 1..=20).text("Min Length"))
-            .on_hover_text(
-                "Shortest peptide to consider. Default 5. Every bundled template uses 7.",
-            );
-        ui.add(egui::Slider::new(&mut self.max_len, 6..=100).text("Max Length"))
-            .on_hover_text("Longest peptide to consider. Default 50.");
+        tip_slider(
+            ui,
+            egui::Slider::new(&mut self.missed_cleavages, 0..=5),
+            "Missed Cleavages",
+            "Max enzyme cut sites a peptide may skip. Default 2.",
+        );
+        tip_slider(
+            ui,
+            egui::Slider::new(&mut self.min_len, 1..=20),
+            "Min Length",
+            "Shortest peptide to consider. Default 5. Every bundled template uses 7.",
+        );
+        tip_slider(
+            ui,
+            egui::Slider::new(&mut self.max_len, 6..=100),
+            "Max Length",
+            "Longest peptide to consider. Default 50.",
+        );
     }
 }
 
@@ -958,18 +969,20 @@ impl ToleranceConfig {
         let (mut delta_lower, mut delta_upper) = self.displayed_delta();
 
         ui.horizontal(|ui| {
-            ui.label("Delta mass from:");
+            let low_tip = format!(
+                "Most negative delta mass to search, in {unit}. A modification that \
+                 removes mass gives a negative delta."
+            );
+            let high_tip = format!(
+                "Most positive delta mass to search, in {unit}. Set 500 to find IDs \
+                 carrying a modification of up to +500 {unit}."
+            );
+            ui.label("Delta mass from:").on_hover_text(&low_tip);
             ui.add(egui::DragValue::new(&mut delta_lower).speed(speed))
-                .on_hover_text(format!(
-                    "Most negative delta mass to search, in {unit}. A modification that \
-                     removes mass gives a negative delta."
-                ));
-            ui.label("to:");
+                .on_hover_text(&low_tip);
+            ui.label("to:").on_hover_text(&high_tip);
             ui.add(egui::DragValue::new(&mut delta_upper).speed(speed))
-                .on_hover_text(format!(
-                    "Most positive delta mass to search, in {unit}. Set 500 to find IDs \
-                     carrying a modification of up to +500 {unit}."
-                ));
+                .on_hover_text(&high_tip);
         });
 
         let (new_lower, new_upper) = Self::from_delta(delta_lower, delta_upper);
@@ -1146,11 +1159,14 @@ impl QuantType {
                         ui.add(egui::DragValue::new(&mut lfq.ppm_tolerance).speed(1.0))
                             .on_hover_text(LFQ_PPM_TIP);
                     });
-                    ui.add(
-                        egui::Slider::new(&mut lfq.spectral_angle, 0.0..=1.0)
-                            .text("Spectral Angle"),
-                    )
-                    .on_hover_text(LFQ_SPECTRAL_ANGLE_TIP);
+                    // A label of its own, because the slider's own text does not
+                    // show the slider's tooltip.
+                    ui.horizontal(|ui| {
+                        ui.label("Spectral Angle")
+                            .on_hover_text(LFQ_SPECTRAL_ANGLE_TIP);
+                        ui.add(egui::Slider::new(&mut lfq.spectral_angle, 0.0..=1.0))
+                            .on_hover_text(LFQ_SPECTRAL_ANGLE_TIP);
+                    });
                     ui.horizontal(|ui| {
                         ui.label("Peptide q-value").on_hover_text(LFQ_Q_VALUE_TIP);
                         ui.add(
@@ -1172,7 +1188,12 @@ impl QuantType {
                 ui.group(|ui| {
                     ui.heading("TMT Settings");
                     isobar.update_section(ui);
-                    ui.add(egui::Slider::new(&mut tmt.level, 1..=10).text("Level"));
+                    tip_slider(
+                        ui,
+                        egui::Slider::new(&mut tmt.level, 1..=10),
+                        "Level",
+                        "MS level of the reporter ions. 2 for MS2, 3 for SPS-MS3. Default 3.",
+                    );
                 });
             }
         }
@@ -1230,6 +1251,28 @@ impl Default for QuantType {
         Self::Lfq(LfqSettings::default())
     }
 }
+
+/// A slider with its name to the right and the tooltip on both. egui's own
+/// `Slider::text` label does not show the slider's tooltip.
+fn tip_slider(ui: &mut egui::Ui, slider: egui::Slider<'_>, name: &str, tip: &str) {
+    ui.horizontal(|ui| {
+        ui.add(slider).on_hover_text(tip);
+        ui.label(name).on_hover_text(tip);
+    });
+}
+
+// Files & Database prefiltering tooltips. Each is also shown, with the reason,
+// when the control is off.
+const CHUNK_TIP: &str = "FASTA sequences digested and scored per chunk. 0 = auto: Sage \
+     targets about 8.4 million peptides per chunk, and skips prefiltering entirely if the \
+     whole search space already fits. Smaller values use less memory but add chunks.";
+const LOW_MEMORY_TIP: &str = "On (Sage's default): score every preliminary hit and keep \
+     only the best few per spectrum per chunk. Lowest memory, most CPU. Off: keep every \
+     preliminary hit unscored. More memory, less CPU, and closer to a non-prefiltered \
+     search's FDR behaviour.";
+const CACHE_TIP: &str = "Save the built peptide database to disk. A later run with the \
+     same FASTA and the same database settings loads it and skips the build. A human \
+     proteome entry is several GB. Run / Info shows the size.";
 
 // Quant tab LFQ tooltips. Each one goes on the label and on the control.
 const LFQ_INTEGRATION_TIP: &str = "How Sage turns the MS1 trace into one intensity per \
@@ -1682,23 +1725,17 @@ impl SageLauncher {
                             }
                         }),
                 )
-                .on_hover_text(
-                    "FASTA sequences digested and scored per chunk. 0 = auto: Sage targets \
-                     about 8.4 million peptides per chunk, and skips prefiltering entirely \
-                     if the whole search space already fits. Smaller values use less memory \
-                     but add chunks.",
-                );
+                .on_hover_text(CHUNK_TIP)
+                .on_disabled_hover_text(format!("{CHUNK_TIP} Turn on Enable prefiltering first."));
 
                 ui.checkbox(
                     &mut self.config.database.prefilter_low_memory,
                     "Low-memory mode",
                 )
-                .on_hover_text(
-                    "On (Sage's default): score every preliminary hit and keep only the \
-                     best few per spectrum per chunk. Lowest memory, most CPU. Off: keep \
-                     every preliminary hit unscored. More memory, less CPU, and closer \
-                     to a non-prefiltered search's FDR behaviour.",
-                );
+                .on_hover_text(LOW_MEMORY_TIP)
+                .on_disabled_hover_text(format!(
+                    "{LOW_MEMORY_TIP} Turn on Enable prefiltering first."
+                ));
             });
 
             if crate::index_cache::ENABLED {
@@ -1709,11 +1746,10 @@ impl SageLauncher {
                         &mut self.config.database.reuse_cached_index,
                         "Cache prepared database",
                     )
-                    .on_hover_text(
-                        "Save the built peptide database to disk. A later run with the same \
-                         FASTA and the same database settings loads it and skips the build. \
-                         A human proteome entry is several GB. Run / Info shows the size.",
-                    );
+                    .on_hover_text(CACHE_TIP)
+                    .on_disabled_hover_text(format!(
+                        "{CACHE_TIP} Not available with prefiltering."
+                    ));
                 });
                 if prefiltering_enabled {
                     ui.weak("Not available with prefiltering.");
@@ -1726,11 +1762,10 @@ impl SageLauncher {
                     ui.checkbox(&mut self.config.database.generate_decoys, "Generate Decoys")
                         .on_hover_text("Auto-generate reversed decoys for FDR estimation.");
 
-                    ui.add(
-                        egui::Slider::new(&mut self.config.database.bucket_size, 8192..=65536)
-                            .text("Bucket Size"),
-                    )
-                    .on_hover_text(
+                    tip_slider(
+                        ui,
+                        egui::Slider::new(&mut self.config.database.bucket_size, 8192..=65536),
+                        "Bucket Size",
                         "Speed only, no effect on results. 8192 for high-res (Orbitrap), \
                          up to 65536 for low-res (ion trap). Default 32768.",
                     );
@@ -1744,9 +1779,13 @@ impl SageLauncher {
                     // decoy_tag (Option<String>)
                     let mut tag = self.config.database.decoy_tag.clone().unwrap_or_default();
                     ui.horizontal(|ui| {
-                        ui.label("Decoy Tag:");
+                        let tip = "Prefix that marks a decoy protein. Sage adds it to the \
+                                   decoys it makes, and reads it to find decoys already in \
+                                   the FASTA. Default rev_.";
+                        ui.label("Decoy Tag:").on_hover_text(tip);
                         if ui
                             .add(egui::TextEdit::singleline(&mut tag).desired_width(80.0))
+                            .on_hover_text(tip)
                             .changed()
                         {
                             self.config.database.decoy_tag =
@@ -1770,10 +1809,16 @@ impl SageLauncher {
         ui.group(|ui| {
             ui.heading("Charge Handling");
             ui.horizontal(|ui| {
-                ui.label("Precursor Charge Min:");
-                ui.add(egui::DragValue::new(&mut self.config.precursor_charge.0).range(1..=10));
-                ui.label("Max:");
-                ui.add(egui::DragValue::new(&mut self.config.precursor_charge.1).range(1..=10));
+                let tip = "Charges to try when a spectrum has no precursor charge, when \
+                           Override Precursor Charge is on, or with Wide Window. A spectrum \
+                           with a charge in the file is searched at that charge only. \
+                           Default 2 to 4.";
+                ui.label("Precursor Charge Min:").on_hover_text(tip);
+                ui.add(egui::DragValue::new(&mut self.config.precursor_charge.0).range(1..=10))
+                    .on_hover_text(tip);
+                ui.label("Max:").on_hover_text(tip);
+                ui.add(egui::DragValue::new(&mut self.config.precursor_charge.1).range(1..=10))
+                    .on_hover_text(tip);
             });
         });
 
@@ -1789,16 +1834,18 @@ impl SageLauncher {
         // Mass Ranges
         ui.group(|ui| {
             ui.heading("Mass Ranges");
-            ui.add(
-                egui::Slider::new(&mut self.config.database.peptide_min_mass, 300.0..=1000.0)
-                    .text("Peptide Min Mass"),
-            )
-            .on_hover_text("Lightest peptide to fragment, in Da. Default 500.");
-            ui.add(
-                egui::Slider::new(&mut self.config.database.peptide_max_mass, 3000.0..=7000.0)
-                    .text("Peptide Max Mass"),
-            )
-            .on_hover_text("Heaviest peptide to fragment, in Da. Default 5000.");
+            tip_slider(
+                ui,
+                egui::Slider::new(&mut self.config.database.peptide_min_mass, 300.0..=1000.0),
+                "Peptide Min Mass",
+                "Lightest peptide to fragment, in Da. Default 500.",
+            );
+            tip_slider(
+                ui,
+                egui::Slider::new(&mut self.config.database.peptide_max_mass, 3000.0..=7000.0),
+                "Peptide Max Mass",
+                "Heaviest peptide to fragment, in Da. Default 5000.",
+            );
         });
 
         ui.add_space(10.0);
@@ -1815,15 +1862,32 @@ impl SageLauncher {
         ui.group(|ui| {
             ui.heading("Search Behavior");
             ui.horizontal(|ui| {
-                ui.label("Isotope Errors Min:")
-                    .on_hover_text("C13 isotope-error offsets. Slower than simply widening precursor tolerance to cover the same mass range. Prefer a wider Da window when unsure.");
-                ui.add(egui::DragValue::new(&mut self.config.isotope_errors.0).range(-5..=0));
-                ui.label("Max:");
-                ui.add(egui::DragValue::new(&mut self.config.isotope_errors.1).range(0..=10));
+                let tip = "C13 isotope-error offsets. Slower than simply widening precursor \
+                           tolerance to cover the same mass range. Prefer a wider Da window \
+                           when unsure.";
+                ui.label("Isotope Errors Min:").on_hover_text(tip);
+                ui.add(egui::DragValue::new(&mut self.config.isotope_errors.0).range(-5..=0))
+                    .on_hover_text(tip);
+                ui.label("Max:").on_hover_text(tip);
+                ui.add(egui::DragValue::new(&mut self.config.isotope_errors.1).range(0..=10))
+                    .on_hover_text(tip);
             });
-            ui.checkbox(&mut self.config.deisotope, "Deisotope");
-            ui.checkbox(&mut self.config.chimera, "Chimera");
-            ui.checkbox(&mut self.config.wide_window, "Wide Window");
+            ui.checkbox(&mut self.config.deisotope, "Deisotope")
+                .on_hover_text(
+                    "Deisotope MS2 spectra and deconvolute fragment charge states before \
+                 scoring. Default off here; Sage's own default is on.",
+                );
+            ui.checkbox(&mut self.config.chimera, "Chimera")
+                .on_hover_text(
+                    "Search for co-fragmenting peptides in each spectrum. Sage reports up \
+                     to Report PSMs of them, so set Report PSMs above 1. Default off.",
+                );
+            ui.checkbox(&mut self.config.wide_window, "Wide Window")
+                .on_hover_text(
+                    "For DIA or wide-window data. Sage ignores the precursor tolerance, uses \
+                 each spectrum's isolation window instead, and tries every precursor \
+                 charge in the range. Default off.",
+                );
         });
 
         ui.add_space(10.0);
@@ -1832,9 +1896,9 @@ impl SageLauncher {
         ui.group(|ui| {
             ui.heading("Scoring");
             ui.horizontal(|ui| {
-                ui.label("Score Type:").on_hover_text(
-                    "Scoring function. Leave at SageHyperScore unless comparing scoring functions.",
-                );
+                let tip =
+                    "Scoring function. Leave at SageHyperScore unless comparing scoring functions.";
+                ui.label("Score Type:").on_hover_text(tip);
                 egui::ComboBox::from_id_salt("score_type")
                     .selected_text(format!("{:?}", self.config.score_type))
                     .show_ui(ui, |ui| {
@@ -1856,7 +1920,9 @@ impl SageLauncher {
                         {
                             self.config.score_type = ScoreType::OpenMSHyperScore;
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text(tip);
             });
         });
 
@@ -1871,32 +1937,17 @@ impl SageLauncher {
                     "Override Precursor Charge",
                 )
                 .on_hover_text("Force the charge range to be searched instead of trusting the file's charge annotation (useful for DIA/diaPASEF).");
-                ui.add(
-                    egui::Slider::new(&mut self.config.min_peaks, 5..=50).text("Min Peaks"),
-                )
-                .on_hover_text("Fewest peaks a spectrum may have to be searched. Default 15.");
-                ui.add(
-                    egui::Slider::new(&mut self.config.max_peaks, 50..=500).text("Max Peaks"),
-                )
-                .on_hover_text("Most intense peaks kept per spectrum. Default 150.");
-                ui.add(
-                    egui::Slider::new(&mut self.config.min_matched_peaks, 3..=20)
-                        .text("Min Matched Peaks"),
-                )
-                .on_hover_text(
-                    "Fewest matched fragments for a PSM to be reported. Default 6. \
-                     Every bundled template uses 4.",
+                tip_slider(ui, egui::Slider::new(&mut self.config.min_peaks, 5..=50), "Min Peaks", "Fewest peaks a spectrum may have to be searched. Default 15.");
+                tip_slider(ui, egui::Slider::new(&mut self.config.max_peaks, 50..=500), "Max Peaks", "Most intense peaks kept per spectrum. Default 150.");
+                tip_slider(ui, egui::Slider::new(&mut self.config.min_matched_peaks, 3..=20), "Min Matched Peaks", "Fewest matched fragments for a PSM to be reported. Default 6. \
+                     Every bundled template uses 4.");
+                tip_slider(ui, egui::Slider::new(&mut self.config.max_fragment_charge, 1..=5), "Max Fragment Charge", "Highest fragment charge to consider. Default 1.");
+                tip_slider(ui, egui::Slider::new(&mut self.config.report_psms, 1..=10), "Report PSMs", "PSMs reported per spectrum. Default 1.");
+                ui.checkbox(&mut self.config.predict_rt, "Predict RT").on_hover_text(
+                    "Align retention times across files and predict each peptide's \
+                     retention time, as a feature for FDR. LFQ needs it: with it off, LFQ \
+                     does not run. Default on.",
                 );
-                ui.add(
-                    egui::Slider::new(&mut self.config.max_fragment_charge, 1..=5)
-                        .text("Max Fragment Charge"),
-                )
-                .on_hover_text("Highest fragment charge to consider. Default 1.");
-                ui.add(
-                    egui::Slider::new(&mut self.config.report_psms, 1..=10).text("Report PSMs"),
-                )
-                .on_hover_text("PSMs reported per spectrum. Default 1.");
-                ui.checkbox(&mut self.config.predict_rt, "Predict RT");
             });
     }
 
@@ -1951,6 +2002,7 @@ impl SageLauncher {
                 if ui
                     .add_enabled(has_sel, egui::Button::new("◀ Add"))
                     .on_hover_text("Add the selected common modification to the target box.")
+                    .on_disabled_hover_text("Select a common modification first.")
                     .clicked()
                 {
                     if let Some(i) = self.mod_selected_preset {
@@ -1962,6 +2014,7 @@ impl SageLauncher {
                 if ui
                     .add_enabled(has_sel, egui::Button::new("Remove ▶"))
                     .on_hover_text("Remove the selected common modification from the target box.")
+                    .on_disabled_hover_text("Select a common modification first.")
                     .clicked()
                 {
                     if let Some(i) = self.mod_selected_preset {
@@ -2025,15 +2078,18 @@ impl SageLauncher {
                         });
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
-                        ui.label("Key:");
+                        ui.label("Key:")
+                            .on_hover_text("Sage specificity, e.g. C, M, ^Q, $K, [, ].");
                         ui.add(
                             egui::TextEdit::singleline(&mut self.mod_custom_key)
                                 .desired_width(40.0)
                                 .hint_text("^Q"),
                         )
                         .on_hover_text("Sage specificity, e.g. C, M, ^Q, $K, [, ].");
-                        ui.label("Δmass:");
-                        ui.add(egui::DragValue::new(&mut self.mod_custom_mass).speed(0.001));
+                        let tip = "Mass the modification adds, in Da. Negative if it removes mass.";
+                        ui.label("Δmass:").on_hover_text(tip);
+                        ui.add(egui::DragValue::new(&mut self.mod_custom_mass).speed(0.001))
+                            .on_hover_text(tip);
                     });
                     let parsed =
                         ModificationSpecificity::from_str(self.mod_custom_key.trim()).is_ok();
@@ -2109,11 +2165,10 @@ impl SageLauncher {
         }
 
         ui.add_space(14.0);
-        ui.add(
-            egui::Slider::new(&mut self.config.database.max_variable_mods, 1..=10)
-                .text("Max Variable Mods"),
-        )
-        .on_hover_text(
+        tip_slider(
+            ui,
+            egui::Slider::new(&mut self.config.database.max_variable_mods, 1..=10),
+            "Max Variable Mods",
             "Caps how many variable mods can co-occur on one peptide. Default 2. \
              Every bundled template uses 3.",
         );
@@ -2140,8 +2195,11 @@ impl SageLauncher {
             ui.heading("Search output");
             ui.weak("Sage writes these during the search.");
             ui.horizontal(|ui| {
-                ui.label("Output Location:");
-                ui.text_edit_singleline(&mut self.config.output_directory);
+                let tip = "Folder where Sage writes results.sage.tsv, lfq.tsv, \
+                           results.json and the other files of the search.";
+                ui.label("Output Location:").on_hover_text(tip);
+                ui.text_edit_singleline(&mut self.config.output_directory)
+                    .on_hover_text(tip);
                 if ui.button("Browse").clicked() {
                     if let Some(path) = FileDialog::new().pick_folder() {
                         self.config.output_directory = path.display().to_string();
@@ -2387,14 +2445,15 @@ impl SageLauncher {
         ui.group(|ui| {
             ui.heading("Results");
             ui.horizontal(|ui| {
-                ui.label("Results location:").on_hover_text(
-                    "Convert reads and writes here. It follows each finished search until you \
-                     change it.",
-                );
-                let edit = ui.add(
-                    egui::TextEdit::singleline(&mut self.config.results_directory)
-                        .hint_text("Same as Output Location"),
-                );
+                let tip = "Convert reads and writes here. It follows each finished search \
+                           until you change it.";
+                ui.label("Results location:").on_hover_text(tip);
+                let edit = ui
+                    .add(
+                        egui::TextEdit::singleline(&mut self.config.results_directory)
+                            .hint_text("Same as Output Location"),
+                    )
+                    .on_hover_text(tip);
                 if edit.changed() {
                     self.config.results_dir_edited();
                 }
@@ -2444,20 +2503,22 @@ impl SageLauncher {
 
             let opts = &mut self.config.export_options;
             ui.horizontal(|ui| {
-                ui.label("Q-value source:").on_hover_text(
-                    "The q-value that filters the PSMs. Default spectrum. Protein q-value also \
-                     removes shared peptides.",
-                );
+                let tip = "The q-value that filters the PSMs. Default spectrum. Protein \
+                           q-value also removes shared peptides.";
+                ui.label("Q-value source:").on_hover_text(tip);
                 egui::ComboBox::from_id_salt("export_q_source")
                     .selected_text(q_source_label(opts.q_source))
                     .show_ui(ui, |ui| {
                         for q in [QSource::SpectrumQ, QSource::PeptideQ, QSource::ProteinQ] {
                             ui.selectable_value(&mut opts.q_source, q, q_source_label(q));
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text(tip);
             });
             ui.horizontal(|ui| {
-                ui.label("Q-value limit:");
+                ui.label("Q-value limit:")
+                    .on_hover_text("Keep PSMs at or below this q-value. Default 0.01.");
                 ui.add(
                     egui::DragValue::new(&mut opts.max_q)
                         .speed(0.001)
@@ -2488,6 +2549,7 @@ impl SageLauncher {
                         "Reads results.sage.tsv and results.json in the Results location. \
                          Writes results.sage.mzid there.",
                     )
+                    .on_disabled_hover_text("Not available while a search or a conversion runs.")
                     .clicked()
                 {
                     request = Some((true, false));
@@ -2498,6 +2560,7 @@ impl SageLauncher {
                         "Reads results.sage.tsv and results.json in the Results location. \
                          Writes results.sage.pep.xml there.",
                     )
+                    .on_disabled_hover_text("Not available while a search or a conversion runs.")
                     .clicked()
                 {
                     request = Some((false, true));

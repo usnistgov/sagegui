@@ -1640,6 +1640,27 @@ Feature request: usnistgov/sagegui#1 (MJanech), "APEX or Sum MS1 intensities".
 
 ---
 
+## Tooltips in egui 0.29: where they show (audited 2026-11-19)
+
+Three ways a tooltip does not show. All were found in SageGUI and fixed.
+
+- **On a row.** `ui.horizontal(..).response.on_hover_text(..)` almost never
+  shows: the label and the control take the hover. Put the tooltip on each.
+- **On a slider name.** `Slider::text("Name")` draws a name that does not show
+  the slider's tooltip. Use `tip_slider` in `src/ui.rs`.
+- **On a disabled control.** `on_hover_text` shows only when enabled
+  (`Response::on_hover_ui` checks `self.enabled`). Add
+  `on_disabled_hover_text`, with the reason the control is off.
+
+Rule: a label that names one control gets the same tooltip as the control.
+
+**Testing gotcha.** After a full-screen synthetic `left_click`, egui showed no
+tooltip anywhere, even on ones that had worked, until the app restarted. Hover
+still highlighted widgets. Change tabs with a background AX click
+(`app_click` by element index), then hover with full-screen `mouse_move`.
+
+---
+
 ## A failed run reported nothing (fixed 2026-09-10)
 
 Reported from Windows against v0.8.0: eight files, click Run, the button

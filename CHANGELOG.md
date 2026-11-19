@@ -11,6 +11,18 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+### Added
+
+- **Tooltips for Deisotope, Chimera, Wide Window, Predict RT, Precursor Charge, Decoy Tag, Output Location, the custom modification mass and the TMT level.** These settings had no tooltip.
+
+### Fixed
+
+- **Every tooltip now shows over the whole control.** A full check of every tab found tooltips that did not show:
+  - Over a slider name, such as Missed Cleavages or Min Peaks. The tooltip showed only over the slider. Spectral Angle on the Quant tab now has its name to the left of the slider, in line with the other LFQ settings.
+  - On a control that is off, such as Stop, Chunk size, Low-memory mode, ◀ Add and Remove ▶. The tooltip now shows and says why the control is off.
+  - Over the label or the control of a row, when only one of them had the tooltip, such as Isotope Errors, Score Type, Q-value source and Delta mass.
+- **The Deisotope and Chimera entries in the parameter reference are correct.** Deisotope acts on MS2 spectra, not MS1 features. Chimera needs Report PSMs above 1.
+
 ## [0.11.1] - 2026-11-19
 
 ### Fixed

@@ -1,3 +1,32 @@
+## 2026-11-19 (evening): tooltip audit
+
+**Did:** Ben asked for a full tooltip audit before the next release, after the
+0.11.0 LFQ tooltips did not show. Code pass over all 67 `on_hover_text` calls
+found three failure patterns (row response, `Slider::text` name, disabled
+control; see NOTES "Tooltips in egui 0.29"), plus Sage settings with no
+tooltip. Fixed: 12 sliders and TMT Level through `tip_slider`; disabled
+tooltips with a reason on Stop, Chunk size, Low-memory mode, cache, ◀ Add,
+Remove ▶, Convert; label and control share the tooltip on every labelled row.
+New tooltips: Deisotope, Chimera, Wide Window, Predict RT, Precursor Charge,
+Decoy Tag, Output Location, custom Δmass, TMT Level. Each new text checked
+against the vendored Sage code (charge rule in `scoring.rs` 427-458; chimera
+loops up to `report_psms`; decoy tag default `rev_`). Fixed the Deisotope and
+Chimera entries in PARAMETER_REFERENCE.
+
+**On screen (release build, all six tabs):** hovered one of each pattern per
+tab; every tooltip showed. A full-screen synthetic click had left egui showing
+no tooltips at all; restarting the app and changing tabs by AX click cleared
+it (NOTES gotcha).
+
+**Least confident about (Q1):** controls I did not hover one by one (about 25
+of the ~80). They use the same code paths as those I did. Proven by hovering
+each on the next release build.
+
+**Improvement (Q5):** a test cannot see a tooltip, so hover-check every tab
+before tagging a release. Add it to the MAINTENANCE testing checklist.
+
+---
+
 ## 2026-11-19 (later): nist-v0.11.1, LFQ tooltips
 
 **Did:** `nist-v0.11.0` built on all four targets (run 44594250737) and was

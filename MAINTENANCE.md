@@ -253,6 +253,7 @@ Before releasing a new version:
 - [ ] Manual test: Configure search parameters
 - [ ] Manual test: Run search successfully
 - [ ] Manual test: Output files created (results.sage.tsv, etc.)
+- [ ] Manual test: hover the controls on every tab; each tooltip shows, also on a control that is off
 - [ ] Manual test: LFQ quantification (if enabled)
 - [ ] Manual test: TMT quantification (if TMT data available)
 

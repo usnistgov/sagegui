@@ -55,6 +55,10 @@ enum ThreadMessage {
 /// Longest the Sage-log scrollback is allowed to grow before old lines drop.
 const MAX_LOG_LINES: usize = 500;
 
+/// The Stop button tooltip. It also shows, with a note, while Stop is off.
+const STOP_TIP: &str = "Stops the search. A stopped search writes no files. Once Sage has \
+     started to write results, the search finishes.";
+
 /// The channel to forward Sage's log lines into, while a run is active.
 /// `log::set_boxed_logger` is process-global and installed once at startup,
 /// long before any particular run's `mpsc::Sender` exists — this is how a
@@ -294,10 +298,8 @@ impl eframe::App for SageLauncher {
                         self.is_running && !self.stop_requested,
                         egui::Button::new("Stop"),
                     )
-                    .on_hover_text(
-                        "Stops the search. A stopped search writes no files. Once Sage \
-                         has started to write results, the search finishes.",
-                    );
+                    .on_hover_text(STOP_TIP)
+                    .on_disabled_hover_text(format!("{STOP_TIP} Available while a search runs."));
                 if stop_btn.clicked() {
                     if let Some(flag) = &self.cancel_flag {
                         flag.store(true, Ordering::Relaxed);

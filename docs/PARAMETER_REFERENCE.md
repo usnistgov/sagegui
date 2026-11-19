@@ -457,10 +457,10 @@ C13 isotope error offsets Sage will consider in addition to the base precursor m
 
 #### Deisotope
 
-**Default:** ☐ Unchecked
+**Default:** ☐ Unchecked in SageGUI. The Sage command line defaults to on.
 
 **What it does:**
-Enables deisotoping of MS1 features before searching.[file:250]
+Deisotopes MS2 spectra and deconvolutes fragment charge states before scoring.
 
 ---
 
@@ -469,7 +469,7 @@ Enables deisotoping of MS1 features before searching.[file:250]
 **Default:** ☐ Unchecked
 
 **What it does:**
-Enables chimeric spectrum handling where more than one peptide may be reported for a single MS2 event.[file:250]
+Searches for co-fragmenting peptides in each MS2 spectrum. Sage reports up to **Report PSMs** of them per spectrum, so set Report PSMs above 1 when Chimera is on.
 
 ---
 
