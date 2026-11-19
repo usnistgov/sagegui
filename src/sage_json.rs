@@ -215,9 +215,13 @@ pub struct TmtJson {
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct LfqJson {
+    pub peak_scoring: Option<sage_core::lfq::PeakScoringStrategy>,
+    pub integration: Option<sage_core::lfq::IntegrationStrategy>,
     pub ppm_tolerance: Option<f32>,
     pub spectral_angle: Option<f64>,
+    pub mobility_pct_tolerance: Option<f32>,
     pub combine_charge_states: Option<bool>,
+    pub peptide_q_value: Option<f32>,
 }
 
 // ─── Import report ───────────────────────────────────────────────────────────
@@ -612,6 +616,20 @@ impl SageJson {
                 _ => sage_core::lfq::LfqSettings::default(),
             };
             if let Some(l) = &quant.lfq_settings {
+                if let Some(v) = l.peak_scoring {
+                    settings.peak_scoring = v;
+                }
+                if let Some(v) = l.integration {
+                    settings.integration = v;
+                }
+                // SageGUI reads mzML only, so the Quant tab has no mobility
+                // widget. Keep an imported value so it is not lost.
+                if let Some(v) = l.mobility_pct_tolerance {
+                    settings.mobility_pct_tolerance = v;
+                }
+                if let Some(v) = l.peptide_q_value {
+                    settings.peptide_q_value = v;
+                }
                 if let Some(v) = l.ppm_tolerance {
                     settings.ppm_tolerance = v;
                 }
@@ -782,6 +800,69 @@ mod tests {
                 report.warnings
             );
         }
+    }
+
+    /// Every LFQ key Sage reads must survive import and reach the settings
+    /// Sage runs with. Before this, `integration` and `peak_scoring` were
+    /// dropped and the search always ran Sum and Hybrid (usnistgov/sagegui#1).
+    #[test]
+    fn every_lfq_setting_reaches_sage() {
+        use crate::ui::QuantType;
+        use sage_cli::input::{QuantOptions, QuantSettings};
+        use sage_core::lfq::{IntegrationStrategy, PeakScoringStrategy};
+
+        let (config, _, _, report) = apply(
+            r#"{"quant":{"lfq":true,"lfq_settings":{
+                "peak_scoring":"Intensity","integration":"Apex",
+                "ppm_tolerance":7.5,"spectral_angle":0.6,
+                "mobility_pct_tolerance":2.5,"combine_charge_states":false,
+                "peptide_q_value":0.05}}}"#,
+        );
+        assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+        assert!(config.quant_enabled);
+
+        let lfq = match &config.quant {
+            QuantType::Lfq(l) => *l,
+            QuantType::Tmt(..) => panic!("expected LFQ"),
+        };
+        assert!(matches!(lfq.integration, IntegrationStrategy::Apex));
+        assert_eq!(lfq.peak_scoring, PeakScoringStrategy::Intensity);
+        assert_eq!(lfq.mobility_pct_tolerance, 2.5);
+        assert_eq!(lfq.peptide_q_value, 0.05);
+
+        let options: QuantOptions = config.quant.clone().into();
+        let sent: QuantSettings = options.into();
+        let s = sent.lfq_settings;
+        assert!(sent.lfq);
+        assert!(matches!(s.integration, IntegrationStrategy::Apex));
+        assert_eq!(s.peak_scoring, PeakScoringStrategy::Intensity);
+        assert_eq!(s.ppm_tolerance, 7.5);
+        assert_eq!(s.spectral_angle, 0.6);
+        assert_eq!(s.mobility_pct_tolerance, 2.5);
+        assert!(!s.combine_charge_states);
+        assert_eq!(s.peptide_q_value, 0.05);
+    }
+
+    /// The defaults must still be Sage's own defaults when the JSON names none.
+    #[test]
+    fn lfq_defaults_match_sage() {
+        use sage_cli::input::{QuantOptions, QuantSettings};
+        use sage_core::lfq::{IntegrationStrategy, LfqSettings};
+
+        let (config, _, _, _) = apply(r#"{"quant":{"lfq":true}}"#);
+        let options: QuantOptions = config.quant.into();
+        let sent: QuantSettings = options.into();
+        let d = LfqSettings::default();
+        assert!(matches!(
+            sent.lfq_settings.integration,
+            IntegrationStrategy::Sum
+        ));
+        assert_eq!(sent.lfq_settings.peak_scoring, d.peak_scoring);
+        assert_eq!(sent.lfq_settings.peptide_q_value, d.peptide_q_value);
+        assert_eq!(
+            sent.lfq_settings.mobility_pct_tolerance,
+            d.mobility_pct_tolerance
+        );
     }
 
     /// What Sage itself does with `restrict`, asserted against Sage's own

@@ -1099,11 +1099,85 @@ impl QuantType {
             QuantType::Lfq(lfq) => {
                 ui.group(|ui| {
                     ui.heading("LFQ Settings");
-                    ui.label("PPM Tolerance");
-                    ui.add(egui::DragValue::new(&mut lfq.ppm_tolerance).speed(1.0));
+                    ui.horizontal(|ui| {
+                        ui.label("Integration");
+                        egui::ComboBox::from_id_salt("lfq_integration")
+                            .selected_text(integration_label(lfq.integration))
+                            .show_ui(ui, |ui| {
+                                // IntegrationStrategy has no PartialEq in Sage, so
+                                // compare by label instead of selectable_value.
+                                for i in [IntegrationStrategy::Sum, IntegrationStrategy::Apex] {
+                                    let on =
+                                        integration_label(lfq.integration) == integration_label(i);
+                                    if ui.selectable_label(on, integration_label(i)).clicked() {
+                                        lfq.integration = i;
+                                    }
+                                }
+                            });
+                    })
+                    .response
+                    .on_hover_text(
+                        "How Sage turns the MS1 trace into one intensity per file. \
+                         Sum (area): the sum of the trace across the picked peak. \
+                         Apex: the trace height at the peak apex only. Default Sum.",
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label("Peak Scoring");
+                        egui::ComboBox::from_id_salt("lfq_peak_scoring")
+                            .selected_text(peak_scoring_label(lfq.peak_scoring))
+                            .show_ui(ui, |ui| {
+                                for p in [
+                                    PeakScoringStrategy::Hybrid,
+                                    PeakScoringStrategy::RetentionTime,
+                                    PeakScoringStrategy::SpectralAngle,
+                                    PeakScoringStrategy::Intensity,
+                                ] {
+                                    ui.selectable_value(
+                                        &mut lfq.peak_scoring,
+                                        p,
+                                        peak_scoring_label(p),
+                                    );
+                                }
+                            });
+                    })
+                    .response
+                    .on_hover_text(
+                        "How Sage picks the peak apex in the retention time window. \
+                         Hybrid combines spectral angle, distance from the expected \
+                         retention time, and intensity. The Sage docs recommend Hybrid. \
+                         Default Hybrid.",
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label("PPM Tolerance");
+                        ui.add(egui::DragValue::new(&mut lfq.ppm_tolerance).speed(1.0));
+                    })
+                    .response
+                    .on_hover_text(
+                        "MS1 m/z tolerance, in ppm, for tracing precursor isotopes. \
+                         Default 5.",
+                    );
                     ui.add(
                         egui::Slider::new(&mut lfq.spectral_angle, 0.0..=1.0)
                             .text("Spectral Angle"),
+                    )
+                    .on_hover_text(
+                        "Minimum match between the observed and the expected isotope \
+                         envelope. A retention time point below it is not part of the \
+                         peak. Default 0.70.",
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label("Peptide q-value");
+                        ui.add(
+                            egui::DragValue::new(&mut lfq.peptide_q_value)
+                                .speed(0.001)
+                                .range(0.0..=1.0),
+                        );
+                    })
+                    .response
+                    .on_hover_text(
+                        "Sage quantifies only peptides at or below this q-value. \
+                         Higher values quantify more peptides, but use more time and \
+                         memory. Default 0.01.",
                     );
                     ui.checkbox(&mut lfq.combine_charge_states, "Combine Charge States")
                         .on_hover_text(
@@ -1138,13 +1212,13 @@ impl From<QuantType> for QuantOptions {
         match val {
             QuantType::Lfq(lfq) => {
                 let lfq_options = LfqOptions {
-                    peak_scoring: Some(PeakScoringStrategy::Hybrid),
-                    integration: Some(IntegrationStrategy::Sum),
+                    peak_scoring: Some(lfq.peak_scoring),
+                    integration: Some(lfq.integration),
                     spectral_angle: Some(lfq.spectral_angle),
                     ppm_tolerance: Some(lfq.ppm_tolerance),
-                    mobility_pct_tolerance: None,
+                    mobility_pct_tolerance: Some(lfq.mobility_pct_tolerance),
                     combine_charge_states: Some(lfq.combine_charge_states),
-                    peptide_q_value: None,
+                    peptide_q_value: Some(lfq.peptide_q_value),
                 };
                 QuantOptions {
                     tmt: None,
@@ -1173,6 +1247,24 @@ impl From<QuantType> for QuantOptions {
 impl Default for QuantType {
     fn default() -> Self {
         Self::Lfq(LfqSettings::default())
+    }
+}
+
+/// The name of an LFQ integration strategy, as the Quant tab shows it.
+fn integration_label(i: IntegrationStrategy) -> &'static str {
+    match i {
+        IntegrationStrategy::Sum => "Sum (area)",
+        IntegrationStrategy::Apex => "Apex",
+    }
+}
+
+/// The name of an LFQ peak scoring strategy, as the Quant tab shows it.
+fn peak_scoring_label(p: PeakScoringStrategy) -> &'static str {
+    match p {
+        PeakScoringStrategy::Hybrid => "Hybrid (recommended)",
+        PeakScoringStrategy::RetentionTime => "Retention time",
+        PeakScoringStrategy::SpectralAngle => "Spectral angle",
+        PeakScoringStrategy::Intensity => "Intensity",
     }
 }
 

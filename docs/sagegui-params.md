@@ -140,6 +140,10 @@ The helper warns if Lower is greater than Upper since that would create an empty
 
 LFQ settings are stored in `quant.lfq_settings` and surfaced as a grouped panel.[file:238][file:250]
 
+**Integration**  How Sage calculates one intensity per file from the MS1 trace. Sum (area, the default) adds the trace across the full peak. Apex takes the trace height at the apex point only. Requested in [usnistgov/sagegui#1](https://github.com/usnistgov/sagegui/issues/1).
+
+**Peak Scoring**  The score that Sage uses to find the peak apex. Hybrid (the default and the upstream recommendation), Retention time, Spectral angle or Intensity.
+
 **PPM Tolerance**  Precursor tolerance used specifically by the LFQ engine when mapping features across runs.[file:250]
 
 **Spectral Angle**  Similarity threshold between experimental and reference spectra used for LFQ scoring. Range is 0.0 to 1.0.[file:250]
@@ -149,7 +153,9 @@ LFQ settings are stored in `quant.lfq_settings` and surfaced as a grouped panel.
 - When true all charge states of the same peptide are merged into one LFQ feature. Peptide ABC at charges 2, 3, and 4 produces a single row with a single intensity value. Because the row spans multiple charges Sage writes `charge = -1` in `lfq.tsv` as a sentinel value.[file:145][file:250]
 - When false each charge state is kept as its own feature and `lfq.tsv` contains separate rows with real charge values.[file:145][file:250]
 
-**Peptide q value**  Optional per peptide q value filter in the LFQ engine. In your example config this is set to 0.01.[file:238]
+**Peptide q-value**  Sage quantifies only peptides at or below this q-value. Default 0.01.
+
+**Mobility tolerance**  Bruker timsTOF only. Not shown, because SageGUI reads mzML only. A value from an imported Sage JSON is kept.
 
 ### TMT settings
 

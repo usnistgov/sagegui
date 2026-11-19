@@ -160,9 +160,12 @@ N-term acetyl) so users stop hand-typing masses.*
 |---|---|---|---|
 | Enable Quantification | checkbox | on | Turn quant on/off. |
 | Type | radio LFQ / TMT | LFQ | Label-free (MS1 intensity) vs isobaric tags. **Only LFQ is validated; TMT is untested.** |
+| LFQ: Integration | combo Sum (area) / Apex | Sum | Peak area, or the trace height at the apex. |
+| LFQ: Peak Scoring | combo Hybrid / Retention time / Spectral angle / Intensity | Hybrid | Score used to find the peak apex. |
 | LFQ: PPM Tolerance | drag-value | (LfqSettings default) | MS1 m/z tolerance for feature integration. |
 | LFQ: Spectral Angle | slider 0–1 | (default) | Isotope-envelope match threshold. |
 | LFQ: Combine Charge States | checkbox | (default) | Sum intensity across charge states of a peptide. |
+| LFQ: Peptide q-value | drag-value 0–1 | 0.01 | Quantify only peptides at or below this q-value. |
 | TMT: plex | radio 6/10/11/16/18 | TMT 6 | Isobaric plex size. |
 | TMT: Level | slider 1–10 | (default) | MS level to read reporter ions from (usually 2 or 3). |
 

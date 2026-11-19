@@ -1612,6 +1612,34 @@ Perseus work is parked by maintainer decision. What the research found:
 
 ---
 
+## LFQ settings: all seven reach Sage (2026-11-19)
+
+Feature request: usnistgov/sagegui#1 (MJanech), "APEX or Sum MS1 intensities".
+
+- **The bug under it.** `From<QuantType> for QuantOptions` (`src/ui.rs`) hard-coded
+  `peak_scoring: Hybrid` and `integration: Sum`, and sent `None` for
+  `mobility_pct_tolerance` and `peptide_q_value`. `LfqJson` read only three keys. So a
+  loaded JSON with `"integration": "Apex"` ran as Sum, with no warning. Now all seven
+  fields pass through, and import reads all seven.
+- **No new `Config` field.** `QuantType::Lfq(LfqSettings)` already stored the whole
+  Sage struct in `app.ron`. Saved settings from 0.10.0 load unchanged.
+- **`IntegrationStrategy` has no `PartialEq`** in Sage, so the combo box compares by
+  label. Do not patch Sage for this.
+- **Mobility tolerance has no widget.** SageGUI reads mzML only, and Sage uses it only
+  for Bruker. It is kept from an import. Upstream docs say default 3.0; the vendored
+  code says 1.0. Code wins.
+- **Peak scoring.** Upstream docs list Hybrid, RetentionTime, SpectralAngle and say do
+  not change it. The code also has Intensity. All four are offered; Hybrid is labelled
+  recommended.
+- **What Sum and Apex are** (`vendor/sage/crates/sage/src/lfq.rs`, `Query::integrate`):
+  100-point RT grid; apex = best `peak_scoring` score that passes `spectral_angle`;
+  edges where score < 50% of apex, angle fails, or 1/5 grid from apex. Sum adds the
+  trace over the edges; Apex takes the apex point.
+- **Tests:** `sage_json::tests::every_lfq_setting_reaches_sage` and
+  `lfq_defaults_match_sage`.
+
+---
+
 ## A failed run reported nothing (fixed 2026-09-10)
 
 Reported from Windows against v0.8.0: eight files, click Run, the button

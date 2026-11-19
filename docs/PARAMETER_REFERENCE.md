@@ -625,6 +625,58 @@ Selects the quantification method. LFQ uses MS1 intensities. TMT uses isobaric r
 
 LFQ settings are stored in `quant.lfq_settings` and shown as a grouped panel in the Quant tab.[file:238][file:250]
 
+#### How Sage LFQ works
+
+Sage quantifies peptides by MS1 ion current extraction, in the same way as FlashLFQ and IonStar. The steps are as follows:
+
+1. Sage selects the peptides that pass the **Peptide q-value** limit. It also makes a decoy for each peptide, to control the false MS1 integration rate.
+2. For each peptide, Sage collects MS1 intensity within the **PPM Tolerance** and a fixed retention time window. It does this for the first three isotopes in every file.
+3. Sage puts the intensities on a grid of 100 retention time points. It aligns the files to each other on this grid.
+4. At each grid point, Sage calculates the spectral angle between the observed and the expected isotope envelope.
+5. Sage uses **Peak Scoring** to find the best grid point (the apex). The apex must pass the **Spectral Angle** limit.
+6. Sage extends the peak to the left and to the right of the apex. It stops at a point that scores below half of the apex score, at a point below the **Spectral Angle** limit, or at one fifth of the grid on each side.
+7. Sage uses **Integration** to calculate one intensity for each file.
+
+LFQ needs retention time prediction (`predict_rt`). With it off, the Quant step on the Progress card says that LFQ did not run. For the upstream description, see the [Sage quantification docs](https://sage-docs.vercel.app/docs/configuration/quantification) and [how Sage works](https://sage-docs.vercel.app/docs/how_it_works).
+
+#### Integration
+
+**Default:** Sum (area)
+
+**Options:** Sum (area), Apex. JSON values: `"Sum"`, `"Apex"`.
+
+**What it does:**
+Selects how Sage calculates one intensity per file from the MS1 trace of the picked peak.
+
+- **Sum (area):** the sum of the trace across the full peak, from the left edge to the right edge (steps 6 and 7 above). This is the peak area.
+- **Apex:** the trace height at the apex point only.
+
+**When to change it:**
+Sum uses more of the signal, so it is usually less noisy for peaks that are well defined. Apex is not affected by where Sage puts the peak edges. Thus, Apex can be more stable when a peak is narrow or when a nearby ion widens the peak. We have not compared the two options on a benchmark data set. Thus, we cannot recommend one over the other for all data.
+
+This option was added in answer to a feature request from MJanech ([usnistgov/sagegui#1](https://github.com/usnistgov/sagegui/issues/1)).
+
+---
+
+#### Peak Scoring
+
+**Default:** Hybrid
+
+**Options:** Hybrid, Retention time, Spectral angle, Intensity. JSON values: `"Hybrid"`, `"RetentionTime"`, `"SpectralAngle"`, `"Intensity"`.
+
+**What it does:**
+Selects the score that Sage uses to find the apex on the retention time grid (step 5 above).
+
+- **Hybrid:** combines the three scores below. It is the spectral angle cubed, times the retention time score, times the intensity score.
+- **Retention time:** prefers the point nearest to the expected retention time.
+- **Spectral angle:** prefers the point with the best isotope envelope match.
+- **Intensity:** prefers the most intense point.
+
+**When to change it:**
+The Sage documentation recommends that you do not change this setting. The upstream documentation lists Hybrid, RetentionTime and SpectralAngle. The Sage code also accepts Intensity.
+
+---
+
 #### PPM Tolerance
 
 **Default:** 5.0 ppm
@@ -665,12 +717,26 @@ Turning this off increases LFQ runtime because Sage must trace and integrate a s
 
 ---
 
-#### Peptide q value
+#### Peptide q-value
 
-**Default:** optional, set to 0.01 in your example config
+**Default:** 0.01
+
+**Range:** 0.0 to 1.0
 
 **What it does:**
-Optional per peptide q value filter in the LFQ engine. Peptides with q values above the threshold are excluded from LFQ.[file:238]
+Sage quantifies only target peptides with a peptide q-value at or below this limit. Peptides above the limit get no LFQ intensity.
+
+**When to change it:**
+A higher limit quantifies more peptides, but uses more time and memory. A limit below 0.01 leaves some identified peptides without an LFQ intensity.
+
+---
+
+#### Mobility tolerance
+
+**Default:** 1.0 percent (Sage code default)
+
+**What it does:**
+The ion mobility tolerance for MS1 tracing. Sage uses it only for Bruker timsTOF data. SageGUI reads mzML only, so the Quant tab does not show this setting. If you load a Sage JSON that sets `mobility_pct_tolerance`, SageGUI keeps the value and sends it to Sage. The upstream documentation gives a default of 3.0. The vendored Sage code uses 1.0.
 
 ---
 
