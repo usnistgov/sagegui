@@ -1099,8 +1099,11 @@ impl QuantType {
             QuantType::Lfq(lfq) => {
                 ui.group(|ui| {
                     ui.heading("LFQ Settings");
+                    // Put each tooltip on the label and on the control. A tooltip on
+                    // the row from ui.horizontal does not show: in egui 0.29 the
+                    // label and the control take the hover.
                     ui.horizontal(|ui| {
-                        ui.label("Integration");
+                        ui.label("Integration").on_hover_text(LFQ_INTEGRATION_TIP);
                         egui::ComboBox::from_id_salt("lfq_integration")
                             .selected_text(integration_label(lfq.integration))
                             .show_ui(ui, |ui| {
@@ -1113,16 +1116,12 @@ impl QuantType {
                                         lfq.integration = i;
                                     }
                                 }
-                            });
-                    })
-                    .response
-                    .on_hover_text(
-                        "How Sage turns the MS1 trace into one intensity per file. \
-                         Sum (area): the sum of the trace across the picked peak. \
-                         Apex: the trace height at the peak apex only. Default Sum.",
-                    );
+                            })
+                            .response
+                            .on_hover_text(LFQ_INTEGRATION_TIP);
+                    });
                     ui.horizontal(|ui| {
-                        ui.label("Peak Scoring");
+                        ui.label("Peak Scoring").on_hover_text(LFQ_PEAK_SCORING_TIP);
                         egui::ComboBox::from_id_salt("lfq_peak_scoring")
                             .selected_text(peak_scoring_label(lfq.peak_scoring))
                             .show_ui(ui, |ui| {
@@ -1138,47 +1137,29 @@ impl QuantType {
                                         peak_scoring_label(p),
                                     );
                                 }
-                            });
-                    })
-                    .response
-                    .on_hover_text(
-                        "How Sage picks the peak apex in the retention time window. \
-                         Hybrid combines spectral angle, distance from the expected \
-                         retention time, and intensity. The Sage docs recommend Hybrid. \
-                         Default Hybrid.",
-                    );
+                            })
+                            .response
+                            .on_hover_text(LFQ_PEAK_SCORING_TIP);
+                    });
                     ui.horizontal(|ui| {
-                        ui.label("PPM Tolerance");
-                        ui.add(egui::DragValue::new(&mut lfq.ppm_tolerance).speed(1.0));
-                    })
-                    .response
-                    .on_hover_text(
-                        "MS1 m/z tolerance, in ppm, for tracing precursor isotopes. \
-                         Default 5.",
-                    );
+                        ui.label("PPM Tolerance").on_hover_text(LFQ_PPM_TIP);
+                        ui.add(egui::DragValue::new(&mut lfq.ppm_tolerance).speed(1.0))
+                            .on_hover_text(LFQ_PPM_TIP);
+                    });
                     ui.add(
                         egui::Slider::new(&mut lfq.spectral_angle, 0.0..=1.0)
                             .text("Spectral Angle"),
                     )
-                    .on_hover_text(
-                        "Minimum match between the observed and the expected isotope \
-                         envelope. A retention time point below it is not part of the \
-                         peak. Default 0.70.",
-                    );
+                    .on_hover_text(LFQ_SPECTRAL_ANGLE_TIP);
                     ui.horizontal(|ui| {
-                        ui.label("Peptide q-value");
+                        ui.label("Peptide q-value").on_hover_text(LFQ_Q_VALUE_TIP);
                         ui.add(
                             egui::DragValue::new(&mut lfq.peptide_q_value)
                                 .speed(0.001)
                                 .range(0.0..=1.0),
-                        );
-                    })
-                    .response
-                    .on_hover_text(
-                        "Sage quantifies only peptides at or below this q-value. \
-                         Higher values quantify more peptides, but use more time and \
-                         memory. Default 0.01.",
-                    );
+                        )
+                        .on_hover_text(LFQ_Q_VALUE_TIP);
+                    });
                     ui.checkbox(&mut lfq.combine_charge_states, "Combine Charge States")
                         .on_hover_text(
                             "On: one lfq.tsv row per peptide, with charge -1. Off: one row \
@@ -1249,6 +1230,21 @@ impl Default for QuantType {
         Self::Lfq(LfqSettings::default())
     }
 }
+
+// Quant tab LFQ tooltips. Each one goes on the label and on the control.
+const LFQ_INTEGRATION_TIP: &str = "How Sage turns the MS1 trace into one intensity per \
+     file. Sum (area): the sum of the trace across the picked peak. Apex: the trace \
+     height at the peak apex only. Default Sum.";
+const LFQ_PEAK_SCORING_TIP: &str = "How Sage picks the peak apex in the retention time \
+     window. Hybrid combines spectral angle, distance from the expected retention time, \
+     and intensity. The Sage docs recommend Hybrid. Default Hybrid.";
+const LFQ_PPM_TIP: &str = "MS1 m/z tolerance, in ppm, for tracing precursor isotopes. \
+     Default 5.";
+const LFQ_SPECTRAL_ANGLE_TIP: &str = "Minimum match between the observed and the expected \
+     isotope envelope. A retention time point below it is not part of the peak. \
+     Default 0.70.";
+const LFQ_Q_VALUE_TIP: &str = "Sage quantifies only peptides at or below this q-value. \
+     Higher values quantify more peptides, but use more time and memory. Default 0.01.";
 
 /// The name of an LFQ integration strategy, as the Quant tab shows it.
 fn integration_label(i: IntegrationStrategy) -> &'static str {

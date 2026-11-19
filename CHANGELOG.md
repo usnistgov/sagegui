@@ -11,6 +11,10 @@ Releases are tagged `nist-vX.Y.Z` on `usnistgov/sagegui`, apart from upstream
 
 ## [Unreleased]
 
+### Fixed
+
+- **LFQ tooltips show.** In 0.11.0 the tooltips for Integration, Peak Scoring, PPM Tolerance and Peptide q-value did not show when you held the pointer over the control. Each tooltip is now on the label and on the control.
+
 ## [0.11.0] - 2026-11-19
 
 ### Added
